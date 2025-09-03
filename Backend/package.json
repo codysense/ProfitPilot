@@ -4,9 +4,11 @@
   "description": "ERP System Backend",
   "main": "dist/index.js",
   "scripts": {
-    "start": "ts-node --transpile-only src/index.ts",
-    "dev": "ts-node-dev --transpile-only --ignore-watch node_modules src/index.ts",
-    "build": "tsc",
+    "build": "tsc --noEmitOnError false",
+    "postinstall": "prisma generate && prisma migrate deploy",
+    "start": "npm run build && node dist/index.js",
+    "dev": "ts-node --transpile-only src/index.ts",
+    "seed": "ts-node --transpile-only prisma/seed.ts",
     "prisma:generate": "prisma generate --schema ../prisma/schema.prisma",
     "prisma:push": "prisma db push --schema ../prisma/schema.prisma"
   },
