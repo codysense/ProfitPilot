@@ -4,9 +4,9 @@
   "description": "ERP System Backend",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc --noEmitOnError false",
     "start": "ts-node --transpile-only src/index.ts",
+    "dev": "ts-node-dev --transpile-only --ignore-watch node_modules src/index.ts",
+    "build": "tsc",
     "prisma:generate": "prisma generate --schema ../prisma/schema.prisma",
     "prisma:push": "prisma db push --schema ../prisma/schema.prisma"
   },
@@ -26,7 +26,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
-    "@types/node": "^20.19.11",
+    "@types/node": "^20.19.12",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.4",
