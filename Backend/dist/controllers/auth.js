@@ -1,0 +1,289 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuthController = void 0;
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const client_1 = require("@prisma/client");
+const auth_1 = require("../types/auth");
+const prisma = new client_1.PrismaClient();
+class AuthController {
+    async login(req, res) {
+        try {
+            const { email, password } = auth_1.loginSchema.parse(req.body);
+            const user = await prisma.user.findUnique({
+                where: { email },
+                include: {
+                    userRoles: {
+                        include: {
+                            role: {
+                                include: {
+                                    rolePermissions: {
+                                        include: {
+                                            permission: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            if (!user || user.status !== 'ACTIVE') {
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+            const isValidPassword = await bcryptjs_1.default.compare(password, user.password);
+            if (!isValidPassword) {
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+            // Update last login
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { lastLoginAt: new Date() }
+            });
+            // Generate tokens
+            const accessToken = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_ACCESS_EXPIRY });
+            const refreshToken = jsonwebtoken_1.default.sign({ userId: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: process.env.JWT_REFRESH_EXPIRY });
+            // Extract user data
+            const roles = user.userRoles.map(ur => ur.role.name);
+            const permissions = user.userRoles.flatMap(ur => ur.role.rolePermissions.map(rp => rp.permission.name));
+            res.json({
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    roles,
+                    permissions
+                },
+                accessToken,
+                refreshToken
+            });
+        }
+        catch (error) {
+            console.error('Login error:', error);
+            res.status(400).json({ error: 'Invalid request data' });
+        }
+    }
+    async register(req, res) {
+        try {
+            const { name, email, password, roleId } = auth_1.registerSchema.parse(req.body);
+            // Check if user already exists
+            const existingUser = await prisma.user.findUnique({ where: { email } });
+            if (existingUser) {
+                return res.status(400).json({ error: 'User already exists' });
+            }
+            // Hash password
+            const hashedPassword = await bcryptjs_1.default.hash(password, 12);
+            // Create user with role
+            const user = await prisma.$transaction(async (tx) => {
+                const newUser = await tx.user.create({
+                    data: {
+                        name,
+                        email,
+                        password: hashedPassword
+                    }
+                });
+                await tx.userRole.create({
+                    data: {
+                        userId: newUser.id,
+                        roleId
+                    }
+                });
+                return newUser;
+            });
+            res.status(201).json({
+                id: user.id,
+                name: user.name,
+                email: user.email
+            });
+        }
+        catch (error) {
+            console.error('Register error:', error);
+            res.status(400).json({ error: 'Invalid request data' });
+        }
+    }
+    async refresh(req, res) {
+        try {
+            const { refreshToken } = req.body;
+            if (!refreshToken) {
+                return res.status(401).json({ error: 'Refresh token required' });
+            }
+            const payload = jsonwebtoken_1.default.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+            const user = await prisma.user.findUnique({
+                where: { id: payload.userId },
+                select: { id: true, email: true, status: true }
+            });
+            if (!user || user.status !== 'ACTIVE') {
+                return res.status(401).json({ error: 'Invalid refresh token' });
+            }
+            const accessToken = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_ACCESS_EXPIRY });
+            res.json({ accessToken });
+        }
+        catch (error) {
+            console.error('Refresh error:', error);
+            res.status(401).json({ error: 'Invalid refresh token' });
+        }
+    }
+    async me(req, res) {
+        res.json(req.user);
+    }
+    async logout(req, res) {
+        // In a production system, you'd invalidate the refresh token here
+        res.json({ message: 'Logged out successfully' });
+    }
+    async getUsers(req, res) {
+        try {
+            // Check if user has permission (CFO or GM only)
+            if (!req.user?.roles.includes('CFO') && !req.user?.roles.includes('General Manager')) {
+                return res.status(403).json({ error: 'Insufficient permissions' });
+            }
+            const { page = 1, limit = 10, search } = req.query;
+            const skip = (Number(page) - 1) * Number(limit);
+            const where = {};
+            if (search) {
+                where.OR = [
+                    { name: { contains: search, mode: 'insensitive' } },
+                    { email: { contains: search, mode: 'insensitive' } }
+                ];
+            }
+            const [users, total] = await Promise.all([
+                prisma.user.findMany({
+                    where,
+                    skip,
+                    take: Number(limit),
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        status: true,
+                        lastLoginAt: true,
+                        createdAt: true,
+                        userRoles: {
+                            include: {
+                                role: {
+                                    select: { name: true }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: { createdAt: 'desc' }
+                }),
+                prisma.user.count({ where })
+            ]);
+            const usersWithRoles = users.map(user => ({
+                ...user,
+                roles: user.userRoles.map(ur => ur.role.name),
+                userRoles: undefined
+            }));
+            res.json({
+                users: usersWithRoles,
+                pagination: {
+                    page: Number(page),
+                    limit: Number(limit),
+                    total,
+                    pages: Math.ceil(total / Number(limit))
+                }
+            });
+        }
+        catch (error) {
+            console.error('Get users error:', error);
+            res.status(500).json({ error: 'Failed to fetch users' });
+        }
+    }
+    async createUser(req, res) {
+        try {
+            // Check if user has permission (CFO or GM only)
+            if (!req.user?.roles.includes('CFO') && !req.user?.roles.includes('General Manager')) {
+                return res.status(403).json({ error: 'Insufficient permissions' });
+            }
+            const { name, email, password, roleId } = req.body;
+            // Check if user already exists
+            const existingUser = await prisma.user.findUnique({ where: { email } });
+            if (existingUser) {
+                return res.status(400).json({ error: 'User already exists' });
+            }
+            // Hash password
+            const hashedPassword = await bcryptjs_1.default.hash(password, 12);
+            // Create user with role
+            const user = await prisma.$transaction(async (tx) => {
+                const newUser = await tx.user.create({
+                    data: {
+                        name,
+                        email,
+                        password: hashedPassword
+                    }
+                });
+                await tx.userRole.create({
+                    data: {
+                        userId: newUser.id,
+                        roleId
+                    }
+                });
+                return newUser;
+            });
+            res.status(201).json({
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                status: user.status
+            });
+        }
+        catch (error) {
+            console.error('Create user error:', error);
+            res.status(400).json({ error: 'Failed to create user' });
+        }
+    }
+    async updateUserStatus(req, res) {
+        try {
+            // Check if user has permission (CFO or GM only)
+            if (!req.user?.roles.includes('CFO') && !req.user?.roles.includes('General Manager')) {
+                return res.status(403).json({ error: 'Insufficient permissions' });
+            }
+            const { id } = req.params;
+            const { status } = req.body;
+            // Prevent users from deactivating themselves
+            if (id === req.user.id) {
+                return res.status(400).json({ error: 'Cannot change your own status' });
+            }
+            const user = await prisma.user.update({
+                where: { id },
+                data: { status },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    status: true
+                }
+            });
+            res.json(user);
+        }
+        catch (error) {
+            console.error('Update user status error:', error);
+            res.status(400).json({ error: 'Failed to update user status' });
+        }
+    }
+    async getRoles(req, res) {
+        try {
+            // Check if user has permission (CFO or GM only)
+            if (!req.user?.roles.includes('CFO') && !req.user?.roles.includes('General Manager')) {
+                return res.status(403).json({ error: 'Insufficient permissions' });
+            }
+            const roles = await prisma.role.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                    description: true
+                },
+                orderBy: { name: 'asc' }
+            });
+            res.json({ roles });
+        }
+        catch (error) {
+            console.error('Get roles error:', error);
+            res.status(500).json({ error: 'Failed to fetch roles' });
+        }
+    }
+}
+exports.AuthController = AuthController;
