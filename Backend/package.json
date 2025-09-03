@@ -4,14 +4,14 @@
   "description": "ERP System Backend",
   "main": "dist/index.js",
   "scripts": {
+    "prisma:generate": "prisma generate --schema ../prisma/schema.prisma",
+    "prisma:push": "prisma db push --schema ../prisma/schema.prisma",
     "build": "tsc --noEmitOnError false",
-    "postinstall": "prisma generate && prisma migrate deploy",
+    "postinstall": "prisma generate",
     "start": "npm run build && node dist/index.js",
     "dev": "ts-node --transpile-only src/index.ts",
-    "seed": "ts-node --transpile-only prisma/seed.ts",
-    "prisma:generate": "prisma generate --schema ../prisma/schema.prisma",
-    "prisma:push": "prisma db push --schema ../prisma/schema.prisma"
-  },
+    "seed": "ts-node --transpile-only prisma/seed.ts"
+},
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@types/bcrypt": "^6.0.0",
