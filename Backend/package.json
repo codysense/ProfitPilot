@@ -6,9 +6,9 @@
   "scripts": {
     "prisma:generate": "prisma generate --schema ../prisma/schema.prisma",
     "prisma:push": "prisma db push --schema ../prisma/schema.prisma",
-    "build": "tsc --noEmitOnError false",
+    "build": "tsc --noEmit",
     "postinstall": "echo 'Skipping prisma generate during build'",
-    "start": "npm run build && node dist/index.js",
+    "start": "ts-node --transpile-only src/index.ts",
     "dev": "ts-node --transpile-only src/index.ts",
     "seed": "ts-node --transpile-only prisma/seed.ts"
 },
