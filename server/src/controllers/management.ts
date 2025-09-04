@@ -90,7 +90,7 @@ export class ManagementController {
           bankName: validatedData.bankName,
           chartOfAccountId: validatedData.glAccountId, // <-- use correct FK
           balance: validatedData.balance,
-          isActive: validatedData.isActive
+          isActive: validatedData.isActive??true
         },
         include: {
           chartOfAccount: {

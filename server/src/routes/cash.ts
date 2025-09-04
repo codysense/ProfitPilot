@@ -38,10 +38,10 @@ router.get('/cashbook', authorize('inventory.item.read'), cashController.getCash
 router.get('/cashbook/export', authorize('inventory.item.read'), cashController.exportCashbook);
 
 // Bank Reconciliation
-router.get('/reconciliation', authorize('inventory.item.read'), cashController.getBankReconciliation);
-router.post('/reconciliation', authorize('inventory.item.create'), auditLogger('RECONCILE', 'BANK_RECONCILIATION'), cashController.reconcileTransactions);
+//router.get('/reconciliation', authorize('inventory.item.read'), cashController.getBankReconciliation);
+// router.post('/reconciliation', authorize('inventory.item.create'), auditLogger('RECONCILE', 'BANK_RECONCILIATION'), cashController.reconcileTransactions);
 
 // Bank Statement Import
-router.post('/import-statement', authorize('inventory.item.create'), auditLogger('IMPORT', 'BANK_STATEMENT'), cashController.importBankStatement);
+//router.post('/import-statement', authorize('inventory.item.create'), auditLogger('IMPORT', 'BANK_STATEMENT'), cashController.importBankStatement);
 
 export default router;

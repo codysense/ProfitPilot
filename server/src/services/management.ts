@@ -330,33 +330,34 @@ export class ManagementService {
     });
   }
 
-  async createApprovalRequest(entityType: string, entityId: string, userId: string) {
-    // Find applicable workflow
-    const entity = await this.getEntityForApproval(entityType, entityId);
-    if (!entity) {
-      throw new Error('Entity not found');
-    }
+//   async createApprovalRequest(entityType: string, entityId: string, userId: string) {
+//     // Find applicable workflow
+//     const entity = await this.getEntityForApproval(entityType, entityId);
+//     if (!entity) {
+//       throw new Error('Entity not found');
+//     }
 
-    if ("totalAmount" in entity) {
-  const workflow = await this.findApplicableWorkflow(entityType, Number(entity.totalAmount));
-  if (!workflow) {
-    // No approval required
-    return null;
-  }
+//     if ("totalAmount" in entity) {
+//   const workflow = await this.findApplicableWorkflow(entityType, Number(entity.totalAmount));
+//   if (!workflow) {
+//     // No approval required
+//     return null;
+//   }
 
-  const firstStep = workflow.steps[0]; // assuming you already fetched steps
-  return await prisma.approvalRequest.create({
-    data: {
-      workflow: { connect: { id: workflow.id } },
-      entityType,
-      entityId,
-      requestedBy: userId,
-      currentStep: { connect: { id: firstStep.id } }
-    }
-  });
-}
+//   const firstStep = workflow.steps[0]; // assuming you already fetched steps
+// return await prisma.approvalRequest.create({
+//   data: {
+//     workflowId: workflow.id,
+//     entityType,
+//     entityId,
+//     requestedByUser: { connect: { id: userId } },  // ✅ instead of requestedBy
+//     currentStepId: firstStep.id,
+//     status: "PENDING"
+//   }
+// });
+// }
 
-  }
+//   }
 
   async processApprovalAction(requestId: string, action: 'APPROVE' | 'REJECT', userId: string, comments?: string) {
     return await prisma.$transaction(async (tx) => {
