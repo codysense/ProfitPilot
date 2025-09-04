@@ -337,26 +337,25 @@ export class ManagementService {
       throw new Error('Entity not found');
     }
 
-    const workflow = await this.findApplicableWorkflow(entityType, entity.totalAmount);
-    if (!workflow) {
-      // No approval required
-      return null;
-    }
+    if ("totalAmount" in entity) {
+  const workflow = await this.findApplicableWorkflow(entityType, Number(entity.totalAmount));
+  if (!workflow) {
+    // No approval required
+    return null;
+  }
 
-    const firstStep = workflow.steps.find(s => s.stepOrder === 1);
-    if (!firstStep) {
-      throw new Error('Workflow has no steps');
+  const firstStep = workflow.steps[0]; // assuming you already fetched steps
+  return await prisma.approvalRequest.create({
+    data: {
+      workflow: { connect: { id: workflow.id } },
+      entityType,
+      entityId,
+      requestedBy: userId,
+      currentStep: { connect: { id: firstStep.id } }
     }
+  });
+}
 
-    return await prisma.approvalRequest.create({
-      data: {
-        workflowId: workflow.id,
-        entityType,
-        entityId,
-        requestedBy: userId,
-        currentStepId: firstStep.id
-      }
-    });
   }
 
   async processApprovalAction(requestId: string, action: 'APPROVE' | 'REJECT', userId: string, comments?: string) {

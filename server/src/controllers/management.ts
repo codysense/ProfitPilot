@@ -8,7 +8,9 @@ import {
   approvalActionSchema,
   createRoleSchema,
   updateRoleSchema,
-  createChartAccountSchema
+  createChartAccountSchema,
+  createCashAccountSchema,
+  updateCashAccountSchema
 } from '../types/management';
 import { AuthRequest } from '../middleware/auth';
 import { ManagementService } from '../services/management';
@@ -17,7 +19,135 @@ const prisma = new PrismaClient();
 const managementService = new ManagementService();
 
 export class ManagementController {
-  // Company Settings
+  // ... (everything above stays unchanged)
+
+  // Cash Account Management
+  async getCashAccountsManagement(req: AuthRequest, res: Response) {
+    try {
+      const accounts = await prisma.cashAccount.findMany({
+        include: {
+          chartOfAccount: {
+            select: { code: true, name: true }
+          }
+        },
+        orderBy: { code: 'asc' }
+      });
+
+      const accountsWithAlias = accounts.map(account => ({
+        ...account,
+        glAccount: account.chartOfAccount
+      }));
+
+      res.json({ accounts: accountsWithAlias });
+    } catch (error) {
+      console.error('Get cash accounts management error:', error);
+      res.status(500).json({ error: 'Failed to fetch cash accounts' });
+    }
+  }
+
+  async createCashAccountManagement(req: AuthRequest, res: Response) {
+    try {
+      const validatedData = createCashAccountSchema.parse(req.body);
+      
+      const account = await prisma.cashAccount.create({
+        data: {
+          code: validatedData.code,
+          name: validatedData.name,
+          accountType: validatedData.accountType,
+          accountNumber: validatedData.accountNumber,
+          bankName: validatedData.bankName,
+          chartOfAccountId: validatedData.glAccountId, // <-- use correct FK
+          balance: validatedData.balance || 0
+        },
+        include: {
+          chartOfAccount: {
+            select: { code: true, name: true }
+          }
+        }
+      });
+
+      res.status(201).json({
+        ...account,
+        glAccount: account.chartOfAccount
+      });
+    } catch (error) {
+      console.error('Create cash account management error:', error);
+      res.status(400).json({ error: 'Failed to create cash account' });
+    }
+  }
+
+  async updateCashAccountManagement(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const validatedData = updateCashAccountSchema.parse(req.body);
+      
+      const account = await prisma.cashAccount.update({
+        where: { id },
+        data: {
+          name: validatedData.name,
+          accountType: validatedData.accountType,
+          accountNumber: validatedData.accountNumber,
+          bankName: validatedData.bankName,
+          chartOfAccountId: validatedData.glAccountId, // <-- use correct FK
+          balance: validatedData.balance,
+          isActive: validatedData.isActive
+        },
+        include: {
+          chartOfAccount: {
+            select: { code: true, name: true }
+          }
+        }
+      });
+
+      res.json({
+        ...account,
+        glAccount: account.chartOfAccount
+      });
+    } catch (error) {
+      console.error('Update cash account management error:', error);
+      res.status(400).json({ error: 'Failed to update cash account' });
+    }
+  }
+
+  async deleteCashAccountManagement(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      
+      // Check if account has transactions
+      const transactionCount = await prisma.cashTransaction.count({
+        where: { cashAccountId: id }
+      });
+
+      if (transactionCount > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete cash account with existing transactions' 
+        });
+      }
+
+      // Check if account has non-zero balance
+      const account = await prisma.cashAccount.findUnique({
+        where: { id },
+        select: { balance: true }
+      });
+
+      if (account && Number(account.balance) !== 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete cash account with non-zero balance' 
+        });
+      }
+
+      await prisma.cashAccount.delete({
+        where: { id }
+      });
+
+      res.json({ message: 'Cash account deleted successfully' });
+    } catch (error) {
+      console.error('Delete cash account management error:', error);
+      res.status(400).json({ error: 'Failed to delete cash account' });
+    }
+  }
+
+    // Company Settings
   async getCompanySettings(req: AuthRequest, res: Response) {
     try {
       const settings = await managementService.getCompanySettings();
@@ -324,118 +454,142 @@ export class ManagementController {
       res.status(400).json({ error: 'Failed to delete chart account' });
     }
   }
-
-  // Cash Account Management
-  async getCashAccountsManagement(req: AuthRequest, res: Response) {
-    try {
-      const accounts = await prisma.cashAccount.findMany({
-        include: {
-          glAccount: {
-            select: { code: true, name: true }
-          }
-        },
-        orderBy: { code: 'asc' }
-      });
-      res.json({ accounts });
-    } catch (error) {
-      console.error('Get cash accounts management error:', error);
-      res.status(500).json({ error: 'Failed to fetch cash accounts' });
-    }
-  }
-
-  async createCashAccountManagement(req: AuthRequest, res: Response) {
-    try {
-      const validatedData = createCashAccountSchema.parse(req.body);
-      
-      const account = await prisma.cashAccount.create({
-        data: {
-          code: validatedData.code,
-          name: validatedData.name,
-          accountType: validatedData.accountType,
-          accountNumber: validatedData.accountNumber,
-          bankName: validatedData.bankName,
-          glAccountId: validatedData.glAccountId,
-          balance: validatedData.balance || 0
-        },
-        include: {
-          glAccount: {
-            select: { code: true, name: true }
-          }
-        }
-      });
-
-      res.status(201).json(account);
-    } catch (error) {
-      console.error('Create cash account management error:', error);
-      res.status(400).json({ error: 'Failed to create cash account' });
-    }
-  }
-
-  async updateCashAccountManagement(req: AuthRequest, res: Response) {
-    try {
-      const { id } = req.params;
-      const validatedData = updateCashAccountSchema.parse(req.body);
-      
-      const account = await prisma.cashAccount.update({
-        where: { id },
-        data: {
-          name: validatedData.name,
-          accountType: validatedData.accountType,
-          accountNumber: validatedData.accountNumber,
-          bankName: validatedData.bankName,
-          glAccountId: validatedData.glAccountId,
-          balance: validatedData.balance,
-          isActive: validatedData.isActive
-        },
-        include: {
-          glAccount: {
-            select: { code: true, name: true }
-          }
-        }
-      });
-
-      res.json(account);
-    } catch (error) {
-      console.error('Update cash account management error:', error);
-      res.status(400).json({ error: 'Failed to update cash account' });
-    }
-  }
-
-  async deleteCashAccountManagement(req: AuthRequest, res: Response) {
-    try {
-      const { id } = req.params;
-      
-      // Check if account has transactions
-      const transactionCount = await prisma.cashTransaction.count({
-        where: { cashAccountId: id }
-      });
-
-      if (transactionCount > 0) {
-        return res.status(400).json({ 
-          error: 'Cannot delete cash account with existing transactions' 
-        });
-      }
-
-      // Check if account has non-zero balance
-      const account = await prisma.cashAccount.findUnique({
-        where: { id },
-        select: { balance: true }
-      });
-
-      if (account && Number(account.balance) !== 0) {
-        return res.status(400).json({ 
-          error: 'Cannot delete cash account with non-zero balance' 
-        });
-      }
-
-      await prisma.cashAccount.delete({
-        where: { id }
-      });
-
-      res.json({ message: 'Cash account deleted successfully' });
-    } catch (error) {
-      console.error('Delete cash account management error:', error);
-      res.status(400).json({ error: 'Failed to delete cash account' });
-    }
-  }
 }
+
+
+// import { Request, Response } from 'express';
+// import { PrismaClient } from '@prisma/client';
+// import { 
+//   updateCompanySettingsSchema,
+//   createFiscalYearSchema,
+//   updateSystemSettingSchema,
+//   createApprovalWorkflowSchema,
+//   approvalActionSchema,
+//   createRoleSchema,
+//   updateRoleSchema,
+//   createChartAccountSchema
+// } from '../types/management';
+// import { AuthRequest } from '../middleware/auth';
+// import { ManagementService } from '../services/management';
+
+// const prisma = new PrismaClient();
+// const managementService = new ManagementService();
+
+// export class ManagementController {
+
+
+//   // Cash Account Management
+//   async getCashAccountsManagement(req: AuthRequest, res: Response) {
+//     try {
+//       const accounts = await prisma.cashAccount.findMany({
+//         include: {
+//           glAccount: {
+//             select: { code: true, name: true }
+//           }
+//         },
+//         orderBy: { code: 'asc' }
+//       });
+//       res.json({ accounts });
+//     } catch (error) {
+//       console.error('Get cash accounts management error:', error);
+//       res.status(500).json({ error: 'Failed to fetch cash accounts' });
+//     }
+//   }
+
+//   async createCashAccountManagement(req: AuthRequest, res: Response) {
+//     try {
+//       const validatedData = createCashAccountSchema.parse(req.body);
+      
+//       const account = await prisma.cashAccount.create({
+//         data: {
+//           code: validatedData.code,
+//           name: validatedData.name,
+//           accountType: validatedData.accountType,
+//           accountNumber: validatedData.accountNumber,
+//           bankName: validatedData.bankName,
+//           glAccountId: validatedData.glAccountId,
+//           balance: validatedData.balance || 0
+//         },
+//         include: {
+//           glAccount: {
+//             select: { code: true, name: true }
+//           }
+//         }
+//       });
+
+//       res.status(201).json(account);
+//     } catch (error) {
+//       console.error('Create cash account management error:', error);
+//       res.status(400).json({ error: 'Failed to create cash account' });
+//     }
+//   }
+
+//   async updateCashAccountManagement(req: AuthRequest, res: Response) {
+//     try {
+//       const { id } = req.params;
+//       const validatedData = updateCashAccountSchema.parse(req.body);
+      
+//       const account = await prisma.cashAccount.update({
+//         where: { id },
+//         data: {
+//           name: validatedData.name,
+//           accountType: validatedData.accountType,
+//           accountNumber: validatedData.accountNumber,
+//           bankName: validatedData.bankName,
+//           glAccountId: validatedData.glAccountId,
+//           balance: validatedData.balance,
+//           isActive: validatedData.isActive
+//         },
+//         include: {
+//           glAccount: {
+//             select: { code: true, name: true }
+//           }
+//         }
+//       });
+
+//       res.json(account);
+//     } catch (error) {
+//       console.error('Update cash account management error:', error);
+//       res.status(400).json({ error: 'Failed to update cash account' });
+//     }
+//   }
+
+//   async deleteCashAccountManagement(req: AuthRequest, res: Response) {
+//     try {
+//       const { id } = req.params;
+      
+//       // Check if account has transactions
+//       const transactionCount = await prisma.cashTransaction.count({
+//         where: { cashAccountId: id }
+//       });
+
+//       if (transactionCount > 0) {
+//         return res.status(400).json({ 
+//           error: 'Cannot delete cash account with existing transactions' 
+//         });
+//       }
+
+//       // Check if account has non-zero balance
+//       const account = await prisma.cashAccount.findUnique({
+//         where: { id },
+//         select: { balance: true }
+//       });
+
+//       if (account && Number(account.balance) !== 0) {
+//         return res.status(400).json({ 
+//           error: 'Cannot delete cash account with non-zero balance' 
+//         });
+//       }
+
+//       await prisma.cashAccount.delete({
+//         where: { id }
+//       });
+
+//       res.json({ message: 'Cash account deleted successfully' });
+//     } catch (error) {
+//       console.error('Delete cash account management error:', error);
+//       res.status(400).json({ error: 'Failed to delete cash account' });
+//     }
+//   }
+// }
+

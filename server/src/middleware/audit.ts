@@ -1,41 +1,44 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from './auth';
 
 const prisma = new PrismaClient();
 
 export const auditLogger = (action: string, entity: string) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const originalSend = res.json;
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    const originalJson = res.json;
     let responseData: any;
 
-    res.json = function(data: any) {
+    res.json = function (data: any) {
       responseData = data;
-      return originalSend.call(this, data);
+      return originalJson.call(this, data);
     };
 
     const originalEnd = res.end;
-    res.end = async function(chunk?: any) {
+    res.end = function (chunk: any, ...args: any[]): Response {
       if (req.user && res.statusCode < 400) {
-        try {
-          await prisma.auditLog.create({
-            data: {
-              userId: req.user.id,
-              action,
-              entity,
-              entityId: responseData?.id || req.params.id || 'unknown',
-              beforeJson: req.body || null,
-              afterJson: responseData || null,
-              ipAddress: req.ip
-            }
-          });
-        } catch (error) {
-          console.error('Audit logging failed:', error);
-        }
+        // run asynchronously, don't block response
+        (async () => {
+          try {
+            await prisma.auditLog.create({
+              data: {
+                userId: req.user.id,
+                action,
+                entity,
+                entityId: responseData?.id || req.params.id || 'unknown',
+                beforeJson: req.body || null,
+                afterJson: responseData || null,
+                ipAddress: req.ip,
+              },
+            });
+          } catch (error) {
+            console.error('Audit logging failed:', error);
+          }
+        })();
       }
-      
-      originalEnd.call(this, chunk);
-    };
+
+      return originalEnd.call(this, chunk, ...args);
+    } as any; // cast to satisfy TS
 
     next();
   };

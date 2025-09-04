@@ -9,6 +9,15 @@ export const createCashAccountSchema = z.object({
   glAccountId: z.string().cuid('GL Account is required'),
   balance: z.number().default(0),
 });
+export const updateCashAccountSchema = z.object({
+  code: z.string().min(1, 'Code is required'),
+  name: z.string().min(1, 'Name is required'),
+  accountType: z.enum(['CASH', 'BANK']),
+  accountNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  glAccountId: z.string().cuid('GL Account is required'),
+  balance: z.number().default(0),
+});
 
 export const createCashTransactionSchema = z.object({
   cashAccountId: z.string().cuid('Cash account is required'),

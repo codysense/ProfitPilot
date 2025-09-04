@@ -484,11 +484,16 @@ export class InventoryController {
 
       for (const item of items) {
         // Get warehouses to check
-        const warehouseFilter = warehouseId ? { id: warehouseId } : { isActive: true };
-        const warehouses = await prisma.warehouse.findMany({
-          where: warehouseFilter,
-          select: { id: true }
-        });
+      const warehouseFilter: any = warehouseId
+  ? { id: String(warehouseId) } // force to string
+  : { isActive: true };
+
+const warehouses = await prisma.warehouse.findMany({
+  where: warehouseFilter,
+  select: { id: true }
+});
+
+        // });
 
         for (const warehouse of warehouses) {
           // Get latest ledger entry for this item-warehouse combination
