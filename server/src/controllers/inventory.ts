@@ -784,9 +784,7 @@ export class InventoryController {
       const paginatedTransfers = completeTransfers.slice(skip, skip + Number(limit));
 
 
-//       console.log("allTransferEntries", allTransferEntries.length);
-// console.log("after map", transferMap.size);
-console.log("after filter", completeTransfers);
+
       res.json({
         transfers: paginatedTransfers,
         pagination: {
