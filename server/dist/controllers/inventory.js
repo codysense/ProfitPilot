@@ -390,11 +390,14 @@ class InventoryController {
             let totalValue = 0;
             for (const item of items) {
                 // Get warehouses to check
-                const warehouseFilter = warehouseId ? { id: warehouseId } : { isActive: true };
+                const warehouseFilter = warehouseId
+                    ? { id: String(warehouseId) } // force to string
+                    : { isActive: true };
                 const warehouses = await prisma.warehouse.findMany({
                     where: warehouseFilter,
                     select: { id: true }
                 });
+                // });
                 for (const warehouse of warehouses) {
                     // Get latest ledger entry for this item-warehouse combination
                     const latestEntry = await prisma.inventoryLedger.findFirst({
@@ -669,9 +672,6 @@ class InventoryController {
                 .sort((a, b) => new Date(b.transferDate).getTime() - new Date(a.transferDate).getTime());
             const total = completeTransfers.length;
             const paginatedTransfers = completeTransfers.slice(skip, skip + Number(limit));
-            //       console.log("allTransferEntries", allTransferEntries.length);
-            // console.log("after map", transferMap.size);
-            console.log("after filter", completeTransfers);
             res.json({
                 transfers: paginatedTransfers,
                 pagination: {

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.importBankStatementSchema = exports.bankReconciliationSchema = exports.createVendorPaymentSchema = exports.createCustomerPaymentSchema = exports.createCashTransactionSchema = exports.createCashAccountSchema = void 0;
+exports.importBankStatementSchema = exports.bankReconciliationSchema = exports.createVendorPaymentSchema = exports.createCustomerPaymentSchema = exports.createCashTransactionSchema = exports.updateCashAccountSchema = exports.createCashAccountSchema = void 0;
 const zod_1 = require("zod");
 exports.createCashAccountSchema = zod_1.z.object({
     code: zod_1.z.string().min(1, 'Code is required'),
@@ -10,6 +10,15 @@ exports.createCashAccountSchema = zod_1.z.object({
     bankName: zod_1.z.string().optional(),
     glAccountId: zod_1.z.string().cuid('GL Account is required'),
     balance: zod_1.z.number().default(0),
+});
+exports.updateCashAccountSchema = zod_1.z.object({
+    name: zod_1.z.string(),
+    accountType: zod_1.z.enum(["CASH", "BANK"]),
+    accountNumber: zod_1.z.string().optional(),
+    bankName: zod_1.z.string().optional(),
+    glAccountId: zod_1.z.string().optional(),
+    balance: zod_1.z.number(),
+    isActive: zod_1.z.boolean().optional() // ✅ Add this
 });
 exports.createCashTransactionSchema = zod_1.z.object({
     cashAccountId: zod_1.z.string().cuid('Cash account is required'),

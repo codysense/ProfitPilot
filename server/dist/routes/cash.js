@@ -30,8 +30,8 @@ router.post('/purchase-payments', (0, auth_1.authorize)('purchase.order.create')
 router.get('/cashbook', (0, auth_1.authorize)('inventory.item.read'), cashController.getCashbook);
 router.get('/cashbook/export', (0, auth_1.authorize)('inventory.item.read'), cashController.exportCashbook);
 // Bank Reconciliation
-router.get('/reconciliation', (0, auth_1.authorize)('inventory.item.read'), cashController.getBankReconciliation);
-router.post('/reconciliation', (0, auth_1.authorize)('inventory.item.create'), (0, audit_1.auditLogger)('RECONCILE', 'BANK_RECONCILIATION'), cashController.reconcileTransactions);
+//router.get('/reconciliation', authorize('inventory.item.read'), cashController.getBankReconciliation);
+// router.post('/reconciliation', authorize('inventory.item.create'), auditLogger('RECONCILE', 'BANK_RECONCILIATION'), cashController.reconcileTransactions);
 // Bank Statement Import
-router.post('/import-statement', (0, auth_1.authorize)('inventory.item.create'), (0, audit_1.auditLogger)('IMPORT', 'BANK_STATEMENT'), cashController.importBankStatement);
+//router.post('/import-statement', authorize('inventory.item.create'), auditLogger('IMPORT', 'BANK_STATEMENT'), cashController.importBankStatement);
 exports.default = router;

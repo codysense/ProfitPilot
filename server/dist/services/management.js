@@ -303,31 +303,31 @@ class ManagementService {
             orderBy: { requestedAt: 'desc' }
         });
     }
-    async createApprovalRequest(entityType, entityId, userId) {
-        // Find applicable workflow
-        const entity = await this.getEntityForApproval(entityType, entityId);
-        if (!entity) {
-            throw new Error('Entity not found');
-        }
-        const workflow = await this.findApplicableWorkflow(entityType, entity.totalAmount);
-        if (!workflow) {
-            // No approval required
-            return null;
-        }
-        const firstStep = workflow.steps.find(s => s.stepOrder === 1);
-        if (!firstStep) {
-            throw new Error('Workflow has no steps');
-        }
-        return await prisma.approvalRequest.create({
-            data: {
-                workflowId: workflow.id,
-                entityType,
-                entityId,
-                requestedBy: userId,
-                currentStepId: firstStep.id
-            }
-        });
-    }
+    //   async createApprovalRequest(entityType: string, entityId: string, userId: string) {
+    //     // Find applicable workflow
+    //     const entity = await this.getEntityForApproval(entityType, entityId);
+    //     if (!entity) {
+    //       throw new Error('Entity not found');
+    //     }
+    //     if ("totalAmount" in entity) {
+    //   const workflow = await this.findApplicableWorkflow(entityType, Number(entity.totalAmount));
+    //   if (!workflow) {
+    //     // No approval required
+    //     return null;
+    //   }
+    //   const firstStep = workflow.steps[0]; // assuming you already fetched steps
+    // return await prisma.approvalRequest.create({
+    //   data: {
+    //     workflowId: workflow.id,
+    //     entityType,
+    //     entityId,
+    //     requestedByUser: { connect: { id: userId } },  // ✅ instead of requestedBy
+    //     currentStepId: firstStep.id,
+    //     status: "PENDING"
+    //   }
+    // });
+    // }
+    //   }
     async processApprovalAction(requestId, action, userId, comments) {
         return await prisma.$transaction(async (tx) => {
             const request = await tx.approvalRequest.findUnique({

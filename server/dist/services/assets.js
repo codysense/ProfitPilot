@@ -72,8 +72,33 @@ class AssetsService {
             const count = await tx.asset.count();
             const assetNo = `AST${String(count + 1).padStart(6, '0')}`;
             // Get category defaults if not provided
+            // const category = await tx.assetCategory.findUnique({
+            //   where: { id: data.categoryId }
+            // });
+            // if (!category) {
+            //   throw new Error('Asset category not found');
+            // }
+            // const asset = await tx.asset.create({
+            //   data: {
+            //     assetNo,
+            //     name: data.name,
+            //     description: data.description,
+            //     categoryId: data.categoryId,
+            //     acquisitionDate: new Date(data.acquisitionDate),
+            //     acquisitionCost: new Decimal(data.acquisitionCost),
+            //     residualValue: new Decimal(data.residualValue || (data.acquisitionCost * category.residualValue / 100)),
+            //     usefulLife: data.usefulLife || category.usefulLife,
+            //     depreciationMethod: data.depreciationMethod || category.depreciationMethod,
+            //     locationId: data.locationId,
+            //     serialNumber: data.serialNumber,
+            //     supplier: data.supplier,
+            //     purchaseOrderId: data.purchaseOrderId,
+            //     createdBy: userId
+            //   }
+            // });
             const category = await tx.assetCategory.findUnique({
-                where: { id: data.categoryId }
+                where: { id: data.categoryId },
+                include: { glAssetAccount: true }
             });
             if (!category) {
                 throw new Error('Asset category not found');
@@ -86,7 +111,8 @@ class AssetsService {
                     categoryId: data.categoryId,
                     acquisitionDate: new Date(data.acquisitionDate),
                     acquisitionCost: new library_1.Decimal(data.acquisitionCost),
-                    residualValue: new library_1.Decimal(data.residualValue || (data.acquisitionCost * category.residualValue / 100)),
+                    residualValue: new library_1.Decimal(data.residualValue ??
+                        (Number(data.acquisitionCost) * Number(category.residualValue) / 100)),
                     usefulLife: data.usefulLife || category.usefulLife,
                     depreciationMethod: data.depreciationMethod || category.depreciationMethod,
                     locationId: data.locationId,
@@ -173,7 +199,7 @@ class AssetsService {
                         categoryId: assetData.categoryId,
                         acquisitionDate: purchase.orderDate,
                         acquisitionCost: new library_1.Decimal(assetData.acquisitionCost),
-                        residualValue: new library_1.Decimal(assetData.acquisitionCost * category.residualValue / 100),
+                        residualValue: new library_1.Decimal(Number(assetData.acquisitionCost) * Number(category.residualValue) / 100),
                         usefulLife: category.usefulLife,
                         depreciationMethod: category.depreciationMethod,
                         locationId: assetData.locationId,

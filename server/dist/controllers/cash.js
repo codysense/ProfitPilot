@@ -634,131 +634,133 @@ class CashController {
         }
     }
     // Bank reconciliation
-    async getBankReconciliation(req, res) {
-        try {
-            const { cashAccountId, statementDate } = req.query;
-            if (!cashAccountId || !statementDate) {
-                return res.status(400).json({ error: 'Cash account and statement date are required' });
-            }
-            // Get all transactions up to statement date
-            const transactions = await prisma.cashTransaction.findMany({
-                where: {
-                    cashAccountId: cashAccountId,
-                    transactionDate: { lte: new Date(statementDate) }
-                },
-                include: {
-                    glAccount: true
-                },
-                orderBy: { transactionDate: 'asc' }
-            });
-            // Get unreconciled transactions
-            const unreconciledTransactions = await prisma.cashTransaction.findMany({
-                where: {
-                    cashAccountId: cashAccountId,
-                    isReconciled: false,
-                    transactionDate: { lte: new Date(statementDate) }
-                },
-                include: {
-                    glAccount: true
-                },
-                orderBy: { transactionDate: 'asc' }
-            });
-            // Calculate book balance
-            const bookBalance = transactions.reduce((balance, transaction) => {
-                return transaction.transactionType === 'RECEIPT'
-                    ? balance + Number(transaction.amount)
-                    : balance - Number(transaction.amount);
-            }, 0);
-            res.json({
-                transactions,
-                unreconciledTransactions,
-                bookBalance,
-                statementDate
-            });
-        }
-        catch (error) {
-            console.error('Get bank reconciliation error:', error);
-            res.status(500).json({ error: 'Failed to fetch bank reconciliation' });
-        }
-    }
+    // async getBankReconciliation(req: AuthRequest, res: Response) {
+    //   try {
+    //     const { cashAccountId, statementDate } = req.query;
+    //     if (!cashAccountId || !statementDate) {
+    //       return res.status(400).json({ error: 'Cash account and statement date are required' });
+    //     }
+    //     // Get all transactions up to statement date
+    //     const transactions = await prisma.cashTransaction.findMany({
+    //       where: {
+    //         cashAccountId: cashAccountId as string,
+    //         transactionDate: { lte: new Date(statementDate as string) }
+    //       },
+    //       include: {
+    //         glAccount: true
+    //       },
+    //       orderBy: { transactionDate: 'asc' }
+    //     });
+    // Get unreconciled transactions
+    // const unreconciledTransactions = await prisma.cashTransaction.findMany({
+    //   where: {
+    //     cashAccountId: cashAccountId as string,
+    //     isReconciled: false,
+    //     transactionDate: { lte: new Date(statementDate as string) }
+    //   },
+    //   include: {
+    //     glAccount: true
+    //   },
+    //   orderBy: { transactionDate: 'asc' }
+    // });
+    // Calculate book balance
+    //     const bookBalance = transactions.reduce((balance, transaction) => {
+    //       return transaction.transactionType === 'RECEIPT' 
+    //         ? balance + Number(transaction.amount)
+    //         : balance - Number(transaction.amount);
+    //     }, 0);
+    //     res.json({
+    //       transactions,
+    //       unreconciledTransactions,
+    //       bookBalance,
+    //       statementDate
+    //     });
+    //   } catch (error) {
+    //     console.error('Get bank reconciliation error:', error);
+    //     res.status(500).json({ error: 'Failed to fetch bank reconciliation' });
+    //   }
+    // }
     // Mark transactions as reconciled
-    async reconcileTransactions(req, res) {
-        try {
-            const { transactionIds, statementBalance, reconciliationDate, cashAccountId } = req.body;
-            await prisma.$transaction(async (tx) => {
-                // Mark transactions as reconciled
-                await tx.cashTransaction.updateMany({
-                    where: { id: { in: transactionIds } },
-                    data: {
-                        isReconciled: true,
-                        reconciledAt: new Date(reconciliationDate)
-                    }
-                });
-                // Create reconciliation record
-                await tx.bankReconciliation.create({
-                    data: {
-                        cashAccountId,
-                        statementDate: new Date(reconciliationDate),
-                        statementBalance: new library_1.Decimal(statementBalance),
-                        bookBalance: new library_1.Decimal(req.body.bookBalance),
-                        reconciledBy: req.user.id
-                    }
-                });
-            });
-            res.json({ message: 'Transactions reconciled successfully' });
-        }
-        catch (error) {
-            console.error('Reconcile transactions error:', error);
-            res.status(400).json({ error: 'Failed to reconcile transactions' });
-        }
-    }
-    // Import bank statement from CSV
-    async importBankStatement(req, res) {
-        try {
-            const { cashAccountId, csvData } = req.body;
-            if (!csvData || !Array.isArray(csvData)) {
-                return res.status(400).json({ error: 'Invalid CSV data' });
-            }
-            const importedTransactions = [];
-            await prisma.$transaction(async (tx) => {
-                for (const row of csvData) {
-                    const { date, description, amount, type, reference } = row;
-                    // Skip if transaction already exists
-                    const existing = await tx.bankStatementLine.findFirst({
-                        where: {
-                            cashAccountId,
-                            statementDate: new Date(date),
-                            amount: new library_1.Decimal(Math.abs(amount)),
-                            description
-                        }
-                    });
-                    if (existing)
-                        continue;
-                    // Create bank statement line
-                    const statementLine = await tx.bankStatementLine.create({
-                        data: {
-                            cashAccountId,
-                            statementDate: new Date(date),
-                            description,
-                            amount: new library_1.Decimal(Math.abs(amount)),
-                            transactionType: amount > 0 ? 'RECEIPT' : 'PAYMENT',
-                            reference,
-                            isMatched: false
-                        }
-                    });
-                    importedTransactions.push(statementLine);
-                }
-            });
-            res.json({
-                message: `Imported ${importedTransactions.length} transactions`,
-                importedCount: importedTransactions.length
-            });
-        }
-        catch (error) {
-            console.error('Import bank statement error:', error);
-            res.status(400).json({ error: 'Failed to import bank statement' });
-        }
-    }
+    // async reconcileTransactions(req: AuthRequest, res: Response) {
+    //   try {
+    //     const { transactionIds, statementBalance, reconciliationDate, cashAccountId } = req.body;
+    //     await prisma.$transaction(async (tx) => {
+    //       // Mark transactions as reconciled
+    //       await tx.cashTransaction.updateMany({
+    //         where: { id: { in: transactionIds } },
+    //         data: { 
+    //           isReconciled: true,
+    //           reconciledAt: new Date(reconciliationDate)
+    //         }
+    //       });
+    //       // Create reconciliation record
+    //       await tx.bankReconciliation.create({
+    //         data: {
+    //           cashAccountId,
+    //           statementDate: new Date(reconciliationDate),
+    //           statementBalance: new Decimal(statementBalance),
+    //           bookBalance: new Decimal(req.body.bookBalance),
+    //           reconciledBy: req.user!.id
+    //         }
+    //       });
+    //     });
+    //     res.json({ message: 'Transactions reconciled successfully' });
+    //   } catch (error) {
+    //     console.error('Reconcile transactions error:', error);
+    //     res.status(400).json({ error: 'Failed to reconcile transactions' });
+    //   }
+    // }
+    // // Import bank statement from CSV
+    // async importBankStatement(req: AuthRequest, res: Response) {
+    //   try {
+    //     const { cashAccountId, csvData } = req.body;
+    //     if (!csvData || !Array.isArray(csvData)) {
+    //       return res.status(400).json({ error: 'Invalid CSV data' });
+    //     }
+    //     const importedTransactions = [];
+    //     await prisma.$transaction(async (tx) => {
+    //       for (const row of csvData) {
+    //         const {
+    //           date,
+    //           description,
+    //           amount,
+    //           type,
+    //           reference
+    //         } = row;
+    //         // Skip if transaction already exists
+    //         const existing = await tx.bankStatementLine.findFirst({
+    //           where: {
+    //             cashAccountId,
+    //             statementDate: new Date(date),
+    //             amount: new Decimal(Math.abs(amount)),
+    //             description
+    //           }
+    //         });
+    //         if (existing) continue;
+    //         // Create bank statement line
+    //         const statementLine = await tx.bankStatementLine.create({
+    //           data: {
+    //             cashAccountId,
+    //             statementDate: new Date(date),
+    //             description,
+    //             amount: new Decimal(Math.abs(amount)),
+    //             transactionType: amount > 0 ? 'RECEIPT' : 'PAYMENT',
+    //             reference,
+    //             isMatched: false
+    //           }
+    //         });
+    //         importedTransactions.push(statementLine);
+    //       }
+    //     });
+    //     res.json({
+    //       message: `Imported ${importedTransactions.length} transactions`,
+    //       importedCount: importedTransactions.length
+    //     });
+    //   } catch (error) {
+    //     console.error('Import bank statement error:', error);
+    //     res.status(400).json({ error: 'Failed to import bank statement' });
+    //   }
+    // }
     // Export cashbook to CSV
     async exportCashbook(req, res) {
         try {
@@ -831,18 +833,8 @@ class CashController {
     async createSalesReceipt(req, res) {
         try {
             const { saleId, customerId, cashAccountId, amountReceived, receiptDate, reference, notes } = req.body;
-            const result = await this.createCustomerPayment({
-                ...req,
-                body: {
-                    customerId,
-                    cashAccountId,
-                    amount: amountReceived,
-                    paymentDate: receiptDate,
-                    reference,
-                    notes,
-                    saleId
-                }
-            }, res);
+            req.body = { customerId, cashAccountId, amount: amountReceived, paymentDate: receiptDate, reference, notes, saleId };
+            const result = await this.createCustomerPayment(req, res);
             return result;
         }
         catch (error) {
@@ -851,22 +843,47 @@ class CashController {
         }
     }
     // Create purchase payment (wrapper for createVendorPayment)  
+    // Create sales receipt (wrapper for createCustomerPayment)
+    // async createSalesReceipt(req: AuthRequest, res: Response) {
+    //   try {
+    //     const {
+    //       saleId,
+    //       customerId,
+    //       cashAccountId,
+    //       amountReceived,
+    //       receiptDate,
+    //       reference,
+    //       notes
+    //     } = req.body;
+    //     req.body = {
+    //       customerId,
+    //       cashAccountId,
+    //       amount: amountReceived,
+    //       paymentDate: receiptDate,
+    //       reference,
+    //       notes,
+    //       saleId
+    //     };
+    //     return await this.createCustomerPayment(req, res);
+    //   } catch (error) {
+    //     console.error('Create sales receipt error:', error);
+    //     res.status(400).json({ error: 'Failed to create sales receipt' });
+    //   }
+    // }
+    // Create purchase payment (wrapper for createVendorPayment)  
     async createPurchasePayment(req, res) {
         try {
             const { purchaseId, vendorId, cashAccountId, amountPaid, paymentDate, reference, notes } = req.body;
-            const result = await this.createVendorPayment({
-                ...req,
-                body: {
-                    vendorId,
-                    cashAccountId,
-                    amount: amountPaid,
-                    paymentDate,
-                    reference,
-                    notes,
-                    purchaseId
-                }
-            }, res);
-            return result;
+            req.body = {
+                vendorId,
+                cashAccountId,
+                amount: amountPaid,
+                paymentDate,
+                reference,
+                notes,
+                purchaseId
+            };
+            return await this.createVendorPayment(req, res);
         }
         catch (error) {
             console.error('Create purchase payment error:', error);
