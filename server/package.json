@@ -4,7 +4,7 @@
   "description": "ERP System Backend",
   "main": "dist/index.js",
   "scripts": {
-  "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+  "prisma:generate": "npx prisma generate --schema=prisma/schema.prisma",
   "prisma:push": "prisma db push --schema=prisma/schema.prisma",
   "seed": "ts-node --transpile-only prisma/seed.ts",
   "dev": "ts-node-dev --transpile-only src/index.ts",
@@ -14,7 +14,6 @@
 },
   "dependencies": {
     "@prisma/client": "^5.14.0",
-    "prisma": "^5.14.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -32,6 +31,7 @@
     "@types/node": "^20.19.12",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.4",
+    "prisma": "^5.14.0",
     "typescript": "^5.9.2"
   }
 }
