@@ -15,7 +15,7 @@ const AssetCategories = () => {
   const canManageCategories = user?.roles.includes('CFO');
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['asset-categories'],
+    queryKey:['asset-categories'],
     queryFn: () => assetsApi.getAssetCategories()
   });
 

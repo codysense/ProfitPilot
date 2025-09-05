@@ -47,7 +47,7 @@ import PurchasePayments from './pages/cash/PurchasePayments';
 import CompanySettings from './pages/management/CompanySettings';
 import SystemSettings from './pages/management/SystemSettings';
 import FiscalCalendar from './pages/management/FiscalCalendar';
-import ApprovalFlows from './pages/management/ApprovalFlows';
+// import ApprovalFlows from './pages/management/ApprovalFlows';
 import RoleManagement from './pages/management/RoleManagement';
 import EnhancedUserManagement from './pages/management/EnhancedUserManagement';
 import ChartOfAccounts from './pages/management/ChartOfAccounts';
@@ -255,11 +255,11 @@ function App() {
                 <CashAccountManagement />
               </ProtectedRoute>
             } />
-            <Route path="/management/approvals" element={
+            {/* <Route path="/management/approvals" element={
               <ProtectedRoute>
                 <ApprovalFlows />
               </ProtectedRoute>
-            } />
+            } /> */}
             <Route path="/management/roles" element={
               <ProtectedRoute>
                 <RoleManagement />
