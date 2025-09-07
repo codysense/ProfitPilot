@@ -124,7 +124,7 @@ const Layout = ({ children }: LayoutProps) => {
         { name: 'Fiscal Calendar', href: '/management/fiscal' },
         { name: 'Chart of Accounts', href: '/management/chart-of-accounts' },
         { name: 'Cash Accounts', href: '/management/cash-accounts' },
-        { name: 'Approval Flows', href: '/management/approvals' },
+        // { name: 'Approval Flows', href: '/management/approvals' },
         { name: 'Role Management', href: '/management/roles' },
         { name: 'User Management', href: '/management/users' }
       ]
