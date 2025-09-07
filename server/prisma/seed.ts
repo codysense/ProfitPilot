@@ -420,150 +420,150 @@ async function main() {
   console.log('✅ Warehouses created');
 
   // Create items
-  const items = await Promise.all([
-    // Raw Materials
-    prisma.item.upsert({
-      where: { sku: 'RM-STEEL-001' },
-      update: {},
-      create: {
-        sku: 'RM-STEEL-001',
-        name: 'Steel Sheet 2mm',
-        description: 'High quality steel sheet for manufacturing',
-        type: 'RAW_MATERIAL',
-        uom: 'SQM',
-        costingMethod: 'WEIGHTED_AVG',
-        standardCost: 2500.00,
-        isActive: true
-      }
-    }),
-    prisma.item.upsert({
-      where: { sku: 'RM-ALUM-001' },
-      update: {},
-      create: {
-        sku: 'RM-ALUM-001',
-        name: 'Aluminum Rod 10mm',
-        description: 'Aluminum rod for component manufacturing',
-        type: 'RAW_MATERIAL',
-        uom: 'MTR',
-        costingMethod: 'WEIGHTED_AVG',
-        standardCost: 150.00,
-        isActive: true
-      }
-    }),
-    prisma.item.upsert({
-      where: { sku: 'RM-BOLT-001' },
-      update: {},
-      create: {
-        sku: 'RM-BOLT-001',
-        name: 'Steel Bolts M8',
-        description: 'M8 steel bolts for assembly',
-        type: 'RAW_MATERIAL',
-        uom: 'PCS',
-        costingMethod: 'WEIGHTED_AVG',
-        standardCost: 5.00,
-        isActive: true
-      }
-    }),
-    // Finished Goods
-    prisma.item.upsert({
-      where: { sku: 'FG-CAB-001' },
-      update: {},
-      create: {
-        sku: 'FG-CAB-001',
-        name: 'Metal Filing Cabinet',
-        description: '4-drawer metal filing cabinet',
-        type: 'FINISHED_GOODS',
-        uom: 'PCS',
-        costingMethod: 'WEIGHTED_AVG',
-        standardCost: 15000.00,
-        sellingPrice: 25000.00,
-        isActive: true
-      }
-    }),
-    prisma.item.upsert({
-      where: { sku: 'FG-DESK-001' },
-      update: {},
-      create: {
-        sku: 'FG-DESK-001',
-        name: 'Office Desk Standard',
-        description: 'Standard office desk with drawers',
-        type: 'FINISHED_GOODS',
-        uom: 'PCS',
-        costingMethod: 'WEIGHTED_AVG',
-        standardCost: 12000.00,
-        sellingPrice: 20000.00,
-        isActive: true
-      }
-    })
-  ]);
+  // const items = await Promise.all([
+  //   // Raw Materials
+  //   prisma.item.upsert({
+  //     where: { sku: 'RM-STEEL-001' },
+  //     update: {},
+  //     create: {
+  //       sku: 'RM-STEEL-001',
+  //       name: 'Steel Sheet 2mm',
+  //       description: 'High quality steel sheet for manufacturing',
+  //       type: 'RAW_MATERIAL',
+  //       uom: 'SQM',
+  //       costingMethod: 'WEIGHTED_AVG',
+  //       standardCost: 2500.00,
+  //       isActive: true
+  //     }
+  //   }),
+  //   prisma.item.upsert({
+  //     where: { sku: 'RM-ALUM-001' },
+  //     update: {},
+  //     create: {
+  //       sku: 'RM-ALUM-001',
+  //       name: 'Aluminum Rod 10mm',
+  //       description: 'Aluminum rod for component manufacturing',
+  //       type: 'RAW_MATERIAL',
+  //       uom: 'MTR',
+  //       costingMethod: 'WEIGHTED_AVG',
+  //       standardCost: 150.00,
+  //       isActive: true
+  //     }
+  //   }),
+  //   prisma.item.upsert({
+  //     where: { sku: 'RM-BOLT-001' },
+  //     update: {},
+  //     create: {
+  //       sku: 'RM-BOLT-001',
+  //       name: 'Steel Bolts M8',
+  //       description: 'M8 steel bolts for assembly',
+  //       type: 'RAW_MATERIAL',
+  //       uom: 'PCS',
+  //       costingMethod: 'WEIGHTED_AVG',
+  //       standardCost: 5.00,
+  //       isActive: true
+  //     }
+  //   }),
+  //   // Finished Goods
+  //   prisma.item.upsert({
+  //     where: { sku: 'FG-CAB-001' },
+  //     update: {},
+  //     create: {
+  //       sku: 'FG-CAB-001',
+  //       name: 'Metal Filing Cabinet',
+  //       description: '4-drawer metal filing cabinet',
+  //       type: 'FINISHED_GOODS',
+  //       uom: 'PCS',
+  //       costingMethod: 'WEIGHTED_AVG',
+  //       standardCost: 15000.00,
+  //       sellingPrice: 25000.00,
+  //       isActive: true
+  //     }
+  //   }),
+  //   prisma.item.upsert({
+  //     where: { sku: 'FG-DESK-001' },
+  //     update: {},
+  //     create: {
+  //       sku: 'FG-DESK-001',
+  //       name: 'Office Desk Standard',
+  //       description: 'Standard office desk with drawers',
+  //       type: 'FINISHED_GOODS',
+  //       uom: 'PCS',
+  //       costingMethod: 'WEIGHTED_AVG',
+  //       standardCost: 12000.00,
+  //       sellingPrice: 20000.00,
+  //       isActive: true
+  //     }
+  //   })
+  // ]);
 
-  console.log('✅ Items created');
+  // console.log('✅ Items created');
 
   // Create customers
-  const customers = await Promise.all([
-    prisma.customer.upsert({
-      where: { code: 'CUST-001' },
-      update: {},
-      create: {
-        code: 'CUST-001',
-        name: 'ABC Corporation Ltd',
-        address: '123 Business District, Victoria Island, Lagos',
-        phone: '+234-801-234-5678',
-        email: 'procurement@abc-corp.com',
-        creditLimit: 500000.00,
-        paymentTerms: 'Net 30',
-        isActive: true
-      }
-    }),
-    prisma.customer.upsert({
-      where: { code: 'CUST-002' },
-      update: {},
-      create: {
-        code: 'CUST-002',
-        name: 'XYZ Enterprises',
-        address: '456 Industrial Layout, Ikeja, Lagos',
-        phone: '+234-802-345-6789',
-        email: 'orders@xyz-ent.com',
-        creditLimit: 300000.00,
-        paymentTerms: 'Net 15',
-        isActive: true
-      }
-    })
-  ]);
+  // // const customers = await Promise.all([
+  // //   prisma.customer.upsert({
+  // //     where: { code: 'CUST-001' },
+  // //     update: {},
+  // //     create: {
+  // //       code: 'CUST-001',
+  // //       name: 'ABC Corporation Ltd',
+  // //       address: '123 Business District, Victoria Island, Lagos',
+  // //       phone: '+234-801-234-5678',
+  // //       email: 'procurement@abc-corp.com',
+  // //       creditLimit: 500000.00,
+  // //       paymentTerms: 'Net 30',
+  // //       isActive: true
+  // //     }
+  // //   }),
+  // //   prisma.customer.upsert({
+  // //     where: { code: 'CUST-002' },
+  // //     update: {},
+  // //     create: {
+  // //       code: 'CUST-002',
+  // //       name: 'XYZ Enterprises',
+  // //       address: '456 Industrial Layout, Ikeja, Lagos',
+  // //       phone: '+234-802-345-6789',
+  // //       email: 'orders@xyz-ent.com',
+  // //       creditLimit: 300000.00,
+  // //       paymentTerms: 'Net 15',
+  // //       isActive: true
+  // //     }
+  // //   })
+  // // ]);
 
-  console.log('✅ Customers created');
+  // // console.log('✅ Customers created');
 
-  // Create vendors
-  const vendors = await Promise.all([
-    prisma.vendor.upsert({
-      where: { code: 'VEND-001' },
-      update: {},
-      create: {
-        code: 'VEND-001',
-        name: 'Steel Suppliers Nigeria Ltd',
-        address: '789 Industrial Zone, Port Harcourt',
-        phone: '+234-803-456-7890',
-        email: 'sales@steelsuppliers.ng',
-        paymentTerms: 'Net 30',
-        isActive: true
-      }
-    }),
-    prisma.vendor.upsert({
-      where: { code: 'VEND-002' },
-      update: {},
-      create: {
-        code: 'VEND-002',
-        name: 'Aluminum Works Ltd',
-        address: '321 Metal Street, Kano',
-        phone: '+234-804-567-8901',
-        email: 'info@aluminumworks.ng',
-        paymentTerms: 'Net 45',
-        isActive: true
-      }
-    })
-  ]);
+  // // Create vendors
+  // const vendors = await Promise.all([
+  //   prisma.vendor.upsert({
+  //     where: { code: 'VEND-001' },
+  //     update: {},
+  //     create: {
+  //       code: 'VEND-001',
+  //       name: 'Steel Suppliers Nigeria Ltd',
+  //       address: '789 Industrial Zone, Port Harcourt',
+  //       phone: '+234-803-456-7890',
+  //       email: 'sales@steelsuppliers.ng',
+  //       paymentTerms: 'Net 30',
+  //       isActive: true
+  //     }
+  //   }),
+  //   prisma.vendor.upsert({
+  //     where: { code: 'VEND-002' },
+  //     update: {},
+  //     create: {
+  //       code: 'VEND-002',
+  //       name: 'Aluminum Works Ltd',
+  //       address: '321 Metal Street, Kano',
+  //       phone: '+234-804-567-8901',
+  //       email: 'info@aluminumworks.ng',
+  //       paymentTerms: 'Net 45',
+  //       isActive: true
+  //     }
+  //   })
+  // ]);
 
-  console.log('✅ Vendors created');
+  // console.log('✅ Vendors created');
 
   // Create Chart of Accounts
   const accounts = await Promise.all([
@@ -716,100 +716,100 @@ async function main() {
 
   console.log('✅ Chart of Accounts created');
 
-  // Create a BOM for the filing cabinet
-  const bom = await prisma.bom.create({
-    data: {
-      itemId: items[3].id, // Metal Filing Cabinet
-      version: '1.0',
-      isActive: true,
-      bomLines: {
-        create: [
-          {
-            componentItemId: items[0].id, // Steel Sheet
-            qtyPer: 2.5,
-            scrapPercent: 5.0
-          },
-          {
-            componentItemId: items[1].id, // Aluminum Rod
-            qtyPer: 1.0,
-            scrapPercent: 3.0
-          },
-          {
-            componentItemId: items[2].id, // Steel Bolts
-            qtyPer: 20.0,
-            scrapPercent: 2.0
-          }
-        ]
-      }
-    }
-  });
+  // // Create a BOM for the filing cabinet
+  // const bom = await prisma.bom.create({
+  //   data: {
+  //     itemId: items[3].id, // Metal Filing Cabinet
+  //     version: '1.0',
+  //     isActive: true,
+  //     bomLines: {
+  //       create: [
+  //         {
+  //           componentItemId: items[0].id, // Steel Sheet
+  //           qtyPer: 2.5,
+  //           scrapPercent: 5.0
+  //         },
+  //         {
+  //           componentItemId: items[1].id, // Aluminum Rod
+  //           qtyPer: 1.0,
+  //           scrapPercent: 3.0
+  //         },
+  //         {
+  //           componentItemId: items[2].id, // Steel Bolts
+  //           qtyPer: 20.0,
+  //           scrapPercent: 2.0
+  //         }
+  //       ]
+  //     }
+  //   }
+  // });
 
-  console.log('✅ Bill of Materials created');
+  // console.log('✅ Bill of Materials created');
 
-  // Create initial inventory for raw materials
-  const initialInventory = [
-    {
-      itemId: items[0].id, // Steel Sheet
-      warehouseId: warehouses[0].id,
-      qty: 100.0,
-      unitCost: 2500.00
-    },
-    {
-      itemId: items[1].id, // Aluminum Rod
-      warehouseId: warehouses[0].id,
-      qty: 200.0,
-      unitCost: 150.00
-    },
-    {
-      itemId: items[2].id, // Steel Bolts
-      warehouseId: warehouses[0].id,
-      qty: 1000.0,
-      unitCost: 5.00
-    }
-  ];
+  // // Create initial inventory for raw materials
+  // const initialInventory = [
+  //   {
+  //     itemId: items[0].id, // Steel Sheet
+  //     warehouseId: warehouses[0].id,
+  //     qty: 100.0,
+  //     unitCost: 2500.00
+  //   },
+  //   {
+  //     itemId: items[1].id, // Aluminum Rod
+  //     warehouseId: warehouses[0].id,
+  //     qty: 200.0,
+  //     unitCost: 150.00
+  //   },
+  //   {
+  //     itemId: items[2].id, // Steel Bolts
+  //     warehouseId: warehouses[0].id,
+  //     qty: 1000.0,
+  //     unitCost: 5.00
+  //   }
+  // ];
 
-  for (const inv of initialInventory) {
-    const value = inv.qty * inv.unitCost;
+  // for (const inv of initialInventory) {
+  //   const value = inv.qty * inv.unitCost;
     
-    await prisma.inventoryLedger.create({
-      data: {
-        itemId: inv.itemId,
-        warehouseId: inv.warehouseId,
-        refType: 'OPENING_BALANCE',
-        refId: 'OPENING',
-        direction: 'IN',
-        qty: inv.qty,
-        unitCost: inv.unitCost,
-        value: value,
-        runningQty: inv.qty,
-        runningValue: value,
-        runningAvgCost: inv.unitCost
-      }
-    });
+  //   await prisma.inventoryLedger.create({
+  //     data: {
+  //       itemId: inv.itemId,
+  //       warehouseId: inv.warehouseId,
+  //       refType: 'OPENING_BALANCE',
+  //       refId: 'OPENING',
+  //       direction: 'IN',
+  //       qty: inv.qty,
+  //       unitCost: inv.unitCost,
+  //       value: value,
+  //       runningQty: inv.qty,
+  //       runningValue: value,
+  //       runningAvgCost: inv.unitCost
+  //     }
+  //   });
 
     // Create inventory batch for FIFO costing
-    await prisma.inventoryBatch.create({
-      data: {
-        itemId: inv.itemId,
-        warehouseId: inv.warehouseId,
-        qtyOnHand: inv.qty,
-        unitCost: inv.unitCost,
-        receivedAt: new Date()
-      }
-    });
-  }
+  //   await prisma.inventoryBatch.create({
+  //     data: {
+  //       itemId: inv.itemId,
+  //       warehouseId: inv.warehouseId,
+  //       qtyOnHand: inv.qty,
+  //       unitCost: inv.unitCost,
+  //       receivedAt: new Date()
+  //     }
+  //   });
+  // }
 
-  console.log('✅ Initial inventory created');
+  // console.log('✅ Initial inventory created');
 
-  // Set global costing policy
-  await prisma.policy.upsert({
-    where: { key: 'global_costing_method' },
-    update: {},
-    create: {
-      key: 'global_costing_method',
-      valueJson: 'WEIGHTED_AVG'
-    }
-  });
+  // // Set global costing policy
+  // await prisma.policy.upsert({
+  //   where: { key: 'global_costing_method' },
+  //   update: {},
+  //   create: {
+  //     key: 'global_costing_method',
+  //     valueJson: 'WEIGHTED_AVG'
+  //   }
+  // });
 
   console.log('✅ Policies created');
 

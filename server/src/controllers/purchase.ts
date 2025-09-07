@@ -57,130 +57,150 @@ export class PurchaseController {
   }
 
   async createPurchase(req: AuthRequest, res: Response) {
-    try {
-      const validatedData = createPurchaseSchema.parse(req.body);
+  try {
+    const validatedData = createPurchaseSchema.parse(req.body);
 
-      const purchase = await prisma.$transaction(async (tx) => {
-        // Generate order number
-        const count = await tx.purchase.count();
-        const orderNo = `PO${String(count + 1).padStart(6, '0')}`;
+    // Calculate orderNo outside transaction
+    const count = await prisma.purchase.count();
+    const orderNo = `PO${String(count + 1).padStart(6, '0')}`;
 
-        // Calculate total amount
-        const totalAmount = validatedData.purchaseLines.reduce((sum, line) => {
-          return sum + (line.qty * line.unitPrice);
-        }, 0);
+    // Calculate total
+    const totalAmount = validatedData.purchaseLines.reduce(
+      (sum, line) => sum + (line.qty * line.unitPrice),
+      0
+    );
 
-        // Create purchase
-        const newPurchase = await tx.purchase.create({
-          data: {
-            orderNo,
-            vendorId: validatedData.vendorId,
-            orderDate: new Date(validatedData.orderDate),
-            totalAmount,
-            notes: validatedData.notes,
-            status: 'ORDERED'
-          }
-        });
-
-        // Create purchase lines
-        for (const line of validatedData.purchaseLines) {
-          await tx.purchaseLine.create({
-            data: {
-              purchaseId: newPurchase.id,
-              itemId: line.itemId,
-              qty: line.qty,
-              unitPrice: line.unitPrice,
-              lineTotal: line.qty * line.unitPrice
-            }
-          });
+    const purchase = await prisma.$transaction(async (tx) => {
+      // Create purchase
+      const newPurchase = await tx.purchase.create({
+        data: {
+          orderNo,
+          vendorId: validatedData.vendorId,
+          orderDate: new Date(validatedData.orderDate),
+          totalAmount,
+          notes: validatedData.notes,
+          status: 'ORDERED'
         }
-
-        return newPurchase;
       });
 
-      res.status(201).json(purchase);
-    } catch (error) {
-      console.error('Create purchase error:', error);
-      res.status(400).json({ error: 'Failed to create purchase' });
-    }
+      // Create purchase lines in bulk
+      await tx.purchaseLine.createMany({
+        data: validatedData.purchaseLines.map((line) => ({
+          purchaseId: newPurchase.id,
+          itemId: line.itemId,
+          qty: line.qty,
+          unitPrice: line.unitPrice,
+          lineTotal: line.qty * line.unitPrice
+        }))
+      });
+
+      return newPurchase;
+    });
+
+    res.status(201).json(purchase);
+  } catch (error) {
+    console.error('Create purchase error:', error);
+    res.status(400).json({ error: 'Failed to create purchase' });
   }
+}
+
 
   async receivePurchase(req: AuthRequest, res: Response) {
-    try {
-      const { id } = req.params;
-      const validatedData = receivePurchaseSchema.parse(req.body);
+  try {
+    const { id } = req.params;
+    const validatedData = receivePurchaseSchema.parse(req.body);
 
-      await prisma.$transaction(async (tx) => {
-        // Update purchase status
-        await tx.purchase.update({
-          where: { id },
-          data: { status: 'RECEIVED' }
-        });
+    // 1. Fetch all purchase lines outside of transaction
+    const purchaseLines = await prisma.purchaseLine.findMany({
+      where: { id: { in: validatedData.receiptLines.map(r => r.purchaseLineId) } },
+      include: { item: true }
+    });
 
-        // Process each receipt line
-        for (const receiptLine of validatedData.receiptLines) {
-          const purchaseLine = await tx.purchaseLine.findUnique({
-            where: { id: receiptLine.purchaseLineId },
-            include: { item: true }
-          });
+    // Build a quick lookup
+    const purchaseLineMap = new Map(purchaseLines.map(pl => [pl.id, pl]));
 
-          if (!purchaseLine) {
-            throw new Error(`Purchase line ${receiptLine.purchaseLineId} not found`);
-          }
-
-          // Receive inventory using costing service
-          await costingService.receiveInventory(
-            purchaseLine.itemId,
-            receiptLine.warehouseId,
-            receiptLine.qtyReceived,
-            receiptLine.unitCost,
-            'PURCHASE',
-            id,
-            req.user!.id
-          );
+    // 2. Run only the DB updates in a batched transaction
+    await prisma.$transaction([
+      prisma.purchase.update({
+        where: { id },
+        data: { status: 'RECEIVED' }
+      }),
+      ...validatedData.receiptLines.map(receiptLine => {
+        const purchaseLine = purchaseLineMap.get(receiptLine.purchaseLineId);
+        if (!purchaseLine) {
+          throw new Error(`Purchase line ${receiptLine.purchaseLineId} not found`);
         }
 
-        // Post to general ledger
-        const purchase = await tx.purchase.findUnique({
-          where: { id },
-          include: { purchaseLines: true }
+        // You could update line quantities here if needed
+        return prisma.purchaseLine.update({
+          where: { id: receiptLine.purchaseLineId },
+          data: { qty: purchaseLine.qty } // adjust if needed
         });
+      })
+    ]);
 
-        if (purchase) {
-          const totalValue = validatedData.receiptLines.reduce((sum, line) => {
-            return sum + (line.qtyReceived * line.unitCost);
-          }, 0);
+    // 3. Call costing service *outside* the transaction
+    for (const receiptLine of validatedData.receiptLines) {
+      const purchaseLine = purchaseLineMap.get(receiptLine.purchaseLineId)!;
 
-          await glService.postJournal([
-            { accountCode: '1300', debit: totalValue, credit: 0, refType: 'PURCHASE', refId: id },
-            { accountCode: '2150', debit: 0, credit: totalValue, refType: 'PURCHASE', refId: id }
-          ], `Purchase receipt: ${purchase.orderNo}`, req.user!.id);
-        }
-      });
-
-      res.json({ message: 'Purchase received successfully' });
-    } catch (error) {
-      console.error('Receive purchase error:', error);
-      res.status(400).json({ error: 'Failed to receive purchase' });
+      await costingService.receiveInventory(
+        purchaseLine.itemId,
+        receiptLine.warehouseId,
+        receiptLine.qtyReceived,
+        receiptLine.unitCost,
+        'PURCHASE',
+        id,
+        req.user!.id
+      );
     }
-  }
 
-  async invoicePurchase(req: AuthRequest, res: Response) {
+    // 4. Post GL entry outside transaction
+    const totalValue = validatedData.receiptLines.reduce((sum, line) => {
+      return sum + (line.qtyReceived * line.unitCost);
+    }, 0);
+
+    const purchase = await prisma.purchase.findUnique({ where: { id } });
+
+    if (purchase) {
+      await glService.postJournal(
+        [
+          { accountCode: '1300', debit: totalValue, credit: 0, refType: 'PURCHASE', refId: id },
+          { accountCode: '2150', debit: 0, credit: totalValue, refType: 'PURCHASE', refId: id }
+        ],
+        `Purchase receipt: ${purchase.orderNo}`,
+        req.user!.id
+      );
+    }
+
+    res.json({ message: 'Purchase received successfully' });
+  } catch (error) {
+    console.error('Receive purchase error:', error);
+    res.status(400).json({ error: 'Failed to receive purchase' });
+  }
+}
+
+
+   async invoicePurchase(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
 
-      await prisma.$transaction(async (tx) => {
-        const purchase = await tx.purchase.update({
+      // Transaction: update purchase status
+      const purchase = await prisma.$transaction((tx) =>
+        tx.purchase.update({
           where: { id },
           data: { status: 'INVOICED' }
-        });
+        })
+      );
 
-        // Post invoice to general ledger
-        await glService.postJournal([
+      // Outside transaction: GL posting
+      await glService.postJournal(
+        [
           { accountCode: '2000', debit: 0, credit: Number(purchase.totalAmount), refType: 'PURCHASE', refId: id },
           { accountCode: '2150', debit: Number(purchase.totalAmount), credit: 0, refType: 'PURCHASE', refId: id }
-        ], `Purchase invoice: ${purchase.orderNo}`, req.user!.id);
-      });
+        ],
+        `Purchase invoice: ${purchase.orderNo}`,
+        req.user!.id
+      );
 
       res.json({ message: 'Purchase invoiced successfully' });
     } catch (error) {
@@ -241,65 +261,58 @@ export class PurchaseController {
     }
   }
 
-  async updatePurchase(req: AuthRequest, res: Response) {
-    try {
-      const { id } = req.params;
-      const { vendorId, orderDate, notes, purchaseLines } = req.body;
+async updatePurchase(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { vendorId, orderDate, notes, purchaseLines } = req.body;
 
-      // Check if purchase can be edited
-      const existingPurchase = await prisma.purchase.findUnique({
-        where: { id },
-        select: { status: true }
-      });
+    // Check if purchase can be edited
+    const existingPurchase = await prisma.purchase.findUnique({
+      where: { id },
+      select: { status: true }
+    });
 
-      if (!existingPurchase || !['DRAFT', 'ORDERED'].includes(existingPurchase.status)) {
-        return res.status(400).json({ error: 'Cannot edit purchase in current status' });
-      }
-
-      const purchase = await prisma.$transaction(async (tx) => {
-        // Calculate new total
-        const totalAmount = purchaseLines.reduce((sum: number, line: any) => {
-          return sum + (line.qty * line.unitPrice);
-        }, 0);
-
-        // Update purchase
-        const updatedPurchase = await tx.purchase.update({
-          where: { id },
-          data: {
-            vendorId,
-            orderDate: new Date(orderDate),
-            totalAmount,
-            notes
-          }
-        });
-
-        // Delete existing lines
-        await tx.purchaseLine.deleteMany({
-          where: { purchaseId: id }
-        });
-
-        // Create new lines
-        for (const line of purchaseLines) {
-          await tx.purchaseLine.create({
-            data: {
-              purchaseId: id,
-              itemId: line.itemId,
-              qty: line.qty,
-              unitPrice: line.unitPrice,
-              lineTotal: line.qty * line.unitPrice
-            }
-          });
-        }
-
-        return updatedPurchase;
-      });
-
-      res.json(purchase);
-    } catch (error) {
-      console.error('Update purchase error:', error);
-      res.status(400).json({ error: 'Failed to update purchase' });
+    if (!existingPurchase || !['DRAFT', 'ORDERED'].includes(existingPurchase.status)) {
+      return res.status(400).json({ error: 'Cannot edit purchase in current status' });
     }
+
+    // Calculate new total
+    const totalAmount = purchaseLines.reduce((sum: number, line: any) => {
+      return sum + (line.qty * line.unitPrice);
+    }, 0);
+
+    // Update purchase main record
+    const updatedPurchase = await prisma.purchase.update({
+      where: { id },
+      data: {
+        vendorId,
+        orderDate: new Date(orderDate),
+        totalAmount,
+        notes
+      }
+    });
+
+    // Replace purchase lines (delete then recreate)
+    await prisma.purchaseLine.deleteMany({ where: { purchaseId: id } });
+
+    const lineData = purchaseLines.map((line: any) => ({
+      purchaseId: id,
+      itemId: line.itemId,
+      qty: line.qty,
+      unitPrice: line.unitPrice,
+      lineTotal: line.qty * line.unitPrice
+    }));
+
+    await prisma.purchaseLine.createMany({ data: lineData });
+
+    res.json(updatedPurchase);
+  } catch (error) {
+    console.error('Update purchase error:', error);
+    res.status(400).json({ error: 'Failed to update purchase' });
   }
+}
+
+
 
   async deletePurchase(req: AuthRequest, res: Response) {
     try {
