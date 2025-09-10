@@ -17,6 +17,8 @@ router.get('/vendor-balances', (0, auth_1.authorize)('inventory.item.read'), rep
 router.get('/customer-balances', (0, auth_1.authorize)('inventory.item.read'), reportsController.getCustomerBalances);
 router.get('/customer-ledger', (0, auth_1.authorize)('inventory.item.read'), reportsController.getCustomerLedger);
 router.get('/vendor-ledger', (0, auth_1.authorize)('inventory.item.read'), reportsController.getVendorLedger);
+router.get('/vendor-ledger', (0, auth_1.authorize)('inventory.item.read'), reportsController.getVendorLedger);
+router.get('/cashAccount-balances', (0, auth_1.authorize)('inventory.item.read'), reportsController.getCashAccountBalances);
 // Operational Reports
 router.get('/inventory-aging', (0, auth_1.authorize)('inventory.item.read'), reportsController.getInventoryAging);
 router.get('/stock-card', (0, auth_1.authorize)('inventory.item.read'), reportsController.getStockCard);

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const client_1 = require("@prisma/client");
+const client_1 = require("../prisma/generated/client");
 const auth_1 = __importDefault(require("./routes/auth"));
 const sales_1 = __importDefault(require("./routes/sales"));
 const purchase_1 = __importDefault(require("./routes/purchase"));
@@ -16,6 +16,7 @@ const cash_1 = __importDefault(require("./routes/cash"));
 const reports_1 = __importDefault(require("./routes/reports"));
 const management_1 = __importDefault(require("./routes/management"));
 const assets_1 = __importDefault(require("./routes/assets"));
+const pos_1 = __importDefault(require("./routes/pos"));
 dotenv_1.default.config();
 const prisma = new client_1.PrismaClient();
 const app = (0, express_1.default)();
@@ -44,6 +45,7 @@ app.use('/api/v1/cash', cash_1.default);
 app.use('/api/v1/reports', reports_1.default);
 app.use('/api/v1/management', management_1.default);
 app.use('/api/v1/assets', assets_1.default);
+app.use('/api/v1/pos', pos_1.default);
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });

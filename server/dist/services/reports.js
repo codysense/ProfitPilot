@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReportsService = void 0;
 const client_1 = require("@prisma/client");
 const library_1 = require("@prisma/client/runtime/library");
+//import { prisma } from "../../prisma";
 const prisma = new client_1.PrismaClient();
 class ReportsService {
     // Financial Reports
@@ -262,6 +263,86 @@ class ReportsService {
             refId: line.refId
         }));
     }
+    async getCashAccountBalances(dateFrom, dateTo) {
+        const rawResult = await prisma.$queryRawUnsafe(`
+    WITH tx AS (
+      SELECT
+        ca.id            AS account_id,
+        ca.name          AS account_name,
+        ca."accountType" AS account_type,
+        ca.balance       AS current_balance,
+
+        COALESCE(
+          SUM(ct.amount) FILTER (
+            WHERE ct."transactionType" = 'RECEIPT'
+              AND ct."transactionDate" >= $1
+              AND ct."transactionDate" < ($2::date + INTERVAL '1 day')
+          ), 0
+        )::NUMERIC AS total_inflow,
+
+        COALESCE(
+          SUM(ct.amount) FILTER (
+            WHERE ct."transactionType" = 'PAYMENT'
+              AND ct."transactionDate" >= $1
+              AND ct."transactionDate" < ($2::date + INTERVAL '1 day')
+          ), 0
+        )::NUMERIC AS total_outflow,
+
+        COALESCE(
+          SUM(ct.amount) FILTER (
+            WHERE ct."transactionType" = 'RECEIPT'
+              AND ct."transactionDate" >= $1
+          ), 0
+        )::NUMERIC AS inflows_after_start,
+
+        COALESCE(
+          SUM(ct.amount) FILTER (
+            WHERE ct."transactionType" = 'PAYMENT'
+              AND ct."transactionDate" >= $1
+          ), 0
+        )::NUMERIC AS outflows_after_start
+
+      FROM cash_accounts ca
+      LEFT JOIN cash_transactions ct
+             ON ca.id = ct."cashAccountId"
+      GROUP BY ca.id, ca.name, ca."accountType", ca.balance
+    ),
+    report AS (
+      SELECT
+        ROW_NUMBER() OVER (ORDER BY account_name)::INT AS "SerialNo", -- 👈 cast to INT
+        account_name AS "AccountName",
+        account_type AS "AccountType",
+        (current_balance - inflows_after_start + outflows_after_start)::NUMERIC AS "OpeningBalance",
+        total_inflow   AS "TotalInflow",
+        total_outflow  AS "TotalOutflow",
+        ((current_balance - inflows_after_start + outflows_after_start)
+           + total_inflow - total_outflow)::NUMERIC AS "ClosingBalance"
+      FROM tx
+    )
+    SELECT * FROM report
+    UNION ALL
+    SELECT
+      NULL AS "SerialNo",
+      'Grand Total' AS "AccountName",
+      '' AS "AccountType",
+      NULL AS "OpeningBalance",
+      SUM("TotalInflow")::NUMERIC  AS "TotalInflow",
+      SUM("TotalOutflow")::NUMERIC AS "TotalOutflow",
+      SUM("ClosingBalance")::NUMERIC AS "ClosingBalance"
+    FROM report
+    ORDER BY "SerialNo" NULLS LAST;
+  `, dateFrom, dateTo);
+        // Convert Decimals → numbers
+        const safeResult = rawResult.map(r => ({
+            ...r,
+            SerialNo: r.SerialNo === null ? null : Number(r.SerialNo),
+            OpeningBalance: r.OpeningBalance === null ? null : Number(r.OpeningBalance),
+            TotalInflow: Number(r.TotalInflow),
+            TotalOutflow: Number(r.TotalOutflow),
+            ClosingBalance: Number(r.ClosingBalance),
+        }));
+        return safeResult;
+    }
     async getCustomerBalances(asOfDate) {
         const result = await prisma.$queryRawUnsafe(`
     SELECT 
@@ -304,7 +385,7 @@ class ReportsService {
     ) x
     `, customerId, fromDate);
         const openingBalance = Number(opening[0].balance || 0);
-        // 🔹 Ledger entries in period
+        //  Ledger entries in period
         const entries = await prisma.$queryRawUnsafe(`
     SELECT 
       'CUSTOMER' as type,
@@ -343,7 +424,7 @@ class ReportsService {
 
     ORDER BY date, reference
     `, customerId, fromDate, toDate);
-        // 🔹 Totals
+        //  Totals
         const totalSales = entries.reduce((sum, e) => sum + Number(e.debit || 0), 0);
         const totalPayments = entries.reduce((sum, e) => sum + Number(e.credit || 0), 0);
         const closingBalance = openingBalance + totalSales - totalPayments;

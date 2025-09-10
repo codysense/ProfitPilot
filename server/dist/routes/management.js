@@ -9,7 +9,7 @@ const managementController = new management_1.ManagementController();
 // Apply authentication to all routes
 router.use(auth_1.authenticate);
 // Company Settings (CFO and GM only)
-router.get('/company', (0, auth_1.requireRole)('CFO'), managementController.getCompanySettings);
+router.get('/company', managementController.getCompanySettings);
 router.put('/company', (0, auth_1.requireRole)('CFO'), (0, audit_1.auditLogger)('UPDATE', 'COMPANY_SETTINGS'), managementController.updateCompanySettings);
 // System Settings (CFO and GM only)
 router.get('/settings', (0, auth_1.requireRole)('CFO'), managementController.getSystemSettings);
@@ -47,4 +47,6 @@ router.get('/cash-accounts', (0, auth_1.requireRole)('CFO'), managementControlle
 router.post('/cash-accounts', (0, auth_1.requireRole)('CFO'), (0, audit_1.auditLogger)('CREATE', 'CASH_ACCOUNT'), managementController.createCashAccountManagement);
 router.put('/cash-accounts/:id', (0, auth_1.requireRole)('CFO'), (0, audit_1.auditLogger)('UPDATE', 'CASH_ACCOUNT'), managementController.updateCashAccountManagement);
 router.delete('/cash-accounts/:id', (0, auth_1.requireRole)('CFO'), (0, audit_1.auditLogger)('DELETE', 'CASH_ACCOUNT'), managementController.deleteCashAccountManagement);
+// Audit Log Management (GM only)
+router.get('/audit-logs', (0, auth_1.requireRole)('General Manager'), managementController.getAuditLogs);
 exports.default = router;

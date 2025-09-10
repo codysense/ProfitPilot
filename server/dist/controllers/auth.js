@@ -193,7 +193,7 @@ class AuthController {
                 !req.user?.roles.includes('General Manager')) {
                 return res.status(403).json({ error: 'Insufficient permissions' });
             }
-            const { name, email, password, roleId } = req.body;
+            const { name, email, password, roleId, warehouseId } = req.body;
             const existingUser = await prisma.user.findUnique({ where: { email } });
             if (existingUser) {
                 return res.status(400).json({ error: 'User already exists' });
@@ -201,7 +201,12 @@ class AuthController {
             const hashedPassword = await bcryptjs_1.default.hash(password, 12);
             const user = await prisma.$transaction(async (tx) => {
                 const newUser = await tx.user.create({
-                    data: { name, email, password: hashedPassword },
+                    data: {
+                        name,
+                        email,
+                        password: hashedPassword,
+                        warehouseId: warehouseId || null
+                    },
                 });
                 await tx.userRole.create({
                     data: { userId: newUser.id, roleId },

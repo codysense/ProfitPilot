@@ -17,14 +17,26 @@ const auditLogger = (action, entity) => {
                 // run asynchronously, don't block response
                 (async () => {
                     try {
+                        let beforeJson = null;
+                        let afterJson = null;
+                        if (action === 'CREATE') {
+                            afterJson = responseData || null;
+                        }
+                        else if (action === 'UPDATE') {
+                            beforeJson = req.body || null; // what was sent for update
+                            afterJson = responseData || null; // updated record
+                        }
+                        else if (action === 'DELETE') {
+                            beforeJson = responseData || null; // deleted record (usually returned before delete)
+                        }
                         await prisma.auditLog.create({
                             data: {
                                 userId: req.user.id,
                                 action,
                                 entity,
                                 entityId: responseData?.id || req.params.id || 'unknown',
-                                beforeJson: req.body || null,
-                                afterJson: responseData || null,
+                                beforeJson,
+                                afterJson,
                                 ipAddress: req.ip,
                             },
                         });
@@ -35,7 +47,7 @@ const auditLogger = (action, entity) => {
                 })();
             }
             return originalEnd.call(this, chunk, ...args);
-        }; // cast to satisfy TS
+        };
         next();
     };
 };
