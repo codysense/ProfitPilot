@@ -96,7 +96,7 @@ class ApiClient {
   }
 
   // HTTP methods
-  async get<T>(endpoint: string, p0: { params: Record<string, any> | undefined; }): Promise<T> {
+  async get<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'GET' });
   }
 
@@ -363,8 +363,6 @@ export const reportsApi = {
     api.get(`/reports/customer-ledger?${new URLSearchParams(params as any).toString()}`),
   getVendorLedger: (params: {  dateFrom?: string; dateTo?: string;vendorId: string }) =>
     api.get(`/reports/vendor-ledger?${new URLSearchParams(params as any).toString()}`),
-  getCashAccountBalances: (params: { dateFrom: string; dateTo: string }) =>
-    api.get(`/reports/cashAccount-balances?${new URLSearchParams(params).toString()}`),
   
   // Operational Reports
   getInventoryAging: (params: { asOfDate: string; warehouseId?: string }) =>
@@ -446,34 +444,6 @@ export const managementApi = {
   createCashAccountManagement: (data: any) => api.post('/management/cash-accounts', data),
   updateCashAccountManagement: (id: string, data: any) => api.put(`/management/cash-accounts/${id}`, data),
   deleteCashAccountManagement: (id: string) => api.delete(`/management/cash-accounts/${id}`),
-
-  // AuditLogs
-getAuditLogs: (params?: Record<string, any>) => {
-  const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
-  return api.get(`/management/audit-logs${query}`);
-},
-
-
-//   managementApi.getAuditLogs({
-//   page: 1,
-//   limit: 20,
-//   action: "UPDATE",
-//   entity: "COMPANY_SETTINGS"
-// });
-
-// getAuditLogs: (params?: {  
-//   page: 1, 
-//   userId?: string,
-//   action?: 'UPDATE',
-//   entity?: "COMPANY_SETTINGS",
-//   dateFrom?: string,
-//   dateTo?: string,
-// }) =>
-//   api.get('/management/audit-logs',{ params }),
-
-
-
-
 };
 
 // Assets API
@@ -506,10 +476,9 @@ export const assetsApi = {
   getAssetValuation: (params?: { asOfDate?: string }) =>
     api.get(`/assets/valuation${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
 
-  
-  
+  //AuditLogs
+  getAuditLogs:() => api.get('/management/audit-log'),
 };
-
 
 // POS API
 export const posApi = {
@@ -530,6 +499,4 @@ export const posApi = {
   
   // Customers
   getCustomersWithBalances: () => api.get('/pos/customers-with-balances'),
-
-  
 };

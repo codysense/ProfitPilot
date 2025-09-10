@@ -11,6 +11,7 @@ import cashRoutes from './routes/cash';
 import reportsRoutes from './routes/reports';
 import managementRoutes from './routes/management';
 import assetsRoutes from './routes/assets';
+import posRoutes from './routes/pos';
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use('/api/v1/cash', cashRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/management', managementRoutes);
 app.use('/api/v1/assets', assetsRoutes);
+app.use('/api/v1/pos', posRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

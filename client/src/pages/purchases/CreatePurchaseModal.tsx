@@ -49,12 +49,12 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
 
   const { data: vendors } = useQuery({
     queryKey: ['vendors-for-purchase'],
-    queryFn: () => purchaseApi.getVendors({ limit: 100 })
+    queryFn: () => purchaseApi.getVendors({limit: 100 })
   });
 
   const { data: items } = useQuery({
     queryKey: ['items-for-purchase'],
-    queryFn: () => inventoryApi.getItems({ type: 'RAW_MATERIAL', limit: 100 })
+    queryFn: () => inventoryApi.getItems({ type:'RAW_MATERIALS', limit: 100 })
   });
 
   const calculateTotal = () => {

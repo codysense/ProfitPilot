@@ -159,7 +159,8 @@ const CreateCustomerModal = ({ onClose, onSuccess }: CreateCustomerModalProps) =
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">Select Customer Group</option>
-                    <option value="Ordinary">Ordinary Customer</option>
+                    <option value="WIC">WIC Customer</option>
+                    <option value="Retail">Retail Customer</option>
                     <option value="Bulk">Bulk Customer</option>
                     {/* <option value="Net 30">Net 30 days</option>
                     <option value="Net 45">Net 45 days</option>

@@ -348,12 +348,12 @@ async function main() {
     update: {},
     create: {
       id: 'default',
-      name: 'Manufacturing Corp',
+      name: 'CodySense IT Solutions',
       baseCurrency: 'NGN',
       timezone: 'Africa/Lagos',
       address: '123 Industrial Area, Lagos, Nigeria',
       phone: '+234-800-123-4567',
-      email: 'info@manufacturingcorp.com'
+      email: 'info@codysense.com'
     }
   });
 
@@ -574,7 +574,7 @@ async function main() {
       create: {
         code: '1000',
         name: 'Current Assets',
-        accountType: 'ASSET',
+        accountType: 'CURRENT ASSET',
         isActive: true
       }
     }),
@@ -584,7 +584,7 @@ async function main() {
       create: {
         code: '1100',
         name: 'Cash and Bank',
-        accountType: 'ASSET',
+        accountType: 'CURRENT ASSET',
         parentId: null, // Will be updated after creation
         isActive: true
       }
@@ -595,7 +595,7 @@ async function main() {
       create: {
         code: '1200',
         name: 'Accounts Receivable',
-        accountType: 'ASSET',
+        accountType: 'CURRENT ASSET',
         isActive: true
       }
     }),
@@ -605,7 +605,7 @@ async function main() {
       create: {
         code: '1300',
         name: 'Raw Materials Inventory',
-        accountType: 'ASSET',
+        accountType: 'CURRENT ASSET',
         isActive: true
       }
     }),
@@ -615,7 +615,7 @@ async function main() {
       create: {
         code: '1350',
         name: 'Finished Goods Inventory',
-        accountType: 'ASSET',
+        accountType: 'CURRENT ASSET',
         isActive: true
       }
     }),
@@ -625,7 +625,7 @@ async function main() {
       create: {
         code: '1400',
         name: 'Work in Progress',
-        accountType: 'ASSET',
+        accountType: 'CURRENT ASSET',
         isActive: true
       }
     }),
@@ -636,7 +636,7 @@ async function main() {
       create: {
         code: '2000',
         name: 'Accounts Payable',
-        accountType: 'LIABILITY',
+        accountType: 'CURRENT LIABILITY',
         isActive: true
       }
     }),
@@ -667,7 +667,7 @@ async function main() {
       create: {
         code: '4000',
         name: 'Sales Revenue',
-        accountType: 'REVENUE',
+        accountType: 'INCOME',
         isActive: true
       }
     }),
@@ -678,7 +678,7 @@ async function main() {
       create: {
         code: '5000',
         name: 'Cost of Goods Sold',
-        accountType: 'EXPENSE',
+        accountType: 'EXPENSES',
         isActive: true
       }
     }),
@@ -688,7 +688,7 @@ async function main() {
       create: {
         code: '5150',
         name: 'Scrap Loss',
-        accountType: 'EXPENSE',
+        accountType: 'EXPENSES',
         isActive: true
       }
     }),
@@ -698,7 +698,7 @@ async function main() {
       create: {
         code: '5200',
         name: 'Manufacturing Overhead Absorbed',
-        accountType: 'EXPENSE',
+        accountType: 'EXPENSES',
         isActive: true
       }
     }),
@@ -708,7 +708,7 @@ async function main() {
       create: {
         code: '8100',
         name: 'Inventory Adjustments',
-        accountType: 'EXPENSE',
+        accountType: 'EXPENSES',
         isActive: true
       }
     })

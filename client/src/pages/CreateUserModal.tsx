@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { X, Eye, EyeOff } from 'lucide-react';
 import { userApi } from '../lib/api';
 import toast from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+import { inventoryApi } from '../lib/api';
 
 const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -12,6 +14,7 @@ const createUserSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string().min(6, 'Please confirm your password'),
   roleId: z.string().min(1, 'Please select a role'),
+  warehouseId: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -34,14 +37,26 @@ interface CreateUserModalProps {
 const CreateUserModal = ({ roles, onClose, onSuccess }: CreateUserModalProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('');
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting }
   } = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema)
   });
+
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses-for-user'],
+    queryFn: () => inventoryApi.getWarehouses()
+  });
+
+  const watchedRoleId = watch('roleId');
+  
+  // Check if selected role is POS User
+  const isPosUser = roles.find(role => role.id === watchedRoleId)?.name === 'POS User';
 
   const onSubmit = async (data: CreateUserFormData) => {
     try {
@@ -49,7 +64,8 @@ const CreateUserModal = ({ roles, onClose, onSuccess }: CreateUserModalProps) =>
         name: data.name,
         email: data.email,
         password: data.password,
-        roleId: data.roleId
+        roleId: data.roleId,
+        warehouseId: data.warehouseId
       });
       toast.success('User created successfully');
       onSuccess();
@@ -76,6 +92,31 @@ const CreateUserModal = ({ roles, onClose, onSuccess }: CreateUserModalProps) =>
                 <X className="h-6 w-6" />
               </button>
             </div>
+            
+            {isPosUser && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Assigned Warehouse *
+                </label>
+                <select
+                  {...register('warehouseId')}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                >
+                  <option value="">Select warehouse</option>
+                  {warehouses?.warehouses?.map((warehouse: any) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.code} - {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.warehouseId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.warehouseId.message}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-500">
+                  POS users are restricted to their assigned warehouse
+                </p>
+              </div>
+            )}
             
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>

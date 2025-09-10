@@ -3,6 +3,7 @@
 
 
 
+
 import React, { ReactNode, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -21,6 +22,7 @@ import {
   DollarSign,
   Building
 } from 'lucide-react';
+import { Monitor } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -44,6 +46,17 @@ const Layout = ({ children }: LayoutProps) => {
       href: '/',
       icon: Building2,
       permission: null
+    },
+    {
+      name: 'Point of Sales',
+      href: '/pos',
+      icon: Monitor,
+      permission: 'pos.sale.read',
+      children: [
+        { name: 'POS Terminal', href: '/pos' },
+        { name: 'Sales History', href: '/pos/sales' },
+        { name: 'Returns', href: '/pos/returns' }
+      ]
     },
     {
       name: 'Inventory',
@@ -90,17 +103,18 @@ const Layout = ({ children }: LayoutProps) => {
         { name: 'Customers', href: '/sales/customers' }
       ]
     },
-    // {
-    //   name: 'Assets',
-    //   href: '/assets',
-    //   icon: Building,
-    //   permission: 'inventory.item.read',
-    //   children: [
-    //     { name: 'Dashboard', href: '/assets' },
-    //     { name: 'Asset Register', href: '/assets/register' },
-    //     { name: 'Categories', href: '/assets/categories' }
-    //   ]
-    // },
+    {
+      name: 'Assets',
+      href: '/assets',
+      icon: Building,
+      permission: null,
+      children: [
+        { name: 'Dashboard', href: '/assets' },
+        { name: 'Asset Register', href: '/assets/register' },
+        { name: 'Categories', href: '/assets/categories' }
+      ],
+      requiresRole: ['CFO', 'General Manager']
+    },
     {
       name: 'Cash Management',
       href: '/cash',
@@ -110,7 +124,8 @@ const Layout = ({ children }: LayoutProps) => {
         { name: 'Cashbook', href: '/cash/cashbook' },
         { name: 'Customer Payments', href: '/cash/customer-payments' },
         { name: 'Vendor Payments', href: '/cash/vendor-payments' }
-      ]
+      ],
+      
     },
     {
       name: 'Management',
@@ -124,9 +139,10 @@ const Layout = ({ children }: LayoutProps) => {
         { name: 'Fiscal Calendar', href: '/management/fiscal' },
         { name: 'Chart of Accounts', href: '/management/chart-of-accounts' },
         { name: 'Cash Accounts', href: '/management/cash-accounts' },
-        // { name: 'Approval Flows', href: '/management/approvals' },
+        { name: 'Approval Flows', href: '/management/approvals' },
         { name: 'Role Management', href: '/management/roles' },
-        { name: 'User Management', href: '/management/users' }
+        { name: 'User Management', href: '/management/users' },
+         { name: 'Audit Log', href: '/management/audit-log' }
       ]
     },
     {
@@ -135,13 +151,13 @@ const Layout = ({ children }: LayoutProps) => {
       icon: FileText,
       permission: null
     },
-    // {
-    //   name: 'Users',
-    //   href: '/users',
-    //   icon: Users,
-    //   permission: null,
-    //   requiresRole: ['CFO', 'General Manager']
-    // }
+    {
+      name: 'Users',
+      href: '/users',
+      icon: Users,
+      permission: null,
+      requiresRole: ['CFO', 'General Manager']
+    }
   ];
 
   const filteredNavigation = navigation.filter(item => 

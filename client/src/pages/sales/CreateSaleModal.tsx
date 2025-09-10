@@ -60,9 +60,19 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
   const customerId = watch('customerId')
 
   const { data: customers } = useQuery({
-    queryKey: ['customers-for-sale'],
-    queryFn: () => salesApi.getCustomers({ limit: 100 })
-  });
+  queryKey: ['customers-for-sale'],
+  queryFn: () => salesApi.getCustomers({ limit: 100 }),
+  select: (data) => ({
+    ...data,
+    customers: data.customers
+      ?.filter((customer: any) => customer.CustomerGroup !== 'WIC') // ✅ exclude WIC
+      .map((customer: any) => ({
+        ...customer,
+        outstandingBalance: 0 // Will be calculated server-side
+      }))
+  })
+});
+
 
   const { data: items } = useQuery({
     queryKey: ['items-for-sale'],
@@ -201,10 +211,12 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Sales order notes"
                 />
-              </div>
-
-              {/* Sale Lines */}
-              <div>
+              {/* </div>                
+                      {customers.code} - {customers.name}
+                      {customers.outstandingBalance > 0 && ` (Owes: ₦${customers.outstandingBalance.toLocaleString()})`}
+              
+              <div> */}
+                {/* Sale Lines */}
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-md font-medium text-gray-900">Items</h4>
                   <button

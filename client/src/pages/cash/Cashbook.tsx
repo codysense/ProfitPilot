@@ -46,7 +46,7 @@ const Cashbook = () => {
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  const { data: cashbookData, isLoading, refetch } = useQuery({
+  const { data: cashbookData = [], isLoading, refetch } = useQuery({
     queryKey: ['cashbook', { 
       page, 
       cashAccountId: cashAccountFilter,
@@ -54,6 +54,7 @@ const Cashbook = () => {
       dateTo: dateToFilter
     }],
     queryFn: () => cashApi.getCashbook({ 
+      
       page, 
       limit: 20,
       ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
@@ -62,10 +63,17 @@ const Cashbook = () => {
     })
   });
 
+//const cashbookData = (cashbookDataRaw.transactions).filter(entry => entry.glAccountId);
+
+
+  //  console.log(cashbookDataRaw)
+
   const { data: cashAccounts } = useQuery({
     queryKey: ['cash-accounts-for-filter'],
     queryFn: () => cashApi.getCashAccounts()
   });
+
+
 
   const columns = [
     {
@@ -95,8 +103,8 @@ const Cashbook = () => {
       header: 'GL Account',
       cell: (transaction: CashTransaction) => (
         <div>
-          <div className="font-medium">{transaction.glAccount.code}</div>
-          <div className="text-xs text-gray-500">{transaction.glAccount.name}</div>
+          <div className="font-medium">{transaction.glAccount?.code}</div>
+          <div className="text-xs text-gray-500">{transaction.glAccount?.name}</div>
         </div>
       ),
       width: 'w-48'
@@ -216,6 +224,13 @@ const Cashbook = () => {
             )}
           </button>
           <button
+            onClick={handleExport}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Print Cashbook
+          </button>
+          {/* <button
             onClick={() => setShowImportModal(true)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
@@ -227,7 +242,7 @@ const Cashbook = () => {
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Reconcile
-          </button>
+          </button> */}
           <button
             onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

@@ -51,6 +51,67 @@ export class ReportExporter {
     }
   }
 
+  // Print cashbook transactions
+  static async printCashbook(transactions: any[], accountName: string) {
+    try {
+      const printContent = document.createElement('div');
+      printContent.id = 'cashbook-print';
+      printContent.innerHTML = `
+        <div style="padding: 20px; font-family: Arial, sans-serif;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1f2937; margin-bottom: 10px;">CASHBOOK REPORT</h1>
+            <h2 style="color: #6b7280;">${accountName}</h2>
+            <p style="color: #6b7280;">Period: ${new Date().toLocaleDateString()}</p>
+          </div>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+              <tr style="background-color: #f9fafb;">
+                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Date</th>
+                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Description</th>
+                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">Receipt</th>
+                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">Payment</th>
+                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transactions.map((transaction: any) => `
+                <tr>
+                  <td style="border: 1px solid #e5e7eb; padding: 8px;">${new Date(transaction.transactionDate).toLocaleDateString()}</td>
+                  <td style="border: 1px solid #e5e7eb; padding: 8px;">${transaction.description}</td>
+                  <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">
+                    ${transaction.transactionType === 'RECEIPT' ? `₦${transaction.amount.toLocaleString()}` : ''}
+                  </td>
+                  <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">
+                    ${transaction.transactionType === 'PAYMENT' ? `₦${transaction.amount.toLocaleString()}` : ''}
+                  </td>
+                  <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">₦${transaction.runningBalance.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
+            Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(printContent);
+      
+      await this.exportToPDF(
+        'cashbook-print',
+        `cashbook-${accountName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`,
+        `Cashbook Report - ${accountName}`
+      );
+      
+      document.body.removeChild(printContent);
+    } catch (error) {
+      console.error('Print cashbook error:', error);
+      throw new Error('Failed to print cashbook');
+    }
+  }
+
   static exportToCSV(data: any[], columns: any[], filename: string) {
     try {
       // Create CSV headers

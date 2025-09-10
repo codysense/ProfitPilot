@@ -10,7 +10,7 @@ const managementController = new ManagementController();
 router.use(authenticate);
 
 // Company Settings (CFO and GM only)
-router.get('/company', requireRole('CFO'), managementController.getCompanySettings);
+router.get('/company',  managementController.getCompanySettings);
 router.put('/company', requireRole('CFO'), auditLogger('UPDATE', 'COMPANY_SETTINGS'), managementController.updateCompanySettings);
 
 // System Settings (CFO and GM only)
@@ -57,4 +57,6 @@ router.post('/cash-accounts', requireRole('CFO'), auditLogger('CREATE', 'CASH_AC
 router.put('/cash-accounts/:id', requireRole('CFO'), auditLogger('UPDATE', 'CASH_ACCOUNT'), managementController.updateCashAccountManagement);
 router.delete('/cash-accounts/:id', requireRole('CFO'), auditLogger('DELETE', 'CASH_ACCOUNT'), managementController.deleteCashAccountManagement);
 
+// Audit Log Management (GM only)
+router.get('/audit-logs', requireRole('General Manager'), managementController.getAuditLogs);
 export default router;

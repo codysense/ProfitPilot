@@ -131,6 +131,21 @@ export class ReportsController {
       res.status(400).json({ error: 'Failed to generate Vendor Ledger Report' });
     }
   }
+  async getCashAccountBalances(req: AuthRequest, res: Response) {
+    try {
+      const { dateFrom, dateTo} = req.query;
+      
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({ error: 'Date range is required' });
+      }
+
+      const report = await reportsService.getCashAccountBalances(new Date(dateFrom as string),new Date(dateTo as string) );
+      res.json(report);
+    } catch (error) {
+      console.error('CashAccount balances  error:', error);
+      res.status(400).json({ error: 'Failed to generate CashAccount balances Report' });
+    }
+  }
 
   async getCustomerBalances(req: AuthRequest, res: Response) {
     try {

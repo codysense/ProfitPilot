@@ -547,11 +547,14 @@ model CashAccount {
   balance       Decimal  @default(0) @db.Decimal(15,2)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
+  warehouseId    String?
+  
   
   // Relations
   cashTransactions CashTransaction[]
   salesReceipts    SalesReceipt[]
   purchasePayments PurchasePayment[]
+  warehouse       Warehouse? @relation(fields: [warehouseId], references: [id])
   
   @@map("cash_accounts")
 }

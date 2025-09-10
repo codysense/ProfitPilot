@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Eye, DollarSign, Users, Calendar } from 'lucide-react';
+import { Plus, Eye, DollarSign, Users, Calendar, Printer } from 'lucide-react';
 import { cashApi, salesApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import CreateCustomerPaymentModal from './CreateCustomerPaymentModal';
+// import { ReportExporter } from '../../lib/reportExporter';
+import { toast } from 'react-hot-toast';
 
 interface CustomerPayment {
   id: string;
@@ -54,7 +56,54 @@ const CustomerPayments = () => {
     queryFn: () => salesApi.getCustomers({ limit: 100 })
   });
 
-  
+  const handlePrintPayment = async (payment: CustomerPayment) => {
+    try {
+      // Create payment receipt content
+      const receiptContent = document.createElement('div');
+      receiptContent.id = 'customer-payment-print';
+      receiptContent.innerHTML = `
+        <div style="padding: 20px; font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1f2937; margin-bottom: 10px;">PAYMENT RECEIPT</h1>
+            <h2 style="color: #6b7280;">${payment.receiptNo}</h2>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Customer Details:</h3>
+            <p><strong>Name:</strong> ${payment.customer.name}</p>
+            <p><strong>Code:</strong> ${payment.customer.code}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Payment Details:</h3>
+            <p><strong>Amount Received:</strong> ₦${payment.amount.toLocaleString()}</p>
+            <p><strong>Payment Date:</strong> ${new Date(payment.createdAt).toLocaleDateString()}</p>
+            <p><strong>Cash Account:</strong> ${payment.cashAccount.name}</p>
+            ${payment.reference ? `<p><strong>Reference:</strong> ${payment.reference}</p>` : ''}
+          </div>
+          
+          <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
+            Received by: ${payment.user.name}<br>
+            Generated on ${new Date().toLocaleString()}<br>
+            ProfitPilot ERP System
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(receiptContent);
+      
+      await ReportExporter.exportToPDF(
+        'customer-payment-print',
+        `customer-payment-${payment.receiptNo}.pdf`,
+        `Customer Payment Receipt - ${payment.receiptNo}`
+      );
+      
+      document.body.removeChild(receiptContent);
+      toast.success('Payment receipt printed successfully');
+    } catch (error) {
+      console.error('Print payment receipt error:', error);
+    }
+  };
 
   const columns = [
     {
@@ -101,6 +150,20 @@ const CustomerPayments = () => {
       key: 'user.name',
       header: 'Received By',
       width: 'w-32'
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      cell: (payment: CustomerPayment) => (
+        <button
+          onClick={() => handlePrintPayment(payment)}
+          className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          title="Print Payment Receipt"
+        >
+          <Printer className="h-4 w-4" />
+        </button>
+      ),
+      width: 'w-24'
     }
   ];
 
@@ -223,17 +286,13 @@ const CustomerPayments = () => {
         onPageChange={setPage}
       />
 
-     
-
-      {/* Create Modal */}
       {showCreateModal && (
         <CreateCustomerPaymentModal
-          onClose={() => setShowCreateModal(false)}
           onSuccess={handleCreatePayment}
+          onClose={() => setShowCreateModal(false)}
         />
       )}
     </div>
-    
   );
 };
 

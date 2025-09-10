@@ -817,3 +817,147 @@ export interface RunDepreciationRequest {
   periodMonth: number;
   assetIds?: string[];
 }
+
+// POS Types
+export interface PosSession {
+  id: string;
+  sessionNo: string;
+  userId: string;
+  warehouseId: string;
+  cashAccountId: string;
+  openingBalance: number;
+  closingBalance?: number;
+  totalSales: number;
+  totalReturns: number;
+  openedAt: string;
+  closedAt?: string;
+  status: 'OPEN' | 'CLOSED';
+  warehouse: {
+    code: string;
+    name: string;
+  };
+  cashAccount: {
+    code: string;
+    name: string;
+  };
+}
+
+export interface PosSale {
+  id: string;
+  saleNo: string;
+  sessionId: string;
+  customerId?: string;
+  warehouseId: string;
+  cashAccountId: string;
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  amountPaid: number;
+  changeAmount: number;
+  paymentMethod: 'CASH' | 'CARD' | 'TRANSFER';
+  status: 'COMPLETED' | 'RETURNED';
+  notes?: string;
+  createdAt: string;
+  customer?: {
+    code: string;
+    name: string;
+  };
+  warehouse: {
+    code: string;
+    name: string;
+  };
+  saleLines: PosSaleLine[];
+  user: {
+    name: string;
+  };
+}
+
+export interface PosSaleLine {
+  id: string;
+  itemId: string;
+  qty: number;
+  unitPrice: number;
+  discountPercent: number;
+  lineTotal: number;
+  item: {
+    sku: string;
+    name: string;
+    uom: string;
+  };
+}
+
+export interface PosReturn {
+  id: string;
+  returnNo: string;
+  originalSaleId: string;
+  sessionId: string;
+  customerId?: string;
+  warehouseId: string;
+  totalAmount: number;
+  refundAmount: number;
+  reason: string;
+  createdAt: string;
+  returnLines: PosReturnLine[];
+}
+
+export interface PosReturnLine {
+  id: string;
+  originalLineId: string;
+  itemId: string;
+  qtyReturned: number;
+  unitPrice: number;
+  lineTotal: number;
+  item: {
+    sku: string;
+    name: string;
+    uom: string;
+  };
+}
+
+export interface CustomerWithBalance {
+  id: string;
+  code: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  outstandingBalance: number;
+}
+
+export interface CreatePosSessionRequest {
+  warehouseId: string;
+  cashAccountId: string;
+  openingBalance: number;
+}
+
+export interface CreatePosSaleRequest {
+  sessionId: string;
+  customerId?: string;
+  saleLines: {
+    itemId: string;
+    qty: number;
+    unitPrice: number;
+    discountPercent?: number;
+  }[];
+  subtotal: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  totalAmount: number;
+  amountPaid: number;
+  changeAmount?: number;
+  paymentMethod?: 'CASH' | 'CARD' | 'TRANSFER';
+  notes?: string;
+}
+
+export interface CreatePosReturnRequest {
+  originalSaleId: string;
+  sessionId: string;
+  reason: string;
+  returnLines: {
+    originalLineId: string;
+    itemId: string;
+    qtyReturned: number;
+    unitPrice: number;
+  }[];
+}

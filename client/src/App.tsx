@@ -47,7 +47,7 @@ import PurchasePayments from './pages/cash/PurchasePayments';
 import CompanySettings from './pages/management/CompanySettings';
 import SystemSettings from './pages/management/SystemSettings';
 import FiscalCalendar from './pages/management/FiscalCalendar';
-// import ApprovalFlows from './pages/management/ApprovalFlows';
+import ApprovalFlows from './pages/management/ApprovalFlows';
 import RoleManagement from './pages/management/RoleManagement';
 import EnhancedUserManagement from './pages/management/EnhancedUserManagement';
 import ChartOfAccounts from './pages/management/ChartOfAccounts';
@@ -57,6 +57,12 @@ import CashAccountManagement from './pages/management/CashAccountManagement';
 import AssetDashboard from './pages/assets/AssetDashboard';
 import AssetRegister from './pages/assets/AssetRegister';
 import AssetCategories from './pages/assets/AssetCategories';
+
+// POS Pages
+import PosDashboard from './pages/pos/PosDashboard';
+import PosSalesHistory from './pages/pos/PosSalesHistory';
+import PosReturnsHistory from './pages/pos/PosReturnsHistory';
+import AuditLog from './pages/management/AuditLog';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -195,6 +201,23 @@ function App() {
               </ProtectedRoute>
             } />
             
+            {/* POS Routes */}
+            <Route path="/pos" element={
+              <ProtectedRoute>
+                <PosDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/pos/sales" element={
+              <ProtectedRoute>
+                <PosSalesHistory />
+              </ProtectedRoute>
+            } />
+            <Route path="/pos/returns" element={
+              <ProtectedRoute>
+                <PosReturnsHistory />
+              </ProtectedRoute>
+            } />
+            
             {/* Cash Management Routes */}
             <Route path="/cash/cashbook" element={
               <ProtectedRoute>
@@ -255,11 +278,11 @@ function App() {
                 <CashAccountManagement />
               </ProtectedRoute>
             } />
-            {/* <Route path="/management/approvals" element={
+            <Route path="/management/approvals" element={
               <ProtectedRoute>
                 <ApprovalFlows />
               </ProtectedRoute>
-            } /> */}
+            } />
             <Route path="/management/roles" element={
               <ProtectedRoute>
                 <RoleManagement />
@@ -270,7 +293,12 @@ function App() {
                 <EnhancedUserManagement />
               </ProtectedRoute>
             } />
-            
+            <Route path="/management/audit-log" element={
+              <ProtectedRoute>
+                <AuditLog />
+              </ProtectedRoute>
+            } />
+
             {/* Catch all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

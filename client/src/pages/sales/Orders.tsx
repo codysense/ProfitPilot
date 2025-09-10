@@ -44,6 +44,16 @@ const SalesOrders = () => {
     {
       key: 'customer.name',
       header: 'Customer',
+      cell: (sale: Sale) => (
+        <div>
+          <div className="font-medium">{sale.customer.name}</div>
+          {sale.customer.outstandingBalance > 0 && (
+            <div className="text-xs text-red-600">
+              Owes: ₦{sale.customer.outstandingBalance.toLocaleString()}
+            </div>
+          )}
+        </div>
+      ),
       width: 'w-48'
     },
     {

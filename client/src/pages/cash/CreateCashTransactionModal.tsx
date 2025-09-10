@@ -61,6 +61,7 @@ const CreateCashTransactionModal = ({ onClose, onSuccess }: CreateCashTransactio
     }
   };
 
+  console.log(chartAccounts)
   // Filter GL accounts based on transaction type
   const getFilteredGLAccounts = () => {
     if (!chartAccounts?.accounts) return [];
@@ -159,7 +160,7 @@ const CreateCashTransactionModal = ({ onClose, onSuccess }: CreateCashTransactio
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
                   <option value="">Select GL account</option>
-                  {getFilteredGLAccounts().map((account: any) => (
+                  {chartAccounts?.accounts?.map((account: any) => (
                     <option key={account.id} value={account.id}>
                       {account.code} - {account.name}
                     </option>

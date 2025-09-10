@@ -41,8 +41,29 @@ export class SalesController {
         prisma.sale.count({ where })
       ]);
 
+      // Add outstanding balances to customers
+      const salesWithBalances = await Promise.all(
+        sales.map(async (sale) => {
+          const balanceResult = await prisma.$queryRaw`
+            SELECT COALESCE(
+              (SELECT SUM(s."totalAmount") FROM sales s WHERE s."customerId" = ${sale.customerId} AND s.status IN ('INVOICED', 'PAID')) -
+              (SELECT SUM(sr."amountReceived") FROM sales_receipts sr WHERE sr."customerId" = ${sale.customerId}), 
+              0
+            ) as balance
+          ` as any[];
+          
+          return {
+            ...sale,
+            customer: {
+              ...sale.customer,
+              outstandingBalance: Number(balanceResult[0]?.balance || 0)
+            }
+          };
+        })
+      );
+
       res.json({
-        sales,
+        sales: salesWithBalances,
         pagination: {
           page: Number(page),
           limit: Number(limit),
@@ -207,8 +228,26 @@ export class SalesController {
         prisma.customer.count({ where })
       ]);
 
+      // Calculate outstanding balances for each customer
+      const customersWithBalances = await Promise.all(
+        customers.map(async (customer) => {
+          const balanceResult = await prisma.$queryRaw`
+            SELECT COALESCE(
+              (SELECT SUM(s."totalAmount") FROM sales s WHERE s."customerId" = ${customer.id} AND s.status IN ('INVOICED', 'PAID')) -
+              (SELECT SUM(sr."amountReceived") FROM sales_receipts sr WHERE sr."customerId" = ${customer.id}), 
+              0
+            ) as balance
+          ` as any[];
+          
+          return {
+            ...customer,
+            outstandingBalance: Number(balanceResult[0]?.balance || 0)
+          };
+        })
+      );
+
       res.json({
-        customers,
+        customers: customersWithBalances,
         pagination: {
           page: Number(page),
           limit: Number(limit),

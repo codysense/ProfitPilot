@@ -147,6 +147,146 @@ export class ManagementController {
     }
   }
 
+  // Audit Log Management
+  
+async getAuditLogs(req: AuthRequest, res: Response) {
+  try {
+    // console.log('req.query:', req.query);
+
+    // Only General Manager can access audit logs
+    if (!req.user?.roles.includes('General Manager')) {
+      return res.status(403).json({ error: 'Only General Manager can access audit logs' });
+    }
+
+    const { 
+      page = 1, 
+      limit = 20, 
+      userId,
+      action,
+      entity,
+      dateFrom,
+      dateTo
+    } = req.query;
+    
+    const skip = (Number(page) - 1) * Number(limit);
+
+    //  Build filters with proper casting
+    const where: any = {};
+   if (userId) where.userId = String(userId);
+
+if (action) where.action = String(action).toUpperCase();
+if (entity) where.entity = String(entity).toUpperCase();
+
+if (dateFrom || dateTo) {
+  where.createdAt = {};
+  if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+  if (dateTo) {
+    const endDate = new Date(dateTo as string);
+    endDate.setHours(23, 59, 59, 999); // include the full day
+    where.createdAt.lte = endDate;
+  }
+}
+ {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+      if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+    }
+   console.log("Final Prisma where:", JSON.stringify(where, null, 2));
+
+
+    const [entries, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        include: {
+          user: { select: { name: true, email: true } },
+          //warehouse: { select: { name: true } },  
+         // vendor: { select: { name: true } },      //  resolve vendorId → vendor.name
+         // customer: { select: { name: true } },    //  resolve customerId → customer.name
+              //  resolve productId → product.name
+          // add more relations if your audit log can point to other entities
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.auditLog.count({ where })
+    ]);
+
+    res.json({
+      entries,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get audit logs error:', error);
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+}
+
+  // async getAuditLogs(req: AuthRequest, res: Response) {
+  //   try {
+  //     // Only General Manager can access audit logs
+  //     if (!req.user?.roles.includes('General Manager')) {
+  //       return res.status(403).json({ error: 'Only General Manager can access audit logs' });
+  //     }
+
+  //     const { 
+  //       page = 1, 
+  //       limit = 20, 
+  //       userId,
+  //       action,
+  //       entity,
+  //       dateFrom,
+  //       dateTo
+  //     } = req.query;
+      
+  //     const skip = (Number(page) - 1) * Number(limit);
+
+  //     const where: any = {};
+  //     if (userId) where.userId = userId;
+  //     if (action) where.action = action;
+  //     if (entity) where.entity = entity;
+  //     if (dateFrom || dateTo) {
+  //       where.createdAt = {};
+  //       if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+  //       if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+  //     }
+
+  //     const [entries, total] = await Promise.all([
+  //       prisma.auditLog.findMany({
+  //         where,
+  //         skip,
+  //         take: Number(limit),
+  //         include: {
+  //           user: {
+  //             select: { name: true, email: true }
+  //           }
+  //         },
+  //         orderBy: { createdAt: 'desc' }
+  //       }),
+  //       prisma.auditLog.count({ where })
+  //     ]);
+
+  //     res.json({
+  //       entries,
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         total,
+  //         pages: Math.ceil(total / Number(limit))
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Get audit logs error:', error);
+  //     res.status(500).json({ error: 'Failed to fetch audit logs' });
+  //   }
+  // }
+
+
     // Company Settings
   async getCompanySettings(req: AuthRequest, res: Response) {
     try {

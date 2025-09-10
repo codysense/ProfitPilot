@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Eye, DollarSign, Building, Calendar } from 'lucide-react';
+import { Plus, Eye, DollarSign, Building, Calendar, Printer } from 'lucide-react';
 import { cashApi, purchaseApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 // import StatusBadge from '../../components/StatusBadge';
 import CreateVendorPaymentModal from './CreateVendorPaymentModal';
+// import { ReportExporter } from '../../lib/api';
+import { toast } from 'react-hot-toast';
 
 interface VendorPayment {
   id: string;
@@ -30,6 +32,9 @@ interface VendorPayment {
   user: {
     name: string;
   };
+  transactionNo: string;
+  amount: number;
+  transactionDate: string;
 }
 
 const VendorPayments = () => {
@@ -52,7 +57,56 @@ const VendorPayments = () => {
     queryFn: () => purchaseApi.getVendors({ limit: 100 })
   });
 
-  console.log(data)
+  console.log(data);
+
+  const handlePrintPayment = async (payment: VendorPayment) => {
+    try {
+      // Create payment voucher content
+      const voucherContent = document.createElement('div');
+      voucherContent.id = 'vendor-payment-print';
+      voucherContent.innerHTML = `
+        <div style="padding: 20px; font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1f2937; margin-bottom: 10px;">PAYMENT VOUCHER</h1>
+            <h2 style="color: #6b7280;">${payment.transactionNo}</h2>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Vendor Details:</h3>
+            <p><strong>Name:</strong> ${payment.vendor?.name || 'N/A'}</p>
+            <p><strong>Code:</strong> ${payment.vendor?.code || 'N/A'}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Payment Details:</h3>
+            <p><strong>Amount Paid:</strong> ₦${payment.amount.toLocaleString()}</p>
+            <p><strong>Payment Date:</strong> ${new Date(payment.transactionDate).toLocaleDateString()}</p>
+            <p><strong>Cash Account:</strong> ${payment.cashAccount.name}</p>
+            ${payment.reference ? `<p><strong>Reference:</strong> ${payment.reference}</p>` : ''}
+          </div>
+          
+          <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
+            Paid by: ${payment.user.name}<br>
+            Generated on ${new Date().toLocaleString()}<br>
+            ProfitPilot ERP System
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(voucherContent);
+      
+      await ReportExporter.exportToPDF(
+        'vendor-payment-print',
+        `vendor-payment-${payment.transactionNo}.pdf`,
+        `Vendor Payment Voucher - ${payment.transactionNo}`
+      );
+      
+      document.body.removeChild(voucherContent);
+      toast.success('Payment voucher printed successfully');
+    } catch (error) {
+      console.error('Print payment voucher error:', error);
+    }
+  };
 
   const columns = [
     {
@@ -68,7 +122,7 @@ const VendorPayments = () => {
     {
       key: 'amount',
       header: 'Amount Paid',
-      // cell: (payment: VendorPayment) => `₦${Number(payment.amountPaid).toLocaleString()}`   ,
+      // cell: (payment: VendorPayment) => `₦${Number(payment.amountPaid).toLocaleString()}`,
       width: 'w-32'
     },
     {
@@ -98,6 +152,20 @@ const VendorPayments = () => {
       key: 'user.name',
       header: 'Paid By',
       width: 'w-32'
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      cell: (payment: VendorPayment) => (
+        <button
+          onClick={() => handlePrintPayment(payment)}
+          className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          title="Print Payment Voucher"
+        >
+          <Printer className="h-4 w-4" />
+        </button>
+      ),
+      width: 'w-24'
     }
   ];
 
@@ -221,11 +289,10 @@ const VendorPayments = () => {
         onPageChange={setPage}
       />
 
-      {/* Create Modal */}
       {showCreateModal && (
         <CreateVendorPaymentModal
-          onClose={() => setShowCreateModal(false)}
           onSuccess={handleCreatePayment}
+          onClose={() => setShowCreateModal(false)}
         />
       )}
     </div>

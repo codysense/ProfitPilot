@@ -9,8 +9,20 @@ export class CashController {
   // Get all cash accounts
   async getCashAccounts(req: AuthRequest, res: Response) {
     try {
+      // Apply warehouse filtering for non-admin users
+      let where: any = { isActive: true };
+      if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+        const user = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { warehouseId: true }
+        });
+        if (user?.warehouseId) {
+          where.warehouseId = user.warehouseId;
+        }
+      }
+
       const accounts = await prisma.cashAccount.findMany({
-        where: { isActive: true },
+        where,
         orderBy: { code: 'asc' }
       });
 

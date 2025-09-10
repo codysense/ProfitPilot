@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, X, Save, DollarSign, Building, CreditCard, Eye, EyeOff } from 'lucide-react';
-import { cashApi, managementApi } from '../../lib/api';
+import { cashApi, inventoryApi, managementApi } from '../../lib/api';
 import { CashAccount } from '../../types/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
@@ -18,6 +18,7 @@ const createCashAccountSchema = z.object({
   bankName: z.string().optional(),
   glAccountId: z.string().min(1, 'GL Account is required'),
   balance: z.number().default(0),
+  warehouseId:z.string().optional()
 });
 
 const updateCashAccountSchema = z.object({
@@ -28,6 +29,7 @@ const updateCashAccountSchema = z.object({
   glAccountId: z.string().min(1, 'GL Account is required'),
   balance: z.number(),
   isActive: z.boolean().default(true),
+  warehouseId:z.string().optional()
 });
 
 type CreateCashAccountFormData = z.infer<typeof createCashAccountSchema>;
@@ -43,6 +45,11 @@ const CashAccountManagement = () => {
     queryKey: ['cash-accounts-management'],
     queryFn: () => cashApi.getCashAccounts()
   });
+
+    const { data: warehouses } = useQuery({
+      queryKey: ['warehouses-for-cashAccount'],
+      queryFn: () => inventoryApi.getWarehouses()
+    });
 
   const { data: chartAccounts } = useQuery({
     queryKey: ['chart-accounts-for-cash'],
@@ -473,6 +480,27 @@ const CashAccountManagement = () => {
                       <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
                     )}
                   </div>
+                  <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Warehouse
+                            </label>
+                            <select
+                              {...register(`warehouseId`)}
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            >
+                              <option value="">Select warehouse</option>
+                              {warehouses?.warehouses?.map((warehouse: any) => (
+                                <option key={warehouse.id} value={warehouse.id}>
+                                  {warehouse.code} - {warehouse.name}
+                                </option>
+                              ))}
+                            </select>
+                            {/* {errors.deliveryLines?.[index]?.warehouseId && (
+                              <p className="mt-1 text-sm text-red-600">
+                                {errors.deliveryLines[index]?.warehouseId?.message}
+                              </p>
+                            )} */}
+                          </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700">

@@ -115,6 +115,14 @@ const Reports = () => {
       supportVendors:true
     },
     {
+      id: 'cashAccount-balances',
+      name: 'CashAcount Balances',
+      description: 'Summary of Cash and Bank accounts balanes and total trnsactions',
+      icon: DollarSign,
+      category: 'Financial',
+      requiresDateRange: true, 
+    },
+    {
       id: 'customer-balances',
       name: 'Customer Balances',
       description: 'List of Customers with their Outstanding balnces as of Particular',
@@ -267,6 +275,13 @@ const Reports = () => {
           }
           data = await reportsApi.getProfitAndLoss({ dateFrom, dateTo });
           break;
+        case 'cashAccount-balances':
+          if (!dateFrom || !dateTo) {
+            alert('Please select date range');
+            return;
+          }
+          data = await reportsApi.getCashAccountBalances({ dateFrom, dateTo });
+          break;
         case 'trial-balance':
           data = await reportsApi.getTrialBalance({ asOfDate });
           break;
@@ -321,7 +336,7 @@ const Reports = () => {
         break;
         case 'vendor-ledger':
          
-          if (!customerFilter) {
+          if (!vendorFilter) {
             alert('Please select a vendor');
             return;
           }
@@ -433,6 +448,20 @@ const Reports = () => {
             { key: 'balance', header: 'Balance' }
           ];
           ReportExporter.exportGenericReport(reportData, trialBalanceColumns, 'Trial Balance', format);
+          break; }
+        case 'cashAccount-balances':
+          { const cashAccountBalancesColumns = [
+            { key: 'SerialNo', header: 'Serial No' },
+            { key: 'AccountType', header: 'Account Type' },
+            { key: 'OpeningBalance', header: 'Opening Balance' },
+            { key: 'TotalInflow', header: 'Total Inflow' },
+            { key: 'TotalOutflow', header: 'Total Outflow' },
+            { key: 'ClosingBalance', header: 'Closing Balance' },
+            // { key: 'GrandTotalInflow', header: 'Grand TotalInflow' },
+            // { key: 'GrandTotalOutflow', header: 'Grand TotaOutflow' },
+            // { key: 'GrandTotalClosing', header: 'Grand TotalClosing' },
+          ];
+          ReportExporter.exportGenericReport(reportData, cashAccountBalancesColumns, 'CashAccount Balances', format);
           break; }
         case 'general-ledger':
           { const glColumns = [
@@ -601,8 +630,6 @@ const Reports = () => {
           ];
           ReportExporter.exportGenericReport(reportData, materialUsageColumns, 'Production Summary', format);
           break; }
-
-
         case 'sales-by-item':
           { const salesItemColumns = [
             { key: 'item.sku', header: 'Item SKU' },
@@ -704,6 +731,8 @@ const Reports = () => {
         return <MaterialUsage data={reportData}/>
       case 'vendor-balances':
         return <VendorBalances data={reportData}/>
+      case 'cashAccount-balances':
+        return <CashAccountBalances data={reportData}/>
       case 'customer-balances':
         return <CustomerBalances data={reportData}/>
       case 'ar-aging':
@@ -1232,6 +1261,36 @@ const VendorBalances = ({ data }: { data: any }) => {
         <h2 className="text-xl font-bold">Vendor Balances</h2>
         <p className="text-gray-600">
          Detail of Vendor Balances
+        </p>
+      </div>
+      
+      <DataTable data={data || []} columns={columns} />
+    </div>
+  );
+};
+const CashAccountBalances = ({ data }: { data: any }) => {
+  const columns = [
+  
+  
+    { key: 'SerialNo', header: 'Serial No', width: 'w-32' },
+    { key: 'AccountType', header: 'Account Type' , width: 'w-32'},
+    { key: 'OpeningBalance', header: 'Opening Balance', width: 'w-32' },
+    { key: 'TotalInflow', header: 'Total Inflow' , width: 'w-32'},
+    { key: 'TotalOutflow', header: 'Total Outflow' , width: 'w-32'},
+    { key: 'ClosingBalance', header: 'Closing Balance' , width: 'w-32'},
+    // { key: 'GrandTotalInflow', header: 'Grand TotalInflow' , width: 'w-32'},
+    // { key: 'GrandTotalOutflow', header: 'Grand TotaOutflow' , width: 'w-32'},
+    // { key: 'GrandTotalClosing', header: 'Grand TotalClosing' , width: 'w-32'},
+
+   
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-xl font-bold">Cash Account Balances</h2>
+        <p className="text-gray-600">
+         Detail of Cash Account Balances
         </p>
       </div>
       

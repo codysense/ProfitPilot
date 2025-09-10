@@ -31,6 +31,16 @@ export class InventoryController {
         ];
       }
 
+      // Apply warehouse filtering for non-admin users
+      let warehouseFilter = null;
+      if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+        const user = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { warehouseId: true }
+        });
+        warehouseFilter = user?.warehouseId;
+      }
+
       const [items, total] = await Promise.all([
         prisma.item.findMany({
           where,
@@ -46,13 +56,22 @@ export class InventoryController {
       if (includeStock === 'true') {
         itemsWithStock = await Promise.all(
           items.map(async (item) => {
+            // Get stock for user's warehouse or all warehouses for admins
+            const stockWhere: any = { itemId: item.id };
+            if (warehouseFilter) {
+              stockWhere.warehouseId = warehouseFilter;
+            }
+            
             const stockEntries = await prisma.inventoryLedger.findMany({
-              where: { itemId: item.id },
+              where: stockWhere,
               orderBy: { postedAt: 'desc' },
-              take: 1
+              take: warehouseFilter ? 1 : 10
             });
             
-            const stockQty = stockEntries[0]?.runningQty || 0;
+            const stockQty = warehouseFilter 
+              ? (stockEntries[0]?.runningQty || 0)
+              : stockEntries.reduce((sum, entry) => sum + Number(entry.runningQty), 0);
+              
             return { ...item, stockQty: Number(stockQty) };
           })
         );
@@ -536,8 +555,20 @@ const warehouses = await prisma.warehouse.findMany({
 
   async getWarehouses(req: AuthRequest, res: Response) {
     try {
+      // Apply warehouse filtering for non-admin users
+      let where: any = { isActive: true };
+      if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+        const user = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { warehouseId: true }
+        });
+        if (user?.warehouseId) {
+          where.id = user.warehouseId;
+        }
+      }
+
       const warehouses = await prisma.warehouse.findMany({
-        where: { isActive: true },
+        where,
         select: {
           id: true,
           code: true,
@@ -637,49 +668,119 @@ const warehouses = await prisma.warehouse.findMany({
     }
   }
 
+  // async getLocations(req: AuthRequest, res: Response) {
+  //   try {
+  //     const { page = 1, limit = 10, search } = req.query;
+  //     const skip = (Number(page) - 1) * Number(limit);
+
+  //     const where: any = {};
+  //     if (search) {
+  //       where.OR = [
+  //         { code: { contains: search as string, mode: 'insensitive' } },
+  //         { name: { contains: search as string, mode: 'insensitive' } },
+  //         { city: { contains: search as string, mode: 'insensitive' } }
+  //       ];
+  //     }
+
+  //     const [locations, total] = await Promise.all([
+  //     // Apply warehouse filtering for non-admin users
+  //     if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+  //       const user = await prisma.user.findUnique({
+  //         where: { id: req.user!.id },
+  //         select: { warehouseId: true }
+  //       });
+  //       if (user?.warehouseId) {
+  //         where.warehouseId = user.warehouseId;
+  //       }
+  //     }
+
+  //       prisma.location.findMany({
+  //         where,
+  //         skip,
+  //         take: Number(limit),
+  //         include: {
+  //           _count: {
+  //             select: { warehouses: true }
+  //           }
+  //         },
+  //         orderBy: { createdAt: 'desc' }
+  //       }),
+  //       prisma.location.count({ where })
+  //     ]);
+
+  //     res.json({
+  //       locations,
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         total,
+  //         pages: Math.ceil(total / Number(limit))
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Get locations error:', error);
+  //     res.status(500).json({ error: 'Failed to fetch locations' });
+  //   }
+  // }
+
   async getLocations(req: AuthRequest, res: Response) {
-    try {
-      const { page = 1, limit = 10, search } = req.query;
-      const skip = (Number(page) - 1) * Number(limit);
+  try {
+    const { page = 1, limit = 10, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
 
-      const where: any = {};
-      if (search) {
-        where.OR = [
-          { code: { contains: search as string, mode: 'insensitive' } },
-          { name: { contains: search as string, mode: 'insensitive' } },
-          { city: { contains: search as string, mode: 'insensitive' } }
-        ];
-      }
-
-      const [locations, total] = await Promise.all([
-        prisma.location.findMany({
-          where,
-          skip,
-          take: Number(limit),
-          include: {
-            _count: {
-              select: { warehouses: true }
-            }
-          },
-          orderBy: { createdAt: 'desc' }
-        }),
-        prisma.location.count({ where })
-      ]);
-
-      res.json({
-        locations,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit))
-        }
-      });
-    } catch (error) {
-      console.error('Get locations error:', error);
-      res.status(500).json({ error: 'Failed to fetch locations' });
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { code: { contains: search as string, mode: 'insensitive' } },
+        { name: { contains: search as string, mode: 'insensitive' } },
+        { city: { contains: search as string, mode: 'insensitive' } }
+      ];
     }
+
+    // ✅ Apply warehouse filtering for non-admin users BEFORE queries
+    if (
+      !req.user!.roles.includes('CFO') &&
+      !req.user!.roles.includes('General Manager')
+    ) {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { warehouseId: true }
+      });
+      if (user?.warehouseId) {
+        where.warehouseId = user.warehouseId;
+      }
+    }
+
+    const [locations, total] = await Promise.all([
+      prisma.location.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        include: {
+          _count: {
+            select: { warehouses: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.location.count({ where })
+    ]);
+
+    res.json({
+      locations,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get locations error:', error);
+    res.status(500).json({ error: 'Failed to fetch locations' });
   }
+}
+
 
   async createLocation(req: AuthRequest, res: Response) {
     try {
