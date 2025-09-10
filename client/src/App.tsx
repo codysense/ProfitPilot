@@ -52,6 +52,7 @@ import RoleManagement from './pages/management/RoleManagement';
 import EnhancedUserManagement from './pages/management/EnhancedUserManagement';
 import ChartOfAccounts from './pages/management/ChartOfAccounts';
 import CashAccountManagement from './pages/management/CashAccountManagement';
+import AuditLog from './pages/management/Auditlog';
 
 // Asset Pages
 import AssetDashboard from './pages/assets/AssetDashboard';
@@ -62,7 +63,7 @@ import AssetCategories from './pages/assets/AssetCategories';
 import PosDashboard from './pages/pos/PosDashboard';
 import PosSalesHistory from './pages/pos/PosSalesHistory';
 import PosReturnsHistory from './pages/pos/PosReturnsHistory';
-import AuditLog from './pages/management/AuditLog';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
