@@ -36,6 +36,9 @@ class PosController {
                         openingBalance: new library_1.Decimal(validatedData.openingBalance)
                     }
                 });
+            }, {
+                maxWait: 5000, // 5s wait for connection
+                timeout: 20000 // 20s max runtime
             });
             res.status(201).json(session);
         }
@@ -175,6 +178,9 @@ class PosController {
                     { accountCode: '1350', debit: 0, credit: totalCogs, refType: 'POS_SALE', refId: newSale.id }
                 ], `POS Sale: ${saleNo}`, req.user.id);
                 return newSale;
+            }, {
+                maxWait: 5000, // 5s wait for connection
+                timeout: 20000 // 20s max runtime
             });
             res.status(201).json(sale);
         }
@@ -339,6 +345,9 @@ class PosController {
                     { accountCode: '5000', debit: 0, credit: returnTotal, refType: 'POS_RETURN', refId: newReturn.id }
                 ], `POS Return: ${returnNo}`, req.user.id);
                 return newReturn;
+            }, {
+                maxWait: 5000, // 5s wait for connection
+                timeout: 20000 // 20s max runtime
             });
             res.status(201).json(returnRecord);
         }

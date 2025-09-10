@@ -87,6 +87,9 @@ class AuthController {
                     data: { userId: newUser.id, roleId },
                 });
                 return newUser;
+            }, {
+                maxWait: 5000, // 5s wait for connection
+                timeout: 20000 // 20s max runtime
             });
             res.status(201).json({
                 id: user.id,
@@ -212,6 +215,9 @@ class AuthController {
                     data: { userId: newUser.id, roleId },
                 });
                 return newUser;
+            }, {
+                maxWait: 5000, // 5s wait for connection
+                timeout: 20000 // 20s max runtime
             });
             res.status(201).json({
                 id: user.id,

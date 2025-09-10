@@ -370,6 +370,9 @@ class AssetsService {
                 totalDepreciation,
                 entries: depreciationEntries
             };
+        }, {
+            maxWait: 5000, // 5s wait for connection
+            timeout: 20000 // 20s max runtime
         });
     }
     // Asset Disposal
@@ -484,6 +487,9 @@ class AssetsService {
                 data: { journalId }
             });
             return disposal;
+        }, {
+            maxWait: 5000, // 5s wait for connection
+            timeout: 20000 // 20s max runtime
         });
     }
     // Asset Register Report

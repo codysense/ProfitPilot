@@ -57,6 +57,9 @@ class ManagementService {
                     }
                 });
             }
+        }, {
+            maxWait: 5000, // 5s wait for connection
+            timeout: 20000 // 20s max runtime
         });
     }
     // System Settings
@@ -493,6 +496,9 @@ class ManagementService {
                 });
             }
             return role;
+        }, {
+            maxWait: 5000, // 5s wait for connection
+            timeout: 20000 // 20s max runtime
         });
     }
     async updateRole(roleId, data) {
@@ -522,6 +528,9 @@ class ManagementService {
                 }
             }
             return role;
+        }, {
+            maxWait: 5000, // 5s wait for connection
+            timeout: 20000 // 20s max runtime
         });
     }
     async deleteRole(roleId) {
@@ -617,6 +626,9 @@ class ManagementService {
                     }
                 }
             });
+        }, {
+            maxWait: 5000, // 5s wait for connection
+            timeout: 20000 // 20s max runtime
         });
     }
     // Chart of Accounts Management

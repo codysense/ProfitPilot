@@ -85,6 +85,9 @@ class PurchaseController {
                     }))
                 });
                 return newPurchase;
+            }, {
+                maxWait: 5000, // 5s wait for connection
+                timeout: 20000 // 20s max runtime
             });
             res.status(201).json(purchase);
         }
@@ -152,7 +155,10 @@ class PurchaseController {
             const purchase = await prisma.$transaction((tx) => tx.purchase.update({
                 where: { id },
                 data: { status: 'INVOICED' }
-            }));
+            }), {
+                maxWait: 5000, // 5s wait for connection
+                timeout: 20000 // 20s max runtime
+            });
             // Outside transaction: GL posting
             await glService.postJournal([
                 { accountCode: '2000', debit: 0, credit: Number(purchase.totalAmount), refType: 'PURCHASE', refId: id },
