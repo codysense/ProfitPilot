@@ -60,7 +60,12 @@ export class ManagementService {
           }
         });
       }
-    });
+    },
+  {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
   }
 
   // System Settings
@@ -539,7 +544,12 @@ export class ManagementService {
       }
 
       return role;
-    });
+    },
+  {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
   }
 
   async updateRole(roleId: string, data: any) {
@@ -572,7 +582,12 @@ export class ManagementService {
       }
 
       return role;
-    });
+    },
+  {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
   }
 
   async deleteRole(roleId: string) {
@@ -679,7 +694,12 @@ export class ManagementService {
           }
         }
       });
-    });
+    },
+  {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
   }
 
   // Chart of Accounts Management
@@ -725,7 +745,8 @@ export class ManagementService {
           parentId: data.parentId || null
         }
       });
-    });
+    },
+  );
   }
 
   async updateChartAccount(accountId: string, data: any) {

@@ -95,7 +95,12 @@ export class PurchaseController {
       });
 
       return newPurchase;
-    });
+    },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
 
     res.status(201).json(purchase);
   } catch (error) {
@@ -189,7 +194,11 @@ export class PurchaseController {
         tx.purchase.update({
           where: { id },
           data: { status: 'INVOICED' }
-        })
+        }),
+        {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
       );
 
       // Outside transaction: GL posting

@@ -64,7 +64,12 @@ export class GeneralLedgerService {
       }
 
       return journal.id;
-    });
+    },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
   }
 
   async getTrialBalance(asOfDate: Date) {

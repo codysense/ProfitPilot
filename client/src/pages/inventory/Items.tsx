@@ -29,6 +29,8 @@ const Items = () => {
     })
   });
 
+  console.log(data)
+
   const columns = [
     {
       key: 'sku',

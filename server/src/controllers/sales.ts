@@ -120,7 +120,12 @@ export class SalesController {
         }
 
         return newSale;
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.status(201).json(sale);
     } catch (error) {
@@ -179,7 +184,12 @@ export class SalesController {
             { accountCode: '1350', debit: 0, credit: totalCogs, refType: 'SALE', refId: id }
           ], `Sale delivery: ${sale.orderNo}`, req.user!.id);
         }
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.json({ message: 'Sale delivered successfully' });
     } catch (error) {
@@ -325,7 +335,12 @@ export class SalesController {
         }
 
         return updatedSale;
-      });
+      },
+      {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.json(sale);
     } catch (error) {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { ItemType, PrismaClient } from '@prisma/client';
 import { 
   createItemSchema, 
   createBomSchema, 
@@ -43,12 +43,18 @@ export class InventoryController {
 
       const [items, total] = await Promise.all([
         prisma.item.findMany({
-          where,
+      //    where: {
+      //   type: ItemType.RAW_MATERIAL
+      // },
           skip,
           take: Number(limit),
           orderBy: { createdAt: 'desc' }
         }),
-        prisma.item.count({ where })
+        prisma.item.count({ 
+          where: {
+        type: ItemType.RAW_MATERIAL
+      },
+         })
       ]);
 
       // Include stock quantities if requested
@@ -145,7 +151,7 @@ export class InventoryController {
   try {
     const validatedData = createItemSchema.parse(req.body);
 
-    console.log(req.body)
+    // console.log(req.body)
 
     const item = await prisma.item.upsert({
       where: { sku: validatedData.sku },
@@ -215,7 +221,11 @@ export class InventoryController {
         });
 
         return newBom;
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+});
 
       res.status(201).json(bom);
     } catch (error) {
@@ -264,7 +274,11 @@ export class InventoryController {
             { accountCode: '1300', debit: 0, credit: result.value, refType: 'ADJUSTMENT', refId: `ADJ-${Date.now()}` }
           ], `Inventory adjustment: ${validatedData.reason}`, req.user!.id);
         }
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+});
 
       res.json({ message: 'Inventory adjusted successfully' });
     } catch (error) {
@@ -303,7 +317,12 @@ export class InventoryController {
         req.user!.id,
         // tx
       );
-    });
+    },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
 
     res.json({ message: 'Inventory transferred successfully', refId });
   } catch (error) {

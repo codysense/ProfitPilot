@@ -419,7 +419,12 @@ const asset = await tx.asset.create({
         totalDepreciation,
         entries: depreciationEntries
       };
-    });
+    },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
   }
 
   // Asset Disposal
@@ -547,7 +552,12 @@ const asset = await tx.asset.create({
       });
 
       return disposal;
-    });
+    },
+  {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  );
   }
 
   // Asset Register Report

@@ -122,7 +122,11 @@ export class AuthController {
         });
 
         return newUser;
-      });
+      },
+     {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+});
 
       res.status(201).json({
         id: user.id,
@@ -276,14 +280,24 @@ export class AuthController {
             password: hashedPassword,
             warehouseId: warehouseId || null
           },
-        });
+          
+        }
+      );
+       
+
+
 
         await tx.userRole.create({
           data: { userId: newUser.id, roleId },
         });
 
         return newUser;
-      });
+      },
+     {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.status(201).json({
         id: user.id,

@@ -7,7 +7,49 @@ async function main() {
   console.log('🌱 Starting database seed...');
 
   // Create permissions first
+// Create permissions first
   const permissions = await Promise.all([
+    // POS permissions
+    prisma.permission.upsert({
+      where: { name: 'pos.sale.read' },
+      update: {},
+      create: {
+        name: 'pos.sale.read',
+        resource: 'pos',
+        action: 'read',
+        description: 'Read POS sales'
+      }
+    }),
+    prisma.permission.upsert({
+      where: { name: 'pos.sale.create' },
+      update: {},
+      create: {
+        name: 'pos.sale.create',
+        resource: 'pos',
+        action: 'create',
+        description: 'Create POS sales'
+      }
+    }),
+    prisma.permission.upsert({
+      where: { name: 'pos.return.create' },
+      update: {},
+      create: {
+        name: 'pos.return.create',
+        resource: 'pos',
+        action: 'return',
+        description: 'Process POS returns'
+      }
+    }),
+    prisma.permission.upsert({
+      where: { name: 'pos.session.manage' },
+      update: {},
+      create: {
+        name: 'pos.session.manage',
+        resource: 'pos',
+        action: 'manage',
+        description: 'Manage POS sessions'
+      }
+    }),
     // Inventory permissions
     prisma.permission.upsert({
       where: { name: 'inventory.item.read' },
@@ -166,7 +208,8 @@ async function main() {
 
   console.log('✅ Permissions created');
 
-  // Create roles
+//  Create roles
+  
   const roles = await Promise.all([
     prisma.role.upsert({
       where: { name: 'Account Officer' },
@@ -174,6 +217,14 @@ async function main() {
       create: {
         name: 'Account Officer',
         description: 'Basic accounting operations'
+      }
+    }),
+    prisma.role.upsert({
+      where: { name: 'POS User' },
+      update: {},
+      create: {
+        name: 'POS User',
+        description: 'Point of Sales user with warehouse-specific access'
       }
     }),
     prisma.role.upsert({
@@ -204,6 +255,12 @@ async function main() {
     'inventory.item.read'
   ];
 
+  // POS User permissions
+  const posUserPermissions = [
+    'pos.sale.read', 'pos.sale.create', 'pos.return.create', 'pos.session.manage',
+    'inventory.item.read', 'sales.customer.read', 'sales.customer.create'
+  ];
+
   for (const permissionName of accountOfficerPermissions) {
     const permission = permissions.find(p => p.name === permissionName);
     if (permission) {
@@ -223,29 +280,32 @@ async function main() {
     }
   }
 
+  // Assign permissions to POS User role
+  for (const permissionName of posUserPermissions) {
+    const permission = permissions.find(p => p.name === permissionName);
+    if (permission) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: roles[1].id, // POS User role
+            permissionId: permission.id
+          }
+        },
+        update: {},
+        create: {
+          roleId: roles[1].id,
+          permissionId: permission.id
+        }
+      });
+    }
+  }
+
   // CFO permissions (all permissions)
   for (const permission of permissions) {
     await prisma.rolePermission.upsert({
       where: {
         roleId_permissionId: {
-          roleId: roles[1].id,
-          permissionId: permission.id
-        }
-      },
-      update: {},
-      create: {
-        roleId: roles[1].id,
-        permissionId: permission.id
-      }
-    });
-  }
-
-  // General Manager permissions (all permissions)
-  for (const permission of permissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: roles[2].id,
+          roleId: roles[2].id, // CFO role
           permissionId: permission.id
         }
       },
@@ -257,10 +317,27 @@ async function main() {
     });
   }
 
+  // General Manager permissions (all permissions)
+  for (const permission of permissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: roles[3].id, // General Manager role
+          permissionId: permission.id
+        }
+      },
+      update: {},
+      create: {
+        roleId: roles[3].id,
+        permissionId: permission.id
+      }
+    });
+  }
+
   console.log('✅ Role permissions assigned');
 
   // Create users
-  const hashedPassword = await bcrypt.hash('password123', 12);
+  const hashedPassword = await bcrypt.hash('pass4D3mo', 12);
   
   const users = await Promise.all([
     prisma.user.upsert({
@@ -341,7 +418,6 @@ async function main() {
   ]);
 
   console.log('✅ User roles assigned');
-
   // Create company
   await prisma.company.upsert({
     where: { id: 'default' },
@@ -810,6 +886,9 @@ async function main() {
   //     valueJson: 'WEIGHTED_AVG'
   //   }
   // });
+
+  
+  
 
   console.log('✅ Policies created');
 

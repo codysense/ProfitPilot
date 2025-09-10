@@ -434,6 +434,13 @@ export class CashController {
         purchaseId
       } = req.body;
 
+//       await prisma.$transaction(async (tx) => {
+//   // ...
+// }, {
+//   maxWait: 5000,  // 5s wait for connection
+//   timeout: 20000  // 20s max runtime
+// });
+
       const result = await prisma.$transaction(async (tx) => {
         // Generate payment number
         const count = await tx.purchasePayment.count();
@@ -568,7 +575,11 @@ export class CashController {
         });
 
         return payment;
-      });
+      },{
+
+        maxWait: 5000,  // 5s wait for connection
+        timeout: 20000  // 20s max runtime);
+      })
 
       res.status(201).json(result);
     } catch (error) {

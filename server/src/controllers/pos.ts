@@ -48,7 +48,11 @@ export class PosController {
             openingBalance: new Decimal(validatedData.openingBalance)
           }
         });
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+});
 
       res.status(201).json(session);
     } catch (error) {
@@ -215,7 +219,11 @@ export class PosController {
         ], `POS Sale: ${saleNo}`, req.user!.id);
 
         return newSale;
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+});
 
       res.status(201).json(sale);
     } catch (error) {
@@ -402,7 +410,12 @@ export class PosController {
         ], `POS Return: ${returnNo}`, req.user!.id);
 
         return newReturn;
-      });
+      },
+      {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.status(201).json(returnRecord);
     } catch (error) {

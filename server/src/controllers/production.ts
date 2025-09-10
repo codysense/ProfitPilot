@@ -89,7 +89,12 @@ export class ProductionController {
         });
 
         return newOrder;
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.status(201).json(order);
     } catch (error) {
@@ -164,7 +169,12 @@ export class ProductionController {
           { accountCode: '1400', debit: totalIssueValue, credit: 0, refType: 'PRODUCTION', refId: id },
           { accountCode: '1300', debit: 0, credit: totalIssueValue, refType: 'PRODUCTION', refId: id }
         ], `Material issue: ${order?.orderNo}`, req.user!.id);
-      });
+      },
+      {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.json({ message: 'Materials issued successfully' });
     } catch (error) {
@@ -211,7 +221,12 @@ export class ProductionController {
           { accountCode: '1400', debit: amount, credit: 0, refType: 'PRODUCTION', refId: id },
           { accountCode: '2100', debit: 0, credit: amount, refType: 'PRODUCTION', refId: id }
         ], `Labor cost: ${order?.orderNo}`, req.user!.id);
-      });
+      },
+      {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.json({ message: 'Labor cost added successfully' });
     } catch (error) {
@@ -246,7 +261,12 @@ export class ProductionController {
           { accountCode: '1400', debit: validatedData.amount, credit: 0, refType: 'PRODUCTION', refId: id },
           { accountCode: '5200', debit: 0, credit: validatedData.amount, refType: 'PRODUCTION', refId: id }
         ], `Overhead: ${order?.orderNo} - ${validatedData.note || 'Manufacturing overhead'}`, req.user!.id);
-      });
+      },
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.json({ message: 'Overhead cost added successfully' });
     } catch (error) {
@@ -330,7 +350,12 @@ export class ProductionController {
           { accountCode: '1350', debit: goodsValue, credit: 0, refType: 'PRODUCTION', refId: id },
           { accountCode: '1400', debit: 0, credit: goodsValue, refType: 'PRODUCTION', refId: id }
         ], `Finished goods receipt: ${order.orderNo}`, req.user!.id);
-      });
+      },
+      {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.json({ message: 'Finished goods received successfully' });
     } catch (error) {
