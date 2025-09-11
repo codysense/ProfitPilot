@@ -30,6 +30,11 @@ async function testConnection() {
   }
 }
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+
 // Middleware
 app.use(cors());
 app.use(express.json());
