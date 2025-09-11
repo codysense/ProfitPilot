@@ -26,6 +26,7 @@ router.get('/inventory-aging', authorize('inventory.item.read'), reportsControll
 router.get('/stock-card', authorize('inventory.item.read'), reportsController.getStockCard);
 router.get('/production-variance', authorize('production.order.read'), reportsController.getProductionVariance);
 router.get('/sales-by-item', authorize('sales.order.read'), reportsController.getSalesByItem);
+router.get('/pos-sales', authorize('sales.order.read'), reportsController.getPOSSalesReport);
 router.get('/sales-by-customer', authorize('sales.order.read'), reportsController.getSalesByCustomer);
 router.get('/purchases-by-vendor', authorize('purchase.order.read'), reportsController.getPurchasesByVendor);
 router.get('/ar-ap-aging', authorize('inventory.item.read'), reportsController.getArApAging);

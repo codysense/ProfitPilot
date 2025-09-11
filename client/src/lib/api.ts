@@ -375,6 +375,8 @@ export const reportsApi = {
     api.get(`/reports/production-variance?${new URLSearchParams(params).toString()}`),
   getSalesByItem: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/sales-by-item?${new URLSearchParams(params).toString()}`),
+  getPOSSalesReport: (params: { dateFrom: string; dateTo: string,warehouseId:string, userId:string }) =>
+    api.get(`/reports/pos-sales?${new URLSearchParams(params).toString()}`),
   getSalesByCustomer: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/sales-by-customer?${new URLSearchParams(params).toString()}`),
   getPurchasesByVendor: (params: { dateFrom: string; dateTo: string }) =>

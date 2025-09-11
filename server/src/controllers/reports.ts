@@ -214,6 +214,24 @@ export class ReportsController {
     }
   }
 
+
+
+  async getPOSSalesReport(req: AuthRequest, res: Response) {
+    try {
+      const { dateFrom, dateTo, warehouseId, userId } = req.query;
+      
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({ error: 'Date range is required' });
+      }
+
+      const report = await reportsService.getPOSSalesReport(new Date(dateFrom as string), new Date(dateTo as string), warehouseId as string, userId as string);
+      res.json(report);
+    } catch (error) {
+      console.error('POS Sales Report error:', error);
+      res.status(400).json({ error: 'Failed to generate POS sales report' });
+    }
+  }
+
   async getSalesByItem(req: AuthRequest, res: Response) {
     try {
       const { dateFrom, dateTo } = req.query;
