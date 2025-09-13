@@ -99,7 +99,7 @@ const PurchaseOrders = () => {
       toast.success('Purchase order invoiced successfully');
       refetch();
     } catch (error) {
-      console.error('Invoice purchase error:', error);
+      toast.error('Invoice purchase error:', error);
     }
   };
 

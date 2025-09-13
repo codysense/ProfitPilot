@@ -197,73 +197,78 @@ export class ReportsService {
 
 
 
-async getPOSSalesReport(dateFrom: Date, dateTo : Date, warehouseId?:string , userId? : String){
 
-  const rows = await prisma.$queryRawUnsafe<
-    {
-      TransactionDate: Date | null;
-      SaleNo: string | null;
-      WarehouseName: string | null;
-      SalesRep: string | null;
-      CashAccountName: string | null;
-      TotalAmount: any;
-      AmountPaid: any;
-    }[]
-  >(`
+
+async getPOSSalesReport(params: {
+  dateFrom: Date;
+  dateTo: Date;
+  warehouseId?: string | null;
+  userId?: string | null;
+}) {
+  const { dateFrom, dateTo, warehouseId, userId } = params;
+// console.log(dateFrom, dateTo, warehouseId, userId)
+  // base query
+  let query = `
     WITH report AS (
       SELECT 
-        ps."createdAt"                           AS "TransactionDate",
-        ps."saleNo"                              AS "SaleNo",
-        w.name                                   AS "WarehouseName",
-        u.name                                   AS "SalesRep",
-        ca.name                                  AS "CashAccountName",
-        ps."totalAmount"::NUMERIC                AS "TotalAmount",
-        ps."amountPaid"::NUMERIC                 AS "AmountPaid"
+        ps."createdAt"::date AS "TransactionDate",
+        ps."saleNo" AS "SaleNo",
+        w.name AS "WarehouseName",
+        u.name AS "SalesRep",
+        ca.name AS "CashAccountName",
+        ps."totalAmount" AS "TotalAmount",
+        ps."amountPaid" AS "AmountPaid"
       FROM pos_sales ps
       LEFT JOIN warehouses w   ON ps."warehouseId"   = w.id
       LEFT JOIN cash_accounts ca ON ps."cashAccountId" = ca.id
       LEFT JOIN users u       ON ps."userId"        = u.id
-      WHERE 
-        -- dateFrom/dateTo are treated as timestamptz; if NULL -> no filter
-        ($1::timestamptz IS NULL OR ps."createdAt" >= $1::timestamptz)
-        AND ($2::timestamptz IS NULL OR ps."createdAt" <  ($2::timestamptz + INTERVAL '1 day'))
-        -- id comparisons: cast db column to text to avoid any type mismatch
-        AND (ps."warehouseId"::text = NULL OR ps."warehouseId"::text = $3::text)
-        AND ($4::text IS NULL OR ps."userId"::text = $4::text)
+      WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date
+  `;
+
+  const values: any[] = [dateFrom, dateTo];
+  let paramIndex = 3;
+
+  // add warehouse filter if present
+  if (warehouseId) {
+    query += ` AND ps."warehouseId" = $${paramIndex}`;
+    values.push(warehouseId);
+    paramIndex++;
+  }
+
+  // add user filter if present
+  if (userId) {
+    query += ` AND ps."userId" = $${paramIndex}`;
+    values.push(userId);
+    paramIndex++;
+  }
+
+  query += `
     )
     SELECT * FROM report
     UNION ALL
-    SELECT
+    SELECT 
       NULL AS "TransactionDate",
       'Grand Total' AS "SaleNo",
       '' AS "WarehouseName",
       '' AS "SalesRep",
       '' AS "CashAccountName",
-      SUM("TotalAmount")::NUMERIC AS "TotalAmount",
-      SUM("AmountPaid")::NUMERIC  AS "AmountPaid"
+      SUM("TotalAmount") AS "TotalAmount",
+      SUM("AmountPaid")  AS "AmountPaid"
     FROM report
     ORDER BY "TransactionDate" NULLS LAST;
-  `,
-    // pass params in the same order as $1..$4
-    dateFrom ?? null,
-    dateTo ?? null,
-    warehouseId ?? null,
-    userId ?? null
-  );
-  console.log(dateFrom,dateTo, warehouseId, userId)
-  // Convert NUMERIC/Decimal to plain numbers to avoid serialization errors
-  const safe = rows.map(r => ({
-    TransactionDate: r.TransactionDate ? new Date(r.TransactionDate) : null,
-    SaleNo: r.SaleNo ?? null,
-    WarehouseName: r.WarehouseName ?? null,
-    SalesRep: r.SalesRep ?? null,
-    CashAccountName: r.CashAccountName ?? null,
-    TotalAmount: r.TotalAmount != null ? Number(r.TotalAmount) : 0,
-    AmountPaid:  r.AmountPaid  != null ? Number(r.AmountPaid)  : 0,
-  }));
+  `;
 
-  return safe;
+  const result = await prisma.$queryRawUnsafe<any[]>(query, ...values);
+
+  return result.map(r => ({
+    ...r,
+    TransactionDate:r.TransactionDate?.toISOString().split('T')[0] ?? "-",
+    TotalAmount: r.TotalAmount != null ? Number(r.TotalAmount) : 0,
+    AmountPaid: r.AmountPaid != null ? Number(r.AmountPaid) : 0,
+  }));
 }
+
+
 
   
 

@@ -310,12 +310,17 @@ const Reports = () => {
           data = await reportsApi.getCashAccountBalances({ dateFrom, dateTo });
           break;
         case 'pos-sales':
-          if (!dateFrom || !dateTo) {
-            alert('Please select date range');
-            return;
-          }
+          // if (!dateFrom || !dateTo) {
+          //   alert('Please select date range');
+          //   return;
+          // }
             // console.log(dateFrom,dateTo, warehouseFilter, usersFilter)
-          data = await reportsApi.getPOSSalesReport({ dateFrom, dateTo, warehouseId :warehouseFilter || "" , userId:usersFilter || ""});
+          data = await reportsApi.getPOSSalesReport({
+  dateFrom ,
+  dateTo,
+  warehouseId: warehouseFilter ,
+  userId: usersFilter,
+});
           break;
         case 'trial-balance':
           data = await reportsApi.getTrialBalance({ asOfDate });

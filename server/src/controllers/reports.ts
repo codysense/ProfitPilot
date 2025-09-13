@@ -220,11 +220,17 @@ export class ReportsController {
     try {
       const { dateFrom, dateTo, warehouseId, userId } = req.query;
       
-      if (!dateFrom || !dateTo) {
-        return res.status(400).json({ error: 'Date range is required' });
-      }
+      // if (!dateFrom || !dateTo) {
+      //   return res.status(400).json({ error: 'Date range is required' });
+      // }
 
-      const report = await reportsService.getPOSSalesReport(new Date(dateFrom as string), new Date(dateTo as string), warehouseId as string, userId as string);
+      const report = await reportsService.getPOSSalesReport({
+  dateFrom: dateFrom ? new Date(dateFrom as string) : null,
+  dateTo: dateTo ? new Date(dateTo as string) : null,
+  warehouseId: warehouseId ? String(warehouseId) : null,
+  userId: userId ? String(userId) : null,
+});
+;
       res.json(report);
     } catch (error) {
       console.error('POS Sales Report error:', error);
