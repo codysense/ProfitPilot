@@ -1,3 +1,4 @@
+/node_modules
 # Allow Prisma Client to be committed
 !node_modules/@prisma/client
 !node_modules/.prisma
