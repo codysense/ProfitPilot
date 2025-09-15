@@ -60,8 +60,7 @@ const InventoryLedger = () => {
     queryFn: () => userApi.getUsers({ limit: 100 })
   });
 
-  // Removed invalid console.log statement
-  console.log()
+ 
   
   const columns = [
     {

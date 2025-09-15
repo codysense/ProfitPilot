@@ -143,6 +143,7 @@ const ReceivePurchaseModal = ({ purchase, onClose, onSuccess }: ReceivePurchaseM
                               {...register(`receiptLines.${index}.qtyReceived`, { valueAsNumber: true })}
                               type="number"
                               step="0.001"
+                              disabled
                               max={purchaseLine.qty}
                               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             />
@@ -160,6 +161,7 @@ const ReceivePurchaseModal = ({ purchase, onClose, onSuccess }: ReceivePurchaseM
                             <input
                               {...register(`receiptLines.${index}.unitCost`, { valueAsNumber: true })}
                               type="number"
+                              disabled
                               step="0.01"
                               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             />

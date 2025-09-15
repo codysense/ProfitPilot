@@ -273,320 +273,326 @@ export class CashController {
 
   // Create customer payment (Sales Receipt)
   async createCustomerPayment(req: AuthRequest, res: Response) {
-    try {
-      const {
-        customerId,
-        cashAccountId,
-        amount,
-        paymentDate,
-        reference,
-        notes,
-        saleId
-      } = req.body;
+  try {
+    const {
+      customerId,
+      cashAccountId,
+      amount,
+      paymentDate,
+      reference,
+      notes,
+      saleId // optional
+    } = req.body;
 
-      const result = await prisma.$transaction(async (tx) => {
-        // Generate receipt number
-        const count = await tx.salesReceipt.count();
-        const receiptNo = `SR${String(count + 1).padStart(6, '0')}`;
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate receipt number
+      const count = await tx.salesReceipt.count();
+      const receiptNo = `SR${String(count + 1).padStart(6, '0')}`;
 
-        // Create sales receipt
-        const receipt = await tx.salesReceipt.create({
-          data: {
-            receiptNo,
-            saleId,
-            customerId,
-            cashAccountId,
-            amountReceived: new Decimal(amount),
-            receiptDate: new Date(paymentDate),
-            notes,
-            reference,
-            userId: req.user!.id
-          }
+      // Fetch sale only if saleId is provided
+      let sale: { id: string; totalAmount: any; orderNo: string | null; salesReceipts: { amountReceived: any }[] } | null = null;
+      if (saleId) {
+        sale = await tx.sale.findUnique({
+          where: { id: saleId },
+          include: { salesReceipts: true }
         });
+      }
 
-        // Check if sale is fully paid and update status
-        if (saleId) {
-          const sale = await tx.sale.findUnique({
-            where: { id: saleId },
-            include: { salesReceipts: true }
-          });
-
-          if (sale) {
-            const totalReceived = sale.salesReceipts.reduce((sum, r) => sum + Number(r.amountReceived), 0) + amount;
-            
-            if (totalReceived >= Number(sale.totalAmount)) {
-              await tx.sale.update({
-                where: { id: saleId },
-                data: { status: 'PAID' }
-              });
-            }
-          }
+      // Create sales receipt
+      const receipt = await tx.salesReceipt.create({
+        data: {
+          receiptNo,
+           ...(saleId ? { saleId } : {}),
+          customerId,
+          cashAccountId,
+          amountReceived: new Decimal(amount),
+          receiptDate: new Date(paymentDate),
+          notes,
+          reference,
+          userId: req.user!.id
         }
-
-        // Create corresponding cash transaction
-        const cashTransactionCount = await tx.cashTransaction.count();
-        const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
-
-        // Get Trade Receivables account
-        const tradeReceivablesAccount = await tx.chartOfAccount.findFirst({
-          where: { accountType: 'TRADE_RECEIVABLES' }
-        });
-
-        if (!tradeReceivablesAccount) {
-          throw new Error('Trade Receivables account not found. Please create one first.');
-        }
-
-        await tx.cashTransaction.create({
-          data: {
-            transactionNo,
-            cashAccountId,
-            glAccountId: tradeReceivablesAccount.id,
-            transactionType: 'RECEIPT',
-            amount: new Decimal(amount),
-            description: `Customer payment from ${await tx.customer.findUnique({ where: { id: customerId }, select: { name: true } }).then(c => c?.name)}${saleId ? ` - ${await tx.sale.findUnique({ where: { id: saleId }, select: { orderNo: true } }).then(s => s?.orderNo)}` : ''}`,
-            transactionDate: new Date(paymentDate),
-            reference,
-            refType: 'SALES_RECEIPT',
-            refId: receipt.id,
-            userId: req.user!.id
-          }
-        });
-
-        // Update cash account balance
-        await tx.cashAccount.update({
-          where: { id: cashAccountId },
-          data: {
-            balance: {
-              increment: amount
-            }
-          }
-        });
-
-        // Create journal entries
-        const journalCount = await tx.journal.count();
-        const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
-
-        const journal = await tx.journal.create({
-          data: {
-            journalNo,
-            date: new Date(paymentDate),
-            memo: `Customer payment: ${reference || receiptNo}`,
-            postedBy: req.user!.id
-          }
-        });
-
-        // Get cash account's GL account
-        const cashAccount = await tx.cashAccount.findUnique({
-          where: { id: cashAccountId },
-          select: { glAccountId: true }
-        });
-
-        if (!cashAccount) {
-          throw new Error('Cash account not found');
-        }
-
-        if (!cashAccount.glAccountId) {
-          throw new Error('Cash account does not have a linked GL account');
-        }
-
-        // Debit Cash, Credit Trade Receivables
-        await tx.journalLine.createMany({
-          data: [
-            {
-              journalId: journal.id,
-              accountId: cashAccount.glAccountId,
-              debit: new Decimal(amount),
-              credit: new Decimal(0),
-              refType: 'CUSTOMER_PAYMENT',
-              refId: receipt.id
-            },
-            {
-              journalId: journal.id,
-              accountId: tradeReceivablesAccount.id,
-              debit: new Decimal(0),
-              credit: new Decimal(amount),
-              refType: 'CUSTOMER_PAYMENT',
-              refId: receipt.id
-            }
-          ]
-        });
-
-        return receipt;
       });
 
-      res.status(201).json(result);
-    } catch (error) {
-      console.error('Create customer payment error:', error);
-      res.status(400).json({ error: 'Failed to create customer payment' });
-    }
+      // Update sale status if fully paid
+      if (sale) {
+        const totalReceived =
+          sale.salesReceipts.reduce(
+            (sum, r) => sum + Number(r.amountReceived),
+            0
+          ) + Number(amount);
+
+        if (totalReceived >= Number(sale.totalAmount)) {
+          await tx.sale.update({
+            where: { id: sale.id },
+            data: { status: 'PAID' }
+          });
+        }
+      }
+
+      // Create corresponding cash transaction
+      const cashTransactionCount = await tx.cashTransaction.count();
+      const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
+
+      // Get Trade Receivables account
+      const tradeReceivablesAccount = await tx.chartOfAccount.findFirst({
+        where: { accountType: 'TRADE_RECEIVABLES' }
+      });
+      if (!tradeReceivablesAccount) {
+        throw new Error('Trade Receivables account not found. Please create one first.');
+      }
+
+      // Build transaction description
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { name: true }
+      });
+
+      let description = `Customer payment from ${customer?.name ?? ''}`;
+      if (sale?.orderNo) {
+        description += ` - ${sale.orderNo}`;
+      }
+
+      await tx.cashTransaction.create({
+        data: {
+          transactionNo,
+          cashAccountId,
+          glAccountId: tradeReceivablesAccount.id,
+          transactionType: 'RECEIPT',
+          amount: new Decimal(amount),
+          description,
+          transactionDate: new Date(paymentDate),
+          reference,
+          refType: 'SALES_RECEIPT',
+          refId: receipt.id,
+          userId: req.user!.id
+        }
+      });
+
+      // Update cash account balance
+      await tx.cashAccount.update({
+        where: { id: cashAccountId },
+        data: { balance: { increment: amount } }
+      });
+
+      // Create journal entries
+      const journalCount = await tx.journal.count();
+      const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+
+      const journal = await tx.journal.create({
+        data: {
+          journalNo,
+          date: new Date(paymentDate),
+          memo: `Customer payment: ${reference || receiptNo}`,
+          postedBy: req.user!.id
+        }
+      });
+
+      // Get cash account's GL account
+      const cashAccount = await tx.cashAccount.findUnique({
+        where: { id: cashAccountId },
+        select: { glAccountId: true }
+      });
+      if (!cashAccount) throw new Error('Cash account not found');
+      if (!cashAccount.glAccountId) throw new Error('Cash account does not have a linked GL account');
+
+      // Debit Cash, Credit Trade Receivables
+      await tx.journalLine.createMany({
+        data: [
+          {
+            journalId: journal.id,
+            accountId: cashAccount.glAccountId,
+            debit: new Decimal(amount),
+            credit: new Decimal(0),
+            refType: 'CUSTOMER_PAYMENT',
+            refId: receipt.id
+          },
+          {
+            journalId: journal.id,
+            accountId: tradeReceivablesAccount.id,
+            debit: new Decimal(0),
+            credit: new Decimal(amount),
+            refType: 'CUSTOMER_PAYMENT',
+            refId: receipt.id
+          }
+        ]
+      });
+
+      return receipt;
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Create customer payment error:', error);
+    res.status(400).json({ error: 'Failed to create customer payment' });
   }
+}
+
 
   // Create vendor payment (Purchase Payment)
   async createVendorPayment(req: AuthRequest, res: Response) {
-    try {
-      const {
-        vendorId,
-        cashAccountId,
-        amount,
-        paymentDate,
-        reference,
-        notes,
-        purchaseId
-      } = req.body;
+  try {
+    const {
+      vendorId,
+      cashAccountId,
+      amount,
+      paymentDate,
+      reference,
+      notes,
+      purchaseId // optional now
+    } = req.body;
 
-//       await prisma.$transaction(async (tx) => {
-//   // ...
-// }, {
-//   maxWait: 5000,  // 5s wait for connection
-//   timeout: 20000  // 20s max runtime
-// });
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate payment number
+      const count = await tx.purchasePayment.count();
+      const paymentNo = `PP${String(count + 1).padStart(6, '0')}`;
 
-      const result = await prisma.$transaction(async (tx) => {
-        // Generate payment number
-        const count = await tx.purchasePayment.count();
-        const paymentNo = `PP${String(count + 1).padStart(6, '0')}`;
-
-        // Create purchase payment
-        const payment = await tx.purchasePayment.create({
-          data: {
-            paymentNo,
-            purchaseId,
-            vendorId,
-            cashAccountId,
-            amountPaid: new Decimal(amount),
-            paymentDate: new Date(paymentDate),
-            notes,
-            reference,
-            userId: req.user!.id
-          }
+      // Fetch purchase if purchaseId exists
+      let purchase: { id: string; totalAmount: any; orderNo: string | null; purchasePayments: { amountPaid: any }[] } | null = null;
+      if (purchaseId) {
+        purchase = await tx.purchase.findUnique({
+          where: { id: purchaseId },
+          include: { purchasePayments: true }
         });
+      }
 
-        // Check if purchase is fully paid and update status
-        if (purchaseId) {
-          const purchase = await tx.purchase.findUnique({
-            where: { id: purchaseId },
-            include: { purchasePayments: true }
+      // Create purchase payment
+      const payment = await tx.purchasePayment.create({
+        data: {
+          paymentNo,
+          ...(purchaseId ? { purchaseId } : {}), // only include if provided
+          vendorId,
+          cashAccountId,
+          amountPaid: new Decimal(amount),
+          paymentDate: new Date(paymentDate),
+          notes,
+          reference,
+          userId: req.user!.id
+        }
+      });
+
+      // Update purchase status if fully paid
+      if (purchase) {
+        const totalPaid =
+          purchase.purchasePayments.reduce(
+            (sum, p) => sum + Number(p.amountPaid),
+            0
+          ) + Number(amount);
+
+        if (totalPaid >= Number(purchase.totalAmount)) {
+          await tx.purchase.update({
+            where: { id: purchase.id },
+            data: { status: 'PAID' }
           });
-
-          if (purchase) {
-            const totalPaid = purchase.purchasePayments.reduce((sum, p) => sum + Number(p.amountPaid), 0) + amount;
-            
-            if (totalPaid >= Number(purchase.totalAmount)) {
-              await tx.purchase.update({
-                where: { id: purchaseId },
-                data: { status: 'PAID' }
-              });
-            }
-          }
         }
+      }
 
-        // Create corresponding cash transaction
-        const cashTransactionCount = await tx.cashTransaction.count();
-        const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
+      // Create corresponding cash transaction
+      const cashTransactionCount = await tx.cashTransaction.count();
+      const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
 
-        // Get Trade Payables account
-        const tradePayablesAccount = await tx.chartOfAccount.findFirst({
-          where: { 
-            OR: [
-              { accountType: 'TRADE_PAYABLES' },
-              { code: '2000' }, // Fallback to Accounts Payable
-              { name: { contains: 'Payable', mode: 'insensitive' } }
-            ]
-          }
-        });
-
-        if (!tradePayablesAccount) {
-          throw new Error('No payables account found. Please create a Trade Payables or Accounts Payable account in Chart of Accounts first.');
-        }
-
-        await tx.cashTransaction.create({
-          data: {
-            transactionNo,
-            cashAccountId,
-            glAccountId: tradePayablesAccount.id,
-            transactionType: 'PAYMENT',
-            amount: new Decimal(amount),
-            description: `Vendor payment to ${await tx.vendor.findUnique({ where: { id: vendorId }, select: { name: true } }).then(v => v?.name)}${purchaseId ? ` - ${await tx.purchase.findUnique({ where: { id: purchaseId }, select: { orderNo: true } }).then(p => p?.orderNo)}` : ''}`,
-            transactionDate: new Date(paymentDate),
-            reference,
-            refType: 'PURCHASE_PAYMENT',
-            refId: payment.id,
-            userId: req.user!.id
-          }
-        });
-
-        // Update cash account balance
-        await tx.cashAccount.update({
-          where: { id: cashAccountId },
-          data: {
-            balance: {
-              decrement: amount
-            }
-          }
-        });
-
-        // Create journal entries
-        const journalCount = await tx.journal.count();
-        const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
-
-        const journal = await tx.journal.create({
-          data: {
-            journalNo,
-            date: new Date(paymentDate),
-            memo: `Vendor payment: ${paymentNo}`,
-            postedBy: req.user!.id
-          }
-        });
-
-        // Get cash account's GL account
-        const cashAccount = await tx.cashAccount.findUnique({
-          where: { id: cashAccountId },
-          select: { glAccountId: true }
-        });
-
-        if (!cashAccount) {
-          throw new Error('Cash account not found');
-        }
-
-        if (!cashAccount.glAccountId) {
-          throw new Error('Cash account does not have a linked GL account');
-        }
-
-        // Debit Trade Payables, Credit Cash
-        await tx.journalLine.createMany({
-          data: [
-            {
-              journalId: journal.id,
-              accountId: tradePayablesAccount.id,
-              debit: new Decimal(amount),
-              credit: new Decimal(0),
-              refType: 'VENDOR_PAYMENT',
-              refId: payment.id
-            },
-            {
-              journalId: journal.id,
-              accountId: cashAccount.glAccountId,
-              debit: new Decimal(0),
-              credit: new Decimal(amount),
-              refType: 'VENDOR_PAYMENT',
-              refId: payment.id
-            }
+      // Get Trade Payables account
+      const tradePayablesAccount = await tx.chartOfAccount.findFirst({
+        where: {
+          OR: [
+            { accountType: 'TRADE_PAYABLES' },
+            { code: '2000' },
+            { name: { contains: 'Payable', mode: 'insensitive' } }
           ]
-        });
+        }
+      });
+      if (!tradePayablesAccount) {
+        throw new Error('No payables account found. Please create a Trade Payables or Accounts Payable account in Chart of Accounts first.');
+      }
 
-        return payment;
-      },{
+      // Build description
+      const vendor = await tx.vendor.findUnique({
+        where: { id: vendorId },
+        select: { name: true }
+      });
 
-        maxWait: 5000,  // 5s wait for connection
-        timeout: 20000  // 20s max runtime);
-      })
+      let description = `Vendor payment to ${vendor?.name ?? ''}`;
+      if (purchase?.orderNo) {
+        description += ` - ${purchase.orderNo}`;
+      }
 
-      res.status(201).json(result);
-    } catch (error) {
-      console.error('Create vendor payment error:', error);
-      res.status(400).json({ error: 'Failed to create vendor payment' });
-    }
+      await tx.cashTransaction.create({
+        data: {
+          transactionNo,
+          cashAccountId,
+          glAccountId: tradePayablesAccount.id,
+          transactionType: 'PAYMENT',
+          amount: new Decimal(amount),
+          description,
+          transactionDate: new Date(paymentDate),
+          reference,
+          refType: 'PURCHASE_PAYMENT',
+          refId: payment.id,
+          userId: req.user!.id
+        }
+      });
+
+      // Update cash account balance
+      await tx.cashAccount.update({
+        where: { id: cashAccountId },
+        data: { balance: { decrement: amount } }
+      });
+
+      // Create journal entries
+      const journalCount = await tx.journal.count();
+      const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+
+      const journal = await tx.journal.create({
+        data: {
+          journalNo,
+          date: new Date(paymentDate),
+          memo: `Vendor payment: ${reference || paymentNo}`,
+          postedBy: req.user!.id
+        }
+      });
+
+      // Get cash account's GL account
+      const cashAccount = await tx.cashAccount.findUnique({
+        where: { id: cashAccountId },
+        select: { glAccountId: true }
+      });
+      if (!cashAccount) throw new Error('Cash account not found');
+      if (!cashAccount.glAccountId) throw new Error('Cash account does not have a linked GL account');
+
+      // Debit Trade Payables, Credit Cash
+      await tx.journalLine.createMany({
+        data: [
+          {
+            journalId: journal.id,
+            accountId: tradePayablesAccount.id,
+            debit: new Decimal(amount),
+            credit: new Decimal(0),
+            refType: 'VENDOR_PAYMENT',
+            refId: payment.id
+          },
+          {
+            journalId: journal.id,
+            accountId: cashAccount.glAccountId,
+            debit: new Decimal(0),
+            credit: new Decimal(amount),
+            refType: 'VENDOR_PAYMENT',
+            refId: payment.id
+          }
+        ]
+      });
+
+      return payment;
+    }, {
+      maxWait: 5000, // 5s wait
+      timeout: 20000 // 20s max runtime
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Create vendor payment error:', error);
+    res.status(400).json({ error: 'Failed to create vendor payment' });
   }
+}
+
 
   // Get sales receipts
   async getSalesReceipts(req: AuthRequest, res: Response) {

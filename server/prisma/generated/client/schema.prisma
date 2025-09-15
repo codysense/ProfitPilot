@@ -871,3 +871,49 @@ model AssetDisposal {
 
   @@map("asset_disposals")
 }
+
+model SalesMemo {
+  id         String   @id @default(uuid())
+  customerId String
+  accountId  String
+  type       MemoType
+  amount     Decimal
+  date       DateTime @default(now())
+  note       String?
+
+  // Relations
+  customer   Customer        @relation(fields: [customerId], references: [id])
+  account    ChartOfAccount @relation(fields: [accountId], references: [id])
+}
+
+model PurchaseMemo {
+  id        String   @id @default(uuid())
+  vendorId  String
+  accountId String
+  type      MemoType
+  amount    Decimal
+  date      DateTime @default(now())
+  note      String?
+
+  // Relations
+  vendor    Vendor          @relation(fields: [vendorId], references: [id])
+  account   ChartOfAccount @relation(fields: [accountId], references: [id])
+}
+
+model JournalEntry {
+  id        String   @id @default(uuid())
+  accountId String
+  debit     Decimal  @default(0)
+  credit    Decimal  @default(0)
+  date      DateTime @default(now())
+  memoId    String?
+  memoType  String? // "SALES" or "PURCHASE"
+
+  // Relations
+  account   ChartOfAccount @relation(fields: [accountId], references: [id])
+}
+
+enum MemoType {
+  CREDIT
+  DEBIT
+}

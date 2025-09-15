@@ -515,6 +515,7 @@ React.useEffect(() => {
                             {...register(`saleLines.${index}.unitPrice`, { valueAsNumber: true })}
                             type="number"
                             step="0.01"
+                            disabled
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             placeholder="0.00"
                           />

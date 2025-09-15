@@ -12,6 +12,16 @@ import reportsRoutes from './routes/reports';
 import managementRoutes from './routes/management';
 import assetsRoutes from './routes/assets';
 import posRoutes from './routes/pos';
+// import memosRoutes from './routes/memos';
+import memoRoutes from "./routes/memoRoutes";
+
+
+
+
+
+
+
+
 
 dotenv.config();
 
@@ -50,6 +60,12 @@ app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/management', managementRoutes);
 app.use('/api/v1/assets', assetsRoutes);
 app.use('/api/v1/pos', posRoutes);
+app.use('/api/v1/memos', memoRoutes);
+// app.use("/api", memoRoutes);
+
+// app.use("/api/memos", memoRoutes);
+
+
 
 // Health check
 app.get('/health', (req, res) => {

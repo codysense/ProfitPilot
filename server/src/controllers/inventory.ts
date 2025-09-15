@@ -17,86 +17,192 @@ const costingService = new CostingService();
 const glService = new GeneralLedgerService();
 
 export class InventoryController {
-  async getItems(req: AuthRequest, res: Response) {
-    try {
-      const { page = 1, limit = 10, type, search, includeStock } = req.query;
-      const skip = (Number(page) - 1) * Number(limit);
+    async getItems(req: AuthRequest, res: Response) {
+  try {
+    const { page = 1, limit = 10, type, search, includeStock } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
 
-      const where: any = {};
-      if (type) where.type = type;
-      if (search) {
-        where.OR = [
-          { sku: { contains: search as string, mode: 'insensitive' } },
-          { name: { contains: search as string, mode: 'insensitive' } }
-        ];
-      }
+    const where: any = {};
 
-      // Apply warehouse filtering for non-admin users
-      let warehouseFilter = null;
-      if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
-        const user = await prisma.user.findUnique({
-          where: { id: req.user!.id },
-          select: { warehouseId: true }
-        });
-        warehouseFilter = user?.warehouseId;
-      }
+    if (type) where.type = type;
 
-      const [items, total] = await Promise.all([
-        prisma.item.findMany({
-      //    where: {
-      //   type: ItemType.RAW_MATERIAL
-      // },
-          skip,
-          take: Number(limit),
-          orderBy: { createdAt: 'desc' }
-        }),
-        prisma.item.count({ 
-          where: {
-        type: ItemType.RAW_MATERIAL
-      },
-         })
-      ]);
-
-      // Include stock quantities if requested
-      let itemsWithStock = items;
-      if (includeStock === 'true') {
-        itemsWithStock = await Promise.all(
-          items.map(async (item) => {
-            // Get stock for user's warehouse or all warehouses for admins
-            const stockWhere: any = { itemId: item.id };
-            if (warehouseFilter) {
-              stockWhere.warehouseId = warehouseFilter;
-            }
-            
-            const stockEntries = await prisma.inventoryLedger.findMany({
-              where: stockWhere,
-              orderBy: { postedAt: 'desc' },
-              take: warehouseFilter ? 1 : 10
-            });
-            
-            const stockQty = warehouseFilter 
-              ? (stockEntries[0]?.runningQty || 0)
-              : stockEntries.reduce((sum, entry) => sum + Number(entry.runningQty), 0);
-              
-            return { ...item, stockQty: Number(stockQty) };
-          })
-        );
-      }
-
-      res.json({
-        items: itemsWithStock,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit))
-        }
-      });
-    } catch (error) {
-      console.error('Get items error:', error);
-      res.status(500).json({ error: 'Failed to fetch items' });
+    if (search) {
+      where.OR = [
+        { sku: { contains: search as string, mode: 'insensitive' } },
+        { name: { contains: search as string, mode: 'insensitive' } }
+      ];
     }
+
+    // Apply warehouse filtering for non-admin users
+    let warehouseFilter = null;
+    if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { warehouseId: true }
+      });
+      warehouseFilter = user?.warehouseId;
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.item.findMany({
+        where, //  apply search/type filters
+        skip,
+        take: Number(limit),
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.item.count({ where }) //count matches filters
+    ]);
+
+    // Include stock quantities if requested
+    let itemsWithStock = items;
+    if (includeStock === 'true') {
+      itemsWithStock = await Promise.all(
+        items.map(async (item) => {
+          let stockQty ;
+
+      if (warehouseFilter) {
+  //  Non-admin user → latest stock in their warehouse
+          const latestEntry = await prisma.inventoryLedger.findFirst({
+          where: { itemId: item.id, warehouseId: warehouseFilter },
+            orderBy: { postedAt: 'desc' }
+           });
+        stockQty = latestEntry?.runningQty || 0;
+} else {
+  //  Admin user → sum of latest balances across all warehouses
+  const warehouses = await prisma.warehouse.findMany({ select: { id: true } });
+
+  const balances = await Promise.all(
+    warehouses.map(async (wh) => {
+      const latestEntry = await prisma.inventoryLedger.findFirst({
+        where: { itemId: item.id, warehouseId: wh.id },
+        orderBy: { postedAt: 'desc' }
+      });
+      return latestEntry?.runningQty || 0;
+    })
+  );
+
+  stockQty = balances.reduce((sum, qty) => Number(sum) + Number(qty), 0);
+}
+
+          // const stockWhere: any = { itemId: item.id };
+          // if (warehouseFilter) {
+          //   stockWhere.warehouseId = warehouseFilter;
+          // }
+
+          // const stockEntries = await prisma.inventoryLedger.findMany({
+          //   where: stockWhere,
+          //   orderBy: { postedAt: 'desc' },
+          //   take: warehouseFilter ? 1 : 10
+          // });
+
+          // // const stockQty = warehouseFilter
+          // //   ? (stockEntries[0]?.runningQty || 0)
+          // //   : stockEntries.reduce((sum, entry) => sum + Number(entry.runningQty), 0);
+
+          // const stockQty = stockEntries[0]?.runningQty || 0
+
+          return { ...item, stockQty: Number(stockQty) };
+        })
+      );
+    }
+
+    res.json({
+      items: itemsWithStock,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get items error:', error);
+    res.status(500).json({ error: 'Failed to fetch items' });
   }
+}
+
+
+
+  // async getItems(req: AuthRequest, res: Response) {
+  //   try {
+  //     const { page = 1, limit = 10, type, search, includeStock } = req.query;
+  //     const skip = (Number(page) - 1) * Number(limit);
+
+  //     const where: any = {};
+  //     if (type) where.type = type;
+  //     if (search) {
+  //       where.OR = [
+  //         { sku: { contains: search as string, mode: 'insensitive' } },
+  //         { name: { contains: search as string, mode: 'insensitive' } }
+  //       ];
+  //     }
+
+  //     // Apply warehouse filtering for non-admin users
+  //     let warehouseFilter = null;
+  //     if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+  //       const user = await prisma.user.findUnique({
+  //         where: { id: req.user!.id },
+  //         select: { warehouseId: true }
+  //       });
+  //       warehouseFilter = user?.warehouseId;
+  //     }
+
+  //     const [items, total] = await Promise.all([
+  //       prisma.item.findMany({
+  //     //    where: {
+  //     //   type: ItemType.RAW_MATERIAL
+  //     // },
+  //         skip,
+  //         take: Number(limit),
+  //         orderBy: { createdAt: 'desc' }
+  //       }),
+  //       prisma.item.count({ 
+  //         where: {
+  //       type: ItemType.RAW_MATERIAL
+  //     },
+  //        })
+  //     ]);
+
+  //     // Include stock quantities if requested
+  //     let itemsWithStock = items;
+  //     if (includeStock === 'true') {
+  //       itemsWithStock = await Promise.all(
+  //         items.map(async (item) => {
+  //           // Get stock for user's warehouse or all warehouses for admins
+  //           const stockWhere: any = { itemId: item.id };
+  //           if (warehouseFilter) {
+  //             stockWhere.warehouseId = warehouseFilter;
+  //           }
+            
+  //           const stockEntries = await prisma.inventoryLedger.findMany({
+  //             where: stockWhere,
+  //             orderBy: { postedAt: 'desc' },
+  //             take: warehouseFilter ? 1 : 10
+  //           });
+            
+  //           const stockQty = warehouseFilter 
+  //             ? (stockEntries[0]?.runningQty || 0)
+  //             : stockEntries.reduce((sum, entry) => sum + Number(entry.runningQty), 0);
+              
+  //           return { ...item, stockQty: Number(stockQty) };
+  //         })
+  //       );
+  //     }
+
+  //     res.json({
+  //       items: itemsWithStock,
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         total,
+  //         pages: Math.ceil(total / Number(limit))
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Get items error:', error);
+  //     res.status(500).json({ error: 'Failed to fetch items' });
+  //   }
+  // }
 
   // async createItem(req: AuthRequest, res: Response) {
   //   try {
@@ -503,11 +609,13 @@ export class InventoryController {
 
   async getInventoryValuation(req: AuthRequest, res: Response) {
     try {
-      const { warehouseId } = req.query;
+      const { warehouseId, limit =10 } = req.query;
 
       // Get all items with their latest inventory positions
       const items = await prisma.item.findMany({
-        where: { isActive: true },
+        where: { isActive: true, 
+        },
+        
         select: {
           id: true,
           sku: true,
@@ -515,6 +623,7 @@ export class InventoryController {
           type: true,
           costingMethod: true
         }
+       
       });
 
       const valuation = [];

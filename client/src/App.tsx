@@ -21,10 +21,12 @@ import InventoryValuation from './pages/inventory/Valuation';
 // Purchase Pages
 import PurchaseOrders from './pages/purchases/Orders';
 import Vendors from './pages/purchases/Vendors';
+import Memos from './pages/purchases/PurchaseMemosPage';
 
 // Sales Pages
 import SalesOrders from './pages/sales/Orders';
 import Customers from './pages/sales/Customers';
+import SalesMemos from './pages/sales/SalesMemosPage'
 
 // Production Pages
 import ProductionOrders from './pages/production/Orders';
@@ -153,6 +155,11 @@ function App() {
                 <Vendors />
               </ProtectedRoute>
             } />
+            <Route path="/purchases/memos" element={
+              <ProtectedRoute>
+                <Memos />
+              </ProtectedRoute>
+            } />
             
             {/* Sales Routes */}
             <Route path="/sales/orders" element={
@@ -165,6 +172,13 @@ function App() {
                 <Customers />
               </ProtectedRoute>
             } />
+
+            <Route path="/sales/memos" element={
+              <ProtectedRoute>
+                <SalesMemos />
+              </ProtectedRoute>
+            } />
+            
             
             {/* Production Routes */}
             <Route path="/production/orders" element={

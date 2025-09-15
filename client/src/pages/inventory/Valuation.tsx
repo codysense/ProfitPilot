@@ -206,6 +206,7 @@ const InventoryValuation = () => {
         data={valuationData?.valuation || []}
         columns={columns}
         loading={isLoading}
+        pagination={valuationData?.pagination}
         onExport={handleExport}
       />
     </div>

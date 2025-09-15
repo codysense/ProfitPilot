@@ -90,7 +90,8 @@ const Layout = ({ children }: LayoutProps) => {
       permission: 'purchase.order.read',
       children: [
         { name: 'Orders', href: '/purchases/orders' },
-        { name: 'Vendors', href: '/purchases/vendors' }
+        { name: 'Vendors', href: '/purchases/vendors' },
+        // { name: 'Memos', href: '/purchases/memos' },
       ]
     },
     {
@@ -100,7 +101,8 @@ const Layout = ({ children }: LayoutProps) => {
       permission: 'sales.order.read',
       children: [
         { name: 'Orders', href: '/sales/orders' },
-        { name: 'Customers', href: '/sales/customers' }
+        { name: 'Customers', href: '/sales/customers' },
+        // { name: 'Memos', href: '/sales/memos' },
       ]
     },
     {

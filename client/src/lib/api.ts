@@ -534,4 +534,36 @@ export const posApi = {
   getCustomersWithBalances: () => api.get('/pos/customers-with-balances'),
 
   
+
 };
+
+
+  export const memoApi = {
+  // --- Sales Memos ---
+  getSalesMemos: (params?: { page?: number; limit?: number; customerId?: string; type?: 'CREDIT' | 'DEBIT' }) =>
+    api.get(`/memos/sales${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+
+  createSalesMemo: (data: {
+    customerId: string;
+    chartOfAccountId: string;
+    type: 'CREDIT' | 'DEBIT';
+    amount: number;
+    description?: string;
+  }) => api.post('/memos/sales', data),
+
+  // --- Purchase Memos ---
+  getPurchaseMemos: (params?: { page?: number; limit?: number; vendorId?: string; type?: 'CREDIT' | 'DEBIT' }) =>
+  api
+    .get(`/memos/purchase${params ? '?' + new URLSearchParams(params as any).toString() : ''}`)
+    .then(res => res.data.data), // unwrap { data: [...] }
+
+
+  
+  createPurchaseMemo: (data: {
+    vendorId: string;
+    chartOfAccountId: string;
+    type: 'CREDIT' | 'DEBIT';
+    amount: number;
+    description?: string;
+  }) => api.post('/memos/purchase', data),
+  };

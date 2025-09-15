@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState,useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Plus, Search, Package,Edit, Trash2 } from 'lucide-react';
 import { inventoryApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
@@ -7,7 +7,8 @@ import StatusBadge from '../../components/StatusBadge';
 import { Item } from '../../types/api';
 import CreateItemModal from './CreateItemModal';
 import EditItemModal from './EditItemModal';
-  import toast from 'react-hot-toast'
+import toast from 'react-hot-toast'
+import { useDebounce } from '../../utils/debounce';
 
 const Items = () => {
   const [page, setPage] = useState(1);
@@ -17,19 +18,27 @@ const Items = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string>('');
+  const debouncedSearch = useDebounce(search, 500);
 
+
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, typeFilter]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['items', { page, search, type: typeFilter }],
-    queryFn: () => inventoryApi.getItems({ 
-      page, 
-      limit: 10, 
-      ...(search && { search }),
-      ...(typeFilter && { type: typeFilter })
-    })
+    queryKey: ['items', { page, search: debouncedSearch, type: typeFilter }],
+    queryFn: () =>
+      inventoryApi.getItems({
+        page,
+        limit: 10,
+        ...(debouncedSearch && { search: debouncedSearch }),
+        ...(typeFilter && { type: typeFilter }),
+      }),
+    placeholderData: keepPreviousData, // smoother pagination
   });
 
-  console.log(data)
+
 
   const columns = [
     {
@@ -108,17 +117,17 @@ const Items = () => {
     setSelectedItem(null);
   }
 
-   const handleDeleteItem = async (item: Item) => {
-      if (confirm(`Are you sure you want to delete Inventory ${item.name}?`)) {
-        try {
-          await inventoryApi.deleteItem(item.sku);
-          toast.success('Item deleted successfully');
-          refetch();
-        } catch (error) {
-          console.error('Delete Item error:', error);
-        }
-      }
-    };
+  //  const handleDeleteItem = async (item: Item) => {
+  //     if (confirm(`Are you sure you want to delete Inventory ${item.name}?`)) {
+  //       try {
+  //         await inventoryApi.deleteItem(item.sku);
+  //         toast.success('Item deleted successfully');
+  //         refetch();
+  //       } catch (error) {
+  //         console.error('Delete Item error:', error);
+  //       }
+  //     }
+  //   };
 
   const actions = (item: Item) => (
       <div className="flex space-x-2">
