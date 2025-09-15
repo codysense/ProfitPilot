@@ -302,7 +302,7 @@ export class CashController {
       const receipt = await tx.salesReceipt.create({
         data: {
           receiptNo,
-           ...(saleId ? { saleId } : {}),
+          saleId: saleId ?? null,
           customerId,
           cashAccountId,
           amountReceived: new Decimal(amount),
@@ -459,7 +459,7 @@ export class CashController {
       const payment = await tx.purchasePayment.create({
         data: {
           paymentNo,
-          ...(purchaseId ? { purchaseId } : {}), // only include if provided
+          purchaseId:purchaseId?? null, // only include if provided
           vendorId,
           cashAccountId,
           amountPaid: new Decimal(amount),

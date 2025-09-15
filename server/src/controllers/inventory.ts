@@ -81,7 +81,9 @@ export class InventoryController {
     })
   );
 
-  stockQty = balances.reduce((sum, qty) => Number(sum) + Number(qty), 0);
+  stockQty = balances
+  .map((qty) => Number(qty)) // ensure all are numbers
+  .reduce((sum, qty) => sum + qty, 0);
 }
 
           // const stockWhere: any = { itemId: item.id };
