@@ -42,8 +42,14 @@ export class PosController {
         return await tx.posSession.create({
           data: {
             sessionNo,
-            userId: req.user!.id,
-            warehouseId: validatedData.warehouseId,
+            user: {
+      connect: { id: req.user!.id }
+    },
+    warehouse: {
+      connect: { id: validatedData.warehouseId }
+    }
+            // userId: req.user!.id,
+            // warehouseId: validatedData.warehouseId,
             // cashAccountId: validatedData.cashAccountId,
             // openingBalance: new Decimal(validatedData.openingBalance)
           }
