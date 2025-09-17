@@ -98,7 +98,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps)=>{
 
       //  updated item data
       await inventoryApi.createItem({
-         sku: data.sku,
+          sku: data.sku,
           type: data.type,
           name:data.name,
           description:data.description,

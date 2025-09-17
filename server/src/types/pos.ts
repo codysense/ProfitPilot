@@ -3,8 +3,8 @@ import { z } from 'zod';
 // POS Session schemas
 export const createPosSessionSchema = z.object({
   warehouseId: z.string().cuid('Warehouse is required'),
-  cashAccountId: z.string().cuid('Cash account is required'),
-  openingBalance: z.number().min(0, 'Opening balance cannot be negative'),
+  // cashAccountId: z.string().cuid('Cash account is required'),
+  // openingBalance: z.number().min(0, 'Opening balance cannot be negative'),
 });
 
 export const closePosSessionSchema = z.object({
@@ -15,6 +15,7 @@ export const closePosSessionSchema = z.object({
 export const createPosSaleSchema = z.object({
   sessionId: z.string().cuid('Session is required'),
   customerId: z.string().cuid().optional(),
+  cashAccountId:z.string().cuid(),
   saleLines: z.array(z.object({
     itemId: z.string().cuid('Item is required'),
     qty: z.number().positive('Quantity must be positive'),

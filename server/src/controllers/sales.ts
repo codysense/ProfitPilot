@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { createSaleSchema, deliverSaleSchema } from '../types/sales';
+import { createCustomerSchema, createSaleSchema, deliverSaleSchema } from '../types/sales';
 import { AuthRequest } from '../middleware/auth';
 import { CostingService } from '../services/costing';
 import { GeneralLedgerService } from '../services/gl';
@@ -273,9 +273,19 @@ export class SalesController {
 
   async createCustomer(req: AuthRequest, res: Response) {
     try {
-      const customer = await prisma.customer.create({
-        data: req.body
-      });
+
+      const validatedData = createCustomerSchema.parse(req.body);
+            
+               
+            
+                const customer = await prisma.customer.upsert({
+                  where: { code: validatedData.code },
+                  update: { ...validatedData },
+                  create: { ...validatedData },
+                });
+      // const customer = await prisma.customer.create({
+      //   data: req.body
+      // });
 
       res.status(201).json(customer);
     } catch (error) {

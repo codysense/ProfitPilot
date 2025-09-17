@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Plus, Trash2, ShoppingCart, Calculator, Printer, User } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { posApi, inventoryApi, managementApi } from '../../lib/api';
+import { posApi, inventoryApi, managementApi, cashApi } from '../../lib/api';
 import { PosSession } from '../../types/api';
 import { ReportExporter } from '../../utils/reportExport';
 import toast from 'react-hot-toast';
@@ -12,13 +12,14 @@ import toast from 'react-hot-toast';
 
 const posSaleSchema = z.object({
   customerId: z.string().optional(),
+  cashAccountId:z.string().cuid(),
   saleLines: z.array(z.object({
     itemId: z.string().min(1, 'Item is required'),
     qty: z.number().positive('Quantity must be positive'),
     unitPrice: z.number().positive('Unit price must be positive'),
     discountPercent: z.number().min(0).max(100).default(0),
   })).min(1, 'At least one item is required'),
-  paymentMethod: z.enum(['CASH', 'CARD', 'TRANSFER']).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'CARD', 'TRANSFER']),
   amountPaid: z.number().positive('Amount paid must be positive'),
   notes: z.string().optional(),
 });
@@ -45,7 +46,7 @@ const PosTerminal = ({ session, onClose, onSaleComplete }: PosTerminalProps) => 
     resolver: zodResolver(posSaleSchema),
     defaultValues: {
       saleLines: [{ itemId: '', qty: 1, unitPrice: 0, discountPercent: 0 }],
-      paymentMethod: 'CASH'
+      
     }
   });
 
@@ -73,6 +74,11 @@ const PosTerminal = ({ session, onClose, onSaleComplete }: PosTerminalProps) => 
     queryFn:  () => managementApi.getCompanySettings()
   });
 
+
+   const { data: cashAccounts } = useQuery({
+      queryKey: ['cash-accounts-for-pos'],
+      queryFn: () => cashApi.getCashAccounts()
+    });
 
 React.useEffect(() => {
   watchedLines.forEach((line, index) => {
@@ -148,6 +154,7 @@ React.useEffect(() => {
       const saleData = {
         sessionId: session.id,
         customerId: data.customerId,
+        cashAccountId: data.cashAccountId,
         saleLines: data.saleLines.map(line => ({
           itemId: line.itemId,
           qty: line.qty,
@@ -405,7 +412,7 @@ React.useEffect(() => {
             
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Customer Selection */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Customer (Optional)
@@ -437,6 +444,25 @@ React.useEffect(() => {
                     <option value="TRANSFER">Bank Transfer</option>
                   </select>
                 </div>
+                <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Cash Account *
+                </label>
+                <select
+                  {...register('cashAccountId')}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                >
+                  <option value="">Select cash account</option>
+                  {cashAccounts?.accounts?.map((account: any) => (
+                    <option key={account.id} value={account.id}>
+                      {account.code} - {account.name} (₦{Number(account.balance).toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+                {errors.cashAccountId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.cashAccountId.message}</p>
+                )}
+              </div>
               </div>
 
               {/* Customer Outstanding Balance */}

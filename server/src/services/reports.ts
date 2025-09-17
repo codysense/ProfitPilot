@@ -11,12 +11,12 @@ interface ProductionSummary {
 
 export class ReportsService {
   // Financial Reports
-  async getBalanceSheet(asOfDate: Date) {
+  async getBalanceSheet(fromDate:Date ,asOfDate: Date) {
     // Get chart of accounts
     const chartAccounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
-        accountType: { in: ['CURRENT_ASSETS', 'NON_CURRENT_ASSETS', 'TRADE_RECEIVABLES', 'CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY', 'TRADE_PAYABLES', 'EQUITY'] }
+        accountType: { in: ['CURRENT_ASSETS','NON_CURRENT_ASSETS', 'TRADE_RECEIVABLES', 'CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY', 'TRADE_PAYABLES', 'EQUITY'] }
       },
       include: {
         journalLines: {
@@ -32,7 +32,7 @@ export class ReportsService {
 
     // Get cash accounts separately
     const cashAccounts = await prisma.cashAccount.findMany({
-      where: { isActive: true }
+      // where: { isActive: true }
     });
 
     const assets: any[] = [];
@@ -46,6 +46,7 @@ export class ReportsService {
     chartAccounts.forEach(account => {
       const totalDebits = account.journalLines.reduce((sum, line) => sum.plus(line.debit), new Decimal(0));
       const totalCredits = account.journalLines.reduce((sum, line) => sum.plus(line.credit), new Decimal(0));
+
       const balance = ['CURRENT_ASSETS', 'NON_CURRENT_ASSETS', 'TRADE_RECEIVABLES'].includes(account.accountType)
         ? totalDebits.minus(totalCredits).toNumber()
         : totalCredits.minus(totalDebits).toNumber();
@@ -53,12 +54,12 @@ export class ReportsService {
       const accountData = {
         accountCode: account.code,
         accountName: account.name,
-        balance: Math.abs(balance)
+        balance: (balance)
       };
 
       if (['CURRENT_ASSETS', 'NON_CURRENT_ASSETS', 'TRADE_RECEIVABLES'].includes(account.accountType)) {
         assets.push(accountData);
-        totalAssets += balance;
+        totalAssets += account.code === '1100' ? 0: balance;
       } else if (['CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY', 'TRADE_PAYABLES'].includes(account.accountType)) {
         liabilities.push(accountData);
         totalLiabilities += balance;
@@ -68,18 +69,51 @@ export class ReportsService {
       }
     });
 
+
+
     // Add cash accounts to assets
     let totalCashBalance = 0;
     cashAccounts.forEach(cashAccount => {
+      
       const balance = Number(cashAccount.balance);
       assets.push({
         accountCode: cashAccount.code,
         accountName: `${cashAccount.name} (${cashAccount.accountType})`,
-        balance: Math.abs(balance)
+        balance: (balance)
       });
-      totalAssets += balance;
+      totalAssets +=  balance;
       totalCashBalance += balance;
     });
+
+    const newDate = new Date(fromDate);
+    newDate.setDate(newDate.getDate() - 1);
+    
+    const {netIncome:retainProfit} = await this.getProfitAndLoss(new Date('01/01/1900'), newDate )
+   
+    const {netIncome:netProfit}= await this.getProfitAndLoss(fromDate, asOfDate)
+
+  //  console.log("Net Profit", netProfit, 'retain Profit', retainProfit)
+    
+    
+    equity.push(
+      {
+        accountName:'Retain Profit',
+        balance: retainProfit,
+        accountCode:'RetPrt001'
+      },
+      
+    )
+    totalEquity += retainProfit
+    equity.push(
+      {
+        accountName:'Net Profit',
+        balance: netProfit,
+        accountCode:'NetPrt001'
+      },
+      
+    )
+    totalEquity += netProfit
+    
     return {
       asOfDate,
       assets,
@@ -113,6 +147,10 @@ export class ReportsService {
    * @throws Will propagate any errors from the database query.
    */
   async getProfitAndLoss(fromDate: Date, toDate: Date) {
+    
+    if (!fromDate){
+      fromDate = new Date('01/01/1900')
+    }
     const accounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,

@@ -302,7 +302,7 @@ export class CashController {
       const receipt = await tx.salesReceipt.create({
         data: {
           receiptNo,
-          saleId: saleId ?? null,
+          saleId: saleId? saleId: null,
           customerId,
           cashAccountId,
           amountReceived: new Decimal(amount),
@@ -459,7 +459,7 @@ export class CashController {
       const payment = await tx.purchasePayment.create({
         data: {
           paymentNo,
-          purchaseId:purchaseId?? null, // only include if provided
+          purchaseId:purchaseId?purchaseId: null, // only include if provided
           vendorId,
           cashAccountId,
           amountPaid: new Decimal(amount),
@@ -496,7 +496,7 @@ export class CashController {
           OR: [
             { accountType: 'TRADE_PAYABLES' },
             { code: '2000' },
-            { name: { contains: 'Payable', mode: 'insensitive' } }
+            // { name: { contains: 'Payable', mode: 'insensitive' } }
           ]
         }
       });

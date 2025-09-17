@@ -44,8 +44,8 @@ export class PosController {
             sessionNo,
             userId: req.user!.id,
             warehouseId: validatedData.warehouseId,
-            cashAccountId: validatedData.cashAccountId,
-            openingBalance: new Decimal(validatedData.openingBalance)
+            // cashAccountId: validatedData.cashAccountId,
+            // openingBalance: new Decimal(validatedData.openingBalance)
           }
         });
       },
@@ -128,7 +128,7 @@ export class PosController {
             sessionId: validatedData.sessionId,
             customerId: validatedData.customerId,
             warehouseId: session.warehouseId,
-            cashAccountId: session.cashAccountId,
+            cashAccountId: validatedData.cashAccountId,
             subtotal: new Decimal(validatedData.subtotal),
             taxAmount: new Decimal(validatedData.taxAmount),
             discountAmount: new Decimal(validatedData.discountAmount),
@@ -177,7 +177,7 @@ export class PosController {
 
         // Update cash account balance
         await tx.cashAccount.update({
-          where: { id: session.cashAccountId },
+          where: { id: validatedData.cashAccountId },
           data: {
             balance: {
               increment: validatedData.totalAmount
@@ -194,7 +194,7 @@ export class PosController {
         await tx.cashTransaction.create({
           data: {
             transactionNo,
-            cashAccountId: session.cashAccountId,
+            cashAccountId: validatedData.cashAccountId,
             transactionType: 'RECEIPT',
             amount: new Decimal(validatedData.totalAmount),
             description: `POS Sale: ${saleNo}`,

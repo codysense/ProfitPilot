@@ -16,8 +16,8 @@ export class ReportsController {
   // Financial Reports
   async getBalanceSheet(req: AuthRequest, res: Response) {
     try {
-      const { asOfDate } = balanceSheetSchema.parse(req.query);
-      const report = await reportsService.getBalanceSheet(new Date(asOfDate));
+      const { dateFrom, dateTo } = balanceSheetSchema.parse(req.query);
+      const report = await reportsService.getBalanceSheet(new Date(dateFrom),new Date(dateTo));
       res.json(report);
     } catch (error) {
       console.error('Balance sheet error:', error);

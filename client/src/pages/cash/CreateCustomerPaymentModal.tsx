@@ -72,6 +72,7 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
   const onSubmit = async (data: CreateCustomerPaymentFormData) => {
     try {
       await cashApi.createCustomerPayment(data);
+      
       toast.success('Customer payment recorded successfully');
       onSuccess();
     } catch (error) {

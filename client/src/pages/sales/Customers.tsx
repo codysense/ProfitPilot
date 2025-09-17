@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, Users } from 'lucide-react';
+import { Plus, Search, Users,Edit } from 'lucide-react';
 import { salesApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { Customer } from '../../types/api';
 import CreateCustomerModal from './CreateCustomerModal';
+import EditCustomerModal from './EditCustomerModal';
 
 const Customers = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['customers', { page, search }],
@@ -74,6 +77,49 @@ const Customers = () => {
     refetch();
     setShowCreateModal(false);
   };
+
+  const handleEditCustomer = ()=>{
+        refetch();
+        setShowEditModal(false);
+        setSelectedCustomer(null);
+      }
+    
+      //  const handleDeleteItem = async (item: Item) => {
+      //     if (confirm(`Are you sure you want to delete Inventory ${item.name}?`)) {
+      //       try {
+      //         await inventoryApi.deleteItem(item.sku);
+      //         toast.success('Item deleted successfully');
+      //         refetch();
+      //       } catch (error) {
+      //         console.error('Delete Item error:', error);
+      //       }
+      //     }
+      //   };
+    
+      const actions = (customer: Customer) => (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                setSelectedCustomer(customer);
+                setShowEditModal(true);
+              }}
+              className="text-blue-600 hover:text-blue-900"
+              title="Edit Customer"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+    
+            
+                    {/* <button
+                      onClick={() => handleDeleteItem(item)}
+                      className="text-red-600 hover:text-red-900"
+                      title="Delete Item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button> */}
+                  
+          </div>
+        );
 
   return (
     <div className="space-y-6">
@@ -180,6 +226,7 @@ const Customers = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        actions={actions}
       />
 
       {/* Create Modal */}
@@ -189,6 +236,18 @@ const Customers = () => {
           onSuccess={handleCreateCustomer}
         />
       )}
+
+      {/* Edit Modal */}
+                  {showEditModal && selectedCustomer && (
+                    <EditCustomerModal
+                      customer={selectedCustomer}
+                      onClose={() => {
+                        setShowEditModal(false);
+                        setSelectedCustomer(null);
+                      }}
+                      onSuccess={handleEditCustomer}
+                    />
+                  )}
     </div>
   );
 };

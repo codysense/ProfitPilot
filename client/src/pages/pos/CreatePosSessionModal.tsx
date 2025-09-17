@@ -10,8 +10,8 @@ import toast from 'react-hot-toast';
 
 const createSessionSchema = z.object({
   warehouseId: z.string().min(1, 'Warehouse is required'),
-  cashAccountId: z.string().min(1, 'Cash account is required'),
-  openingBalance: z.number().min(0, 'Opening balance cannot be negative'),
+  // cashAccountId: z.string().min(1, 'Cash account is required'),
+  // openingBalance: z.number().min(0, 'Opening balance cannot be negative'),
 });
 
 type CreateSessionFormData = z.infer<typeof createSessionSchema>;
@@ -32,7 +32,7 @@ const CreatePosSessionModal = ({ onClose, onSuccess }: CreatePosSessionModalProp
     resolver: zodResolver(createSessionSchema),
     defaultValues: {
       warehouseId: user?.warehouseId || '',
-      openingBalance: 0
+     // openingBalance: 0
     }
   });
 
@@ -41,10 +41,12 @@ const CreatePosSessionModal = ({ onClose, onSuccess }: CreatePosSessionModalProp
     queryFn: () => inventoryApi.getWarehouses()
   });
 
-  const { data: cashAccounts } = useQuery({
-    queryKey: ['cash-accounts-for-pos'],
-    queryFn: () => cashApi.getCashAccounts()
-  });
+  // const { data: cashAccounts } = useQuery({
+  //   queryKey: ['cash-accounts-for-pos'],
+  //   queryFn: () => cashApi.getCashAccounts()
+  // });
+
+ 
 
   const onSubmit = async (data: CreateSessionFormData) => {
     try {
@@ -117,7 +119,7 @@ const CreatePosSessionModal = ({ onClose, onSuccess }: CreatePosSessionModalProp
                 )}
               </div>
 
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Cash Account *
                 </label>
@@ -126,7 +128,7 @@ const CreatePosSessionModal = ({ onClose, onSuccess }: CreatePosSessionModalProp
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
                   <option value="">Select cash account</option>
-                  {cashAccounts?.accounts?.filter((acc: any) => acc.accountType === 'CASH').map((account: any) => (
+                  {cashAccounts?.accounts?.map((account: any) => (
                     <option key={account.id} value={account.id}>
                       {account.code} - {account.name} (₦{Number(account.balance).toLocaleString()})
                     </option>
@@ -135,9 +137,9 @@ const CreatePosSessionModal = ({ onClose, onSuccess }: CreatePosSessionModalProp
                 {errors.cashAccountId && (
                   <p className="mt-1 text-sm text-red-600">{errors.cashAccountId.message}</p>
                 )}
-              </div>
+              </div> */}
 
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Opening Balance *
                 </label>
@@ -155,7 +157,7 @@ const CreatePosSessionModal = ({ onClose, onSuccess }: CreatePosSessionModalProp
                 <p className="mt-1 text-sm text-gray-500">
                   Count the cash in the register to determine opening balance
                 </p>
-              </div>
+              </div> */}
               
               <div className="flex justify-end space-x-3 pt-4">
                 <button

@@ -57,7 +57,7 @@ const VendorPayments = () => {
     queryFn: () => purchaseApi.getVendors({ limit: 100 })
   });
 
-  console.log(data);
+ // console.log(data);
 
   const handlePrintPayment = async (payment: VendorPayment) => {
     try {
@@ -288,7 +288,7 @@ const VendorPayments = () => {
         pagination={data?.pagination}
         onPageChange={setPage}
       />
-
+      {console.log(data)}
       {showCreateModal && (
         <CreateVendorPaymentModal
           onSuccess={handleCreatePayment}

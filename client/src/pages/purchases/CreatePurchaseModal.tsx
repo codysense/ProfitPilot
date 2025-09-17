@@ -54,7 +54,7 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
 
   const { data: items } = useQuery({
     queryKey: ['items-for-purchase'],
-    queryFn: () => inventoryApi.getItems({ type:'RAW_MATERIALS', limit: 100 })
+    queryFn: () => inventoryApi.getItems({ itemType:'RAW_MATERIALS', limit: 100 })
   });
 
   const calculateTotal = () => {

@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import { AuthRequest } from "../middleware/auth";
-
+import { AuthRequest } from '../middleware/auth';
 const prisma = new PrismaClient();
 
 // const prisma = new PrismaClient();
@@ -13,7 +12,7 @@ const TRADE_PAYABLE_CODE = "2000";
 
 
 // -------------------- Purchase Memos --------------------
-export const getPurchaseMemos = async (req: Request, res: Response) => {
+export const getPurchaseMemos = async (req: AuthRequest, res: Response) => {
   try {
     const memos = await prisma.purchaseMemo.findMany({
       include: { vendor: true, account: true },
@@ -182,8 +181,22 @@ export const getSalesMemos = async (req: Request, res: Response) => {
 // };
 export const createSalesMemo = async (req: AuthRequest, res: Response) => {
   try {
+
+    console.log("=== MEMOS CONTROLLER DEBUG ===");
+    console.log("req.user:", req.user);
+    console.log("req.user?.id:", req.user?.id);
+    console.log("req.user!.id:", req.user!.id); // This should work if user exists
+    
+    if (!req.user) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const postedBy = req.user;
+    console.log("PostedBy user:", postedBy);
+
+
     const { customerId, chartOfAccountId, type, amount, description } = req.body;
-    const postedBy = (req as any).user?.id;
+    // const postedBy = req.user?.id;
 
     if (!customerId || !chartOfAccountId || !type || !amount) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -206,31 +219,34 @@ export const createSalesMemo = async (req: AuthRequest, res: Response) => {
 console.log(postedBy)
     // 3) create journal
     const journal = await prisma.journal.create({
-      data: {
-        journalNo: `JNL-${Date.now()}`,
-        date: new Date(),
-        memo: description ?? `${type} Memo for Customer`,
-        postedBy:postedBy,
-        journalLines: {
-          create: [
-            {
-              account: { connect: { id: type === "DEBIT" ? arAccount.id : chartOfAccountId } },
-              debit: type === "DEBIT" ? amount : 0,
-              credit: type === "CREDIT" ? amount : 0,
-              refType: "SalesMemo",
-              refId: memo.id,
-            },
-            {
-              account: { connect: { id: type === "CREDIT" ? arAccount.id : chartOfAccountId } },
-              debit: type === "CREDIT" ? amount : 0,
-              credit: type === "DEBIT" ? amount : 0,
-              refType: "SalesMemo",
-              refId: memo.id,
-            },
-          ],
+  data: {
+    journalNo: `JNL-${Date.now()}`,
+    date: new Date(),
+    memo: description ?? `${type} Memo for Customer`,
+    postedByUser: {
+      connect: { id: req.user!.id},   
+    },
+    journalLines: {
+      create: [
+        {
+          account: { connect: { id: type === "DEBIT" ? arAccount.id : chartOfAccountId } },
+          debit: type === "DEBIT" ? amount : 0,
+          credit: type === "CREDIT" ? amount : 0,
+          refType: "SalesMemo",
+          refId: memo.id,
         },
-      },
-    });
+        {
+          account: { connect: { id: type === "CREDIT" ? arAccount.id : chartOfAccountId } },
+          debit: type === "CREDIT" ? amount : 0,
+          credit: type === "DEBIT" ? amount : 0,
+          refType: "SalesMemo",
+          refId: memo.id,
+        },
+      ],
+    },
+  },
+});
+
 
     res.json({ memo, journal });
   } catch (err: any) {

@@ -45,7 +45,8 @@ export class InventoryController {
 
     const [items, total] = await Promise.all([
       prisma.item.findMany({
-        where, //  apply search/type filters
+         //  apply search/type filters
+         where,
         skip,
         take: Number(limit),
         orderBy: { createdAt: 'desc' }
@@ -53,6 +54,8 @@ export class InventoryController {
       prisma.item.count({ where }) //count matches filters
     ]);
 
+    //where,
+//{ where }
     // Include stock quantities if requested
     let itemsWithStock = items;
     if (includeStock === 'true') {

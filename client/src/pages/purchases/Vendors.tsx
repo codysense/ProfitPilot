@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, Building } from 'lucide-react';
+import { Plus, Search, Building,Edit } from 'lucide-react';
 import { purchaseApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { Vendor } from '../../types/api';
 import CreateVendorModal from './CreateVendorModal';
+import EditVendorModal from './EditVendorModal'
+import { Cell } from 'recharts';
 
 const Vendors = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['vendors', { page, search }],
@@ -68,6 +72,49 @@ const Vendors = () => {
     refetch();
     setShowCreateModal(false);
   };
+
+  const handleEditVendor = ()=>{
+      refetch();
+      setShowEditModal(false);
+      setSelectedVendor(null);
+    }
+  
+    //  const handleDeleteItem = async (item: Item) => {
+    //     if (confirm(`Are you sure you want to delete Inventory ${item.name}?`)) {
+    //       try {
+    //         await inventoryApi.deleteItem(item.sku);
+    //         toast.success('Item deleted successfully');
+    //         refetch();
+    //       } catch (error) {
+    //         console.error('Delete Item error:', error);
+    //       }
+    //     }
+    //   };
+  
+    const actions = (vendor: Vendor) => (
+        <div className="flex space-x-2">
+          <button
+            onClick={() => {
+              setSelectedVendor(vendor);
+              setShowEditModal(true);
+            }}
+            className="text-blue-600 hover:text-blue-900"
+            title="Edit Vendor"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+  
+          
+                  {/* <button
+                    onClick={() => handleDeleteItem(item)}
+                    className="text-red-600 hover:text-red-900"
+                    title="Delete Item"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button> */}
+                
+        </div>
+      );
 
   return (
     <div className="space-y-6">
@@ -154,6 +201,7 @@ const Vendors = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        actions={actions}
       />
 
       {/* Create Modal */}
@@ -163,6 +211,18 @@ const Vendors = () => {
           onSuccess={handleCreateVendor}
         />
       )}
+
+      {/* Edit Modal */}
+            {showEditModal && selectedVendor && (
+              <EditVendorModal
+                vendor={selectedVendor}
+                onClose={() => {
+                  setShowEditModal(false);
+                  setSelectedVendor(null);
+                }}
+                onSuccess={handleEditVendor}
+              />
+            )}
     </div>
   );
 };

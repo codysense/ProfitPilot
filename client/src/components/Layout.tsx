@@ -102,7 +102,7 @@ const Layout = ({ children }: LayoutProps) => {
       children: [
         { name: 'Orders', href: '/sales/orders' },
         { name: 'Customers', href: '/sales/customers' },
-        // { name: 'Memos', href: '/sales/memos' },
+        { name: 'Memos', href: '/sales/memos' },
       ]
     },
     {
@@ -113,7 +113,7 @@ const Layout = ({ children }: LayoutProps) => {
       children: [
         { name: 'Dashboard', href: '/assets' },
         { name: 'Asset Register', href: '/assets/register' },
-        { name: 'Categories', href: '/assets/categories' }
+        // { name: 'Categories', href: '/assets/categories' }
       ],
       requiresRole: ['CFO', 'General Manager']
     },

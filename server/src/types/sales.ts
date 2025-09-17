@@ -21,5 +21,16 @@ export const deliverSaleSchema = z.object({
   })),
 });
 
+export const createCustomerSchema = z.object({
+  code: z.string().min(1, 'Code is required'),
+  name: z.string().min(1, 'Name is required'),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email('Invalid email format').optional().or(z.literal('')),
+  creditLimit: z.number().optional(),
+  CustomerGroup: z.string().min(1,"Customer Group"),
+});
+
 export type CreateSaleRequest = z.infer<typeof createSaleSchema>;
 export type DeliverSaleRequest = z.infer<typeof deliverSaleSchema>;
+export type CreateCustomerRequest = z.infer<typeof createCustomerSchema>

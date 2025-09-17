@@ -33,6 +33,7 @@ const Reports = () => {
   const [vendorFilter, setVendorFilter] = useState('');
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [ accountFilter, setAccountFilter] = useState('')
 
   // Get filter options
   const { data: warehouses } = useQuery({
@@ -57,11 +58,24 @@ const Reports = () => {
     queryFn: () => purchaseApi.getVendors({ limit: 100 })
   });
 
+  const {data:accounts}= useQuery({
+    queryKey:['accounts-forreports'],
+    queryFn:()=> managementApi.getChartOfAccounts()
+    
+  })
+
+  console.log(accounts)
+
+
+
 
   const { data: allUsers = [] } = useQuery({
   queryKey: ['users'],
   queryFn: () => managementApi.getUsersWithDetails({ limit: 100 })
+  
 });
+
+
 
 // console.log(allUsers)
 
@@ -79,7 +93,7 @@ const Reports = () => {
       description: 'Assets, liabilities, and equity at a specific date',
       icon: FileText,
       category: 'Financial',
-      requiresAsOfDate: true
+      requiresDateRange: true
     },
     {
       id: 'profit-loss',
@@ -103,7 +117,9 @@ const Reports = () => {
       description: 'Detailed journal entries for all accounts',
       icon: FileText,
       category: 'Financial',
-      requiresDateRange: true
+      requiresDateRange: true,
+      supportAccount:true
+
     },
     {
       id: 'cash-flow',
@@ -293,7 +309,7 @@ const Reports = () => {
       
       switch (selectedReport) {
         case 'balance-sheet':
-          data = await reportsApi.getBalanceSheet({ asOfDate });
+          data = await reportsApi.getBalanceSheet({ dateFrom, dateTo });
           break;
         case 'profit-loss':
           if (!dateFrom || !dateTo) {
@@ -303,11 +319,11 @@ const Reports = () => {
           data = await reportsApi.getProfitAndLoss({ dateFrom, dateTo });
           break;
         case 'cashAccount-balances':
-          if (!dateFrom || !dateTo) {
+          if ( !dateTo) {
             alert('Please select date range');
             return;
           }
-          data = await reportsApi.getCashAccountBalances({ dateFrom, dateTo });
+          data = await reportsApi.getCashAccountBalances({ dateFrom , dateTo });
           break;
         case 'pos-sales':
           // if (!dateFrom || !dateTo) {
@@ -330,7 +346,7 @@ const Reports = () => {
             alert('Please select date range');
             return;
           }
-          data = await reportsApi.getGeneralLedger({ dateFrom, dateTo });
+          data = await reportsApi.getGeneralLedger({ dateFrom, dateTo, accountId:accountFilter });
           break;
         case 'cash-flow':
           if (!dateFrom || !dateTo) {
@@ -440,14 +456,7 @@ const Reports = () => {
           break;
         case 'customer-balances':
           data = await reportsApi.getCustomerBalances({ asOfDate });
-          break;
-        // case 'receivable-summary':
-        //   data = await reportsApi.getReceiavbleSummary({ dateFrom,dateTo });
-        //   break;
-        // case 'customer-ledger':
-        //   data = await reportsApi.getCustomerLedger({ customerId, dateFrom,dateTo });
-        //   break;
-        
+          break; 
         default:
           alert('Report not implemented yet');
           return;
@@ -492,7 +501,7 @@ const Reports = () => {
         case 'cashAccount-balances':
           { const cashAccountBalancesColumns = [
             { key: 'SerialNo', header: 'Serial No' },
-            { key: 'AccountType', header: 'Account Type' },
+            { key: 'AccountName', header: 'Account Name' },
             { key: 'OpeningBalance', header: 'Opening Balance' },
             { key: 'TotalInflow', header: 'Total Inflow' },
             { key: 'TotalOutflow', header: 'Total Outflow' },
@@ -574,8 +583,8 @@ const Reports = () => {
             { key: 'transaction_type', header: 'Transaction Type' },
             { key: 'reference', header: 'Reference' },
             { key: 'date', header: 'Date' },
-            { key: 'credit', header: 'Credit' },
-            { key: 'debit', header: 'debit' },
+            { key: 'debit', header: 'Debit' },
+            { key: 'credit', header: 'Credit' }, 
             { key: 'balance', header: 'Balance' },
             { key: 'descripption', header: 'Description' },
 
@@ -591,8 +600,8 @@ const Reports = () => {
             { key: 'transaction_type', header: 'Transaction Type' },
             { key: 'reference', header: 'Reference' },
             { key: 'date', header: 'Date' },
-            { key: 'credit', header: 'Credit' },
-            { key: 'debit', header: 'debit' },
+             { key: 'debit', header: 'Debit' },
+            { key: 'credit', header: 'Credit' }, 
             { key: 'balance', header: 'Balance' },
             { key: 'descripption', header: 'Description' },
 
@@ -970,6 +979,25 @@ const Reports = () => {
                   </select>
                 </div>
               )}
+              {selectedReportConfig?.supportAccount && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chart Of Accounts *
+                  </label>
+                  <select
+                    value={accountFilter}
+                    onChange={(e) => setAccountFilter(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Select Account</option>
+                    {accounts?.accounts?.map((account: any) => (
+                      <option key={account.id} value={account.id}>
+                         {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {selectedReportConfig?.supportUsers && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1089,12 +1117,14 @@ const BalanceSheetReport = ({ data }: { data: any }) => (
       <div>
         <h3 className="text-lg font-semibold mb-4">Assets</h3>
         <div className="space-y-2">
-          {Array.isArray(data?.assets) && data.assets.map((asset: any, index: number) => (
-            <div key={index} className="flex justify-between">
-              <span>{asset.accountName}</span>
-              <span>₦{asset.balance.toLocaleString()}</span>
-            </div>
-          ))}
+          {Array.isArray(data?.assets) && data.assets
+   .filter((asset: any) => asset.accountName !== 'Cash and Bank')
+  .map((asset: any, index: number) => (
+    <div key={index} className="flex justify-between">
+      <span>{asset.accountName}</span>
+      <span>₦{asset.balance.toLocaleString()}</span>
+    </div>
+  ))}
           <div className="border-t pt-2 font-semibold flex justify-between">
             <span>Total Assets</span>
             <span>₦{(data?.totalAssets || 0).toLocaleString()}</span>
@@ -1346,7 +1376,7 @@ const CashAccountBalances = ({ data }: { data: any }) => {
   
   
     { key: 'SerialNo', header: 'Serial No', width: 'w-32' },
-    { key: 'AccountType', header: 'Account Type' , width: 'w-32'},
+    { key: 'AccountName', header: 'Account Name' , width: 'w-32'},
     { key: 'OpeningBalance', header: 'Opening Balance', width: 'w-32' },
     { key: 'TotalInflow', header: 'Total Inflow' , width: 'w-32'},
     { key: 'TotalOutflow', header: 'Total Outflow' , width: 'w-32'},
@@ -1432,7 +1462,17 @@ const CustomerBalances = ({ data }: { data: any }) => {
 };
 
 
-const GeneralLedgerReport = ({ data }: { data: any }) => {
+const GeneralLedgerReport = ({ data }: { data: any[] }) => {
+  // 1. Compute running balance
+  const dataWithBalance = data.reduce((acc: any[], curr, idx) => {
+    const prevBalance = idx > 0 ? acc[idx - 1].runningBalance : 0;
+    const runningBalance = prevBalance + (curr.credit || 0) - (curr.debit || 0);
+
+    acc.push({ ...curr, runningBalance });
+    return acc;
+  }, []);
+
+  // 2. Define columns including the new one
   const columns = [
     { 
       key: 'date', 
@@ -1443,7 +1483,7 @@ const GeneralLedgerReport = ({ data }: { data: any }) => {
     { key: 'journalNo', header: 'Journal No', width: 'w-32' },
     { key: 'accountCode', header: 'Account', width: 'w-32' },
     { key: 'accountName', header: 'Account Name', width: 'w-48' },
-    { key: 'memo', header: 'Description', width: 'w-64' },
+    // { key: 'memo', header: 'Description', width: 'w-64' },
     { 
       key: 'debit', 
       header: 'Debit', 
@@ -1455,6 +1495,12 @@ const GeneralLedgerReport = ({ data }: { data: any }) => {
       header: 'Credit', 
       cell: (item: any) => item.credit > 0 ? `₦${item.credit.toLocaleString()}` : '-',
       width: 'w-32' 
+    },
+    { 
+      key: 'runningBalance', 
+      header: 'Running Balance', 
+      cell: (item: any) => `₦${item.runningBalance.toLocaleString()}`,
+      width: 'w-40' 
     }
   ];
 
@@ -1462,15 +1508,14 @@ const GeneralLedgerReport = ({ data }: { data: any }) => {
     <div className="space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold">General Ledger</h2>
-        <p className="text-gray-600">
-          Detailed journal entries
-        </p>
+        <p className="text-gray-600">Detailed journal entries</p>
       </div>
       
-      <DataTable data={data || []} columns={columns} />
+      <DataTable data={dataWithBalance} columns={columns} />
     </div>
   );
 };
+
 
 const ProductionSummary = ({ data }: { data: any }) => {
   const columns = [
@@ -1770,28 +1815,51 @@ const StockCardReport = ({ data }: { data: any }) => {
   );
 };
 const CustomerLedger = ({ data }: { data: any }) => {
-  console.log(data)
+  const entries = Array.isArray(data?.entries) ? data.entries : [];
+
+  // 1. Compute running balances
+  const entriesWithBalance = entries.reduce((acc: any[], curr, idx) => {
+    const prevBalance = idx > 0 ? Number(acc[idx - 1].runningBalance) : Number(data.openingBalance) || 0;
+    const runningBalance = prevBalance + Number(curr.debit || 0) - Number(curr.credit || 0);
+
+    acc.push({ ...curr, runningBalance });
+    return acc;
+  }, []);
+
+  // 2. Define columns including Running Balance
   const columns = [
-    
     { 
-      key: 'entries.date', 
+      key: 'date', 
       header: 'Date', 
       cell: (item: any) => new Date(item.date).toLocaleDateString(),
       width: 'w-24' 
     },
-    { key: 'account_code', header: 'Account Code', width: 'w-32' },
+    // { key: 'account_code', header: 'Account Code', width: 'w-32' },
     { key: 'account_name', header: 'Account Name', width: 'w-32' },
     { key: 'transaction_type', header: 'Transaction Type', width: 'w-32' },
-    { key: 'reference', header: 'Reference', width: 'w-32' },
-    { key: 'description', header: 'Decription', width: 'w-32' },
-    { key: 'credit', header: 'Credit',   width: 'w-32' },
-    { key: 'debit', header: 'Dedit',   width: 'w-32' },
-    { key: 'balance', header: 'Current Balance',   width: 'w-32' },
-
-    
-    
+    // { key: 'reference', header: 'Reference', width: 'w-32' },
+    { key: 'description', header: 'Description', width: 'w-32' },
+    { 
+      key: 'debit', 
+      header: 'Debit',   
+      cell: (item: any) => item.debit ? `₦${Number(item.debit).toLocaleString()}` : '-', 
+      width: 'w-32' 
+    },
+    { 
+      key: 'credit', 
+      header: 'Credit',   
+      cell: (item: any) => item.credit ? `₦${Number(item.credit).toLocaleString()}` : '-', 
+      width: 'w-32' 
+    },
+   
+    { 
+      key: 'runningBalance', 
+      header: 'Current Balance', 
+      cell: (item: any) => `₦${Number(item.runningBalance).toLocaleString()}`, 
+      width: 'w-40' 
+    }
   ];
-const entries = Array.isArray(data?.entries) ? data.entries : [];
+
   return (
     <div className="space-y-4">
       <div className="text-center">
@@ -1799,28 +1867,38 @@ const entries = Array.isArray(data?.entries) ? data.entries : [];
       </div>
 
       <div className="flex justify-end">
-              <span className='mx-2 font-bold' >Opening Balance </span>
-              <span>₦{Number(data.openingBalance).toLocaleString()}</span>
-     </div>
-     <div  className="flex justify-end">
-              <span className='mx-2 font-bold'>Total Sales </span>
-              <span>₦{Number(data.totals.totalSales).toLocaleString()}</span>
-     </div>
-     <div  className="flex justify-end">
-              <span className='mx-2 font-bold'>Total Payment </span>
-              <span> </span>
-              <span>₦{Number(data.totals.totalPayments).toLocaleString()}</span>
-     </div>
-     <div  className="flex justify-end">
-              <span className='mx-2 font-bold'>Closing Balance </span>
-              <span>₦{Number(data.totals.closingBalance).toLocaleString()}</span>
-     </div>
-      
-      <DataTable data={entries || []} columns={columns} />
+        <span className='mx-2 font-bold'>Opening Balance </span>
+        <span>₦{Number(data.openingBalance).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className='mx-2 font-bold'>Total Sales </span>
+        <span>₦{Number(data.totals.totalSales).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className='mx-2 font-bold'>Total Payment </span>
+        <span>₦{Number(data.totals.totalPayments).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className='mx-2 font-bold'>Closing Balance </span>
+        <span>₦{Number(data.totals.closingBalance).toLocaleString()}</span>
+      </div>
+
+      {/* Pass entriesWithBalance instead of raw entries */}
+      <DataTable data={entriesWithBalance} columns={columns} />
     </div>
   );
 };
+
 const VendorLedger = ({ data }: { data: any }) => {
+  const entries = Array.isArray(data?.entries) ? data.entries : [];
+
+  const entriesWithBalance = entries.reduce((acc: any[], curr, idx) => {
+  const prevBalance = idx > 0 ? Number(acc[idx - 1].runningBalance) : Number(data.openingBalance) || 0;
+  const runningBalance = prevBalance + Number(curr.debit || 0) - Number(curr.credit || 0);
+
+    acc.push({ ...curr, runningBalance });
+    return acc;
+  }, []);
 
   const columns = [
     
@@ -1830,19 +1908,34 @@ const VendorLedger = ({ data }: { data: any }) => {
       cell: (item: any) => new Date(item.date).toLocaleDateString(),
       width: 'w-24' 
     },
-    { key: 'account_code', header: 'Account Code', width: 'w-32' },
+    // { key: 'account_code', header: 'Account Code', width: 'w-32' },
     { key: 'account_name', header: 'Account Name', width: 'w-32' },
     { key: 'transaction_type', header: 'Transaction Type', width: 'w-32' },
-    { key: 'reference', header: 'Reference', width: 'w-32' },
+    // { key: 'reference', header: 'Reference', width: 'w-32' },
     { key: 'description', header: 'Decription', width: 'w-32' },
-    { key: 'credit', header: 'Credit',   width: 'w-32' },
-    { key: 'debit', header: 'Dedit',   width: 'w-32' },
-    { key: 'balance', header: 'Current Balance',   width: 'w-32' },
+    { 
+      key: 'debit', 
+      header: 'Debit',   
+      cell: (item: any) => item.debit ? `₦${Number(item.debit).toLocaleString()}` : '-', 
+      width: 'w-32' 
+    },
+    { 
+      key: 'credit', 
+      header: 'Credit',   
+      cell: (item: any) => item.credit ? `₦${Number(item.credit).toLocaleString()}` : '-', 
+      width: 'w-32' 
+    },
+   
+    { 
+      key: 'runningBalance', 
+      header: 'Current Balance', 
+      cell: (item: any) => `₦${Number(item.runningBalance).toLocaleString()}`, 
+      width: 'w-40' 
+    }
 
     
     
   ];
-const entries = Array.isArray(data?.entries) ? data.entries : [];
   return (
     <div className="space-y-4">
       <div className="text-center">
@@ -1867,7 +1960,7 @@ const entries = Array.isArray(data?.entries) ? data.entries : [];
               <span>₦{Number(data.totals.closingBalance).toLocaleString()}</span>
      </div>
       
-      <DataTable data={entries || []} columns={columns} />
+      <DataTable data={entriesWithBalance || []} columns={columns} />
     </div>
   );
 };

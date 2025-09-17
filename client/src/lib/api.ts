@@ -345,7 +345,7 @@ export const cashApi = {
 // Reports API
 export const reportsApi = {
   // Financial Reports
-  getBalanceSheet: (params: { asOfDate: string }) =>
+  getBalanceSheet: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/balance-sheet?${new URLSearchParams(params).toString()}`),
   getProfitAndLoss: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/profit-loss?${new URLSearchParams(params).toString()}`),

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { createPurchaseSchema, receivePurchaseSchema } from '../types/purchase';
+import { createPurchaseSchema, receivePurchaseSchema, createVendorSchema } from '../types/purchase';
 import { AuthRequest } from '../middleware/auth';
 import { CostingService } from '../services/costing';
 import { GeneralLedgerService } from '../services/gl';
@@ -259,9 +259,21 @@ export class PurchaseController {
 
   async createVendor(req: AuthRequest, res: Response) {
     try {
-      const vendor = await prisma.vendor.create({
-        data: req.body
-      });
+
+      const validatedData = createVendorSchema.parse(req.body);
+      
+         
+      
+          const vendor = await prisma.vendor.upsert({
+            where: { code: validatedData.code },
+            update: { ...validatedData },
+            create: { ...validatedData },
+          });
+      
+
+      // const vendor = await prisma.vendor.create({
+      //   data: req.body
+      // });
 
       res.status(201).json(vendor);
     } catch (error) {

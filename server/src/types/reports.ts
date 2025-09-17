@@ -13,7 +13,10 @@ export const reportParametersSchema = z.object({
 });
 
 export const balanceSheetSchema = z.object({
-  asOfDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+  dateFrom: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Invalid date format"
+  }),
+  dateTo: z.string().refine((date) => !isNaN(Date.parse(date)), {
     message: "Invalid date format"
   }),
 });
