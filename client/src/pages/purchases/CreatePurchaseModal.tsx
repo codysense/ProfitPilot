@@ -6,6 +6,8 @@ import { X, Plus, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { purchaseApi, inventoryApi } from '../../lib/api';
 import toast from 'react-hot-toast';
+import { VendorSelect } from '../../components/VendorSelect';
+import { ItemSelect } from '../../components/ItemSelect';
 
 const createPurchaseSchema = z.object({
   vendorId: z.string().min(1, 'Vendor is required'),
@@ -31,6 +33,9 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
     control,
     handleSubmit,
     watch,
+    setValue,
+    getValues,
+    reset,
     formState: { errors, isSubmitting }
   } = useForm<CreatePurchaseFormData>({
     resolver: zodResolver(createPurchaseSchema),
@@ -99,17 +104,13 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
                   <label className="block text-sm font-medium text-gray-700">
                     Vendor *
                   </label>
-                  <select
-                    {...register('vendorId')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select vendor</option>
-                    {vendors?.vendors?.map((vendor: any) => (
-                      <option key={vendor.id} value={vendor.id}>
-                        {vendor.code} - {vendor.name}
-                      </option>
-                    ))}
-                  </select>
+                  <VendorSelect
+                    vendors={vendors?.vendors || []}
+                    value={watch("vendorId")}
+                    onChange={(val) => setValue("vendorId", val, { shouldDirty: true })}
+                    error={errors.vendorId?.message}
+                    />
+
                   {errors.vendorId && (
                     <p className="mt-1 text-sm text-red-600">{errors.vendorId.message}</p>
                   )}
@@ -169,17 +170,13 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
                           <label className="block text-sm font-medium text-gray-700">
                             Item *
                           </label>
-                          <select
-                            {...register(`purchaseLines.${index}.itemId`)}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          >
-                            <option value="">Select item</option>
-                            {items?.items?.map((item: any) => (
-                              <option key={item.id} value={item.id}>
-                                {item.sku} - {item.name}
-                              </option>
-                            ))}
-                          </select>
+                          <ItemSelect
+                            items={items?.items || []}
+                            value={watch(`purchaseLines.${index}.itemId`)}
+                            onChange={(val) => setValue(`purchaseLines.${index}.itemId`, val)}
+                            error={errors.purchaseLines?.[index]?.itemId?.message}
+                          />
+
                           {errors.purchaseLines?.[index]?.itemId && (
                             <p className="mt-1 text-sm text-red-600">
                               {errors.purchaseLines[index]?.itemId?.message}

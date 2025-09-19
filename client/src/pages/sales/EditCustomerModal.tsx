@@ -6,6 +6,8 @@ import { X } from 'lucide-react';
 import { salesApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import {Customer} from '../../types/api'
+import { Combobox } from '@headlessui/react'
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
 
 const createCustomerSchema = z.object({
   code: z.string().min(1, 'Code is required'),
@@ -63,6 +65,9 @@ const EditCustomerModal = ({ customer,onClose, onSuccess }: CreateCustomerModalP
       console.error('Create updated error:', error);
     }
   };
+
+  
+  
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

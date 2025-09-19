@@ -8,6 +8,8 @@ import { posApi, inventoryApi, managementApi, cashApi } from '../../lib/api';
 import { PosSession } from '../../types/api';
 import { ReportExporter } from '../../utils/reportExport';
 import toast from 'react-hot-toast';
+import { ItemSelect } from '../../components/ItemSelect';
+import { CustomerSelect } from '../../components/CustomerSelect';
 
 
 const posSaleSchema = z.object({
@@ -41,6 +43,8 @@ const PosTerminal = ({ session, onClose, onSaleComplete }: PosTerminalProps) => 
     handleSubmit,
     watch,
     setValue,
+    reset,
+    getValues,
     formState: { errors, isSubmitting }
   } = useForm<PosSaleFormData>({
     resolver: zodResolver(posSaleSchema),
@@ -417,7 +421,14 @@ React.useEffect(() => {
                   <label className="block text-sm font-medium text-gray-700">
                     Customer (Optional)
                   </label>
-                  <select
+                  <CustomerSelect
+                    customers={customersWithBalances?.customers || []}
+                    value={watch("customerId")}
+                    onChange={(val) => reset({ ...getValues(), customerId: val })}
+                    error={errors.customerId?.message}
+                  />
+
+                  {/* <select
                     {...register('customerId')}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
@@ -428,7 +439,7 @@ React.useEffect(() => {
                         {customer.outstandingBalance > 0 && ` (Owes: ₦${customer.outstandingBalance.toLocaleString()})`}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                 </div>
 
                 <div>
@@ -502,7 +513,15 @@ React.useEffect(() => {
                           <label className="block text-sm font-medium text-gray-700">
                             Item *
                           </label>
-                          <select
+                          <ItemSelect
+                            items={items?.items || []}
+                            value={watch(`saleLines.${index}.itemId`)}
+                            onChange={(val) => setValue(`saleLines.${index}.itemId`, val)}
+                            error={errors.saleLines?.[index]?.itemId?.message}
+                          />
+
+
+                          {/* <select
                             {...register(`saleLines.${index}.itemId`)}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           >
@@ -517,7 +536,7 @@ React.useEffect(() => {
                             <p className="mt-1 text-sm text-red-600">
                               {errors.saleLines[index]?.itemId?.message}
                             </p>
-                          )}
+                          )} */}
                         </div>
                         
                         <div>

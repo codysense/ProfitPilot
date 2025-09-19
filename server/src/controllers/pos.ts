@@ -38,7 +38,6 @@ export class PosController {
       const session = await prisma.$transaction(async (tx) => {
         const count = await tx.posSession.count();
         const sessionNo = `POS${String(count + 1).padStart(6, '0')}`;
-
         return await tx.posSession.create({
           data: {
             sessionNo,

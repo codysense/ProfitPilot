@@ -7,6 +7,13 @@ import { useQuery } from '@tanstack/react-query';
 import { salesApi, inventoryApi } from '../../lib/api';
 import { Sale } from '../../types/api';
 import toast from 'react-hot-toast';
+import { Combobox } from '@headlessui/react'
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
+import { useState } from 'react'
+import { CustomerSelect } from '../../components/CustomerSelect';
+import { ItemSelect } from '../../components/ItemSelect';
+
+
 
 const editSaleSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
@@ -34,6 +41,8 @@ const EditSaleModal = ({ sale, onClose, onSuccess }: EditSaleModalProps) => {
     handleSubmit,
     watch,
     reset,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting, isDirty }
   } = useForm<EditSaleFormData>({
     resolver: zodResolver(editSaleSchema),
@@ -96,6 +105,28 @@ const EditSaleModal = ({ sale, onClose, onSuccess }: EditSaleModalProps) => {
     }
   };
 
+  // For customer search
+const [customerQuery, setCustomerQuery] = useState('')
+const filteredCustomers =
+  customerQuery === ''
+    ? customers?.customers || []
+    : customers?.customers?.filter((c: any) =>
+        `${c.name} ${c.code} ${c.phone || ''}`
+          .toLowerCase()
+          .includes(customerQuery.toLowerCase())
+      )
+
+// For item search
+// const [itemQueries, setItemQueries] = useState<{ [key: number]: string }>({})
+// const getFilteredItems = (index: number) => {
+//   const query = itemQueries[index] || ''
+//   if (!query) return items?.items || []
+//   return items?.items?.filter((i: any) =>
+//     `${i.name} ${i.sku}`.toLowerCase().includes(query.toLowerCase())
+//   )
+// }
+
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -138,21 +169,16 @@ const EditSaleModal = ({ sale, onClose, onSuccess }: EditSaleModalProps) => {
                   <label className="block text-sm font-medium text-gray-700">
                     Customer *
                   </label>
-                  <select
-                    {...register('customerId')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select customer</option>
-                    {customers?.customers?.map((customer: any) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.code} - {customer.name}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.customerId && (
-                    <p className="mt-1 text-sm text-red-600">{errors.customerId.message}</p>
-                  )}
+                  
+                <CustomerSelect
+                  customers={customers?.customers || []}
+                  value={watch("customerId")}
+                  onChange={(val) => reset({ ...getValues(), customerId: val })}
+                  error={errors.customerId?.message}
+                />
                 </div>
+
+
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
@@ -207,7 +233,21 @@ const EditSaleModal = ({ sale, onClose, onSuccess }: EditSaleModalProps) => {
                           <label className="block text-sm font-medium text-gray-700">
                             Item *
                           </label>
-                          <select
+
+                          <ItemSelect
+                                items={items?.items || []}
+                                value={watch(`saleLines.${index}.itemId`)}
+                                onChange={(val) => setValue(`saleLines.${index}.itemId`, val)}
+                                error={errors.saleLines?.[index]?.itemId?.message}
+                            />
+
+{/* {errors.saleLines?.[index]?.itemId && (
+  <p className="mt-1 text-sm text-red-600">
+    {errors.saleLines[index]?.itemId?.message}
+  </p>
+)} */}
+
+                          {/* <select
                             {...register(`saleLines.${index}.itemId`)}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           >
@@ -217,7 +257,7 @@ const EditSaleModal = ({ sale, onClose, onSuccess }: EditSaleModalProps) => {
                                 {item.sku} - {item.name}
                               </option>
                             ))}
-                          </select>
+                          </select> */}
                           {errors.saleLines?.[index]?.itemId && (
                             <p className="mt-1 text-sm text-red-600">
                               {errors.saleLines[index]?.itemId?.message}
