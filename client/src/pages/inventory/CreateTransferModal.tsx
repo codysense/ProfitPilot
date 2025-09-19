@@ -6,6 +6,7 @@ import { X, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { inventoryApi } from '../../lib/api';
 import toast from 'react-hot-toast';
+import { ItemSelect } from '../../components/ItemSelect';
 
 const createBulkTransferSchema = z.object({
   fromWarehouseId: z.string().min(1, 'Source warehouse is required'),
@@ -32,6 +33,9 @@ const CreateTransferModal = ({ onClose, onSuccess }: CreateTransferModalProps) =
     control,
     handleSubmit,
     watch,
+    getValue,
+    setValue,
+    reset,
     formState: { errors, isSubmitting }
   } = useForm<CreateBulkTransferFormData>({
     resolver: zodResolver(createBulkTransferSchema),
@@ -204,7 +208,14 @@ const CreateTransferModal = ({ onClose, onSuccess }: CreateTransferModalProps) =
                           <label className="block text-sm font-medium text-gray-700">
                             Item *
                           </label>
-                          <select
+                          <ItemSelect
+                           items={items?.items || []}
+                            value={watch(`transferItems.${index}.itemId`)}
+                            onChange={(val) => setValue(`transferItems.${index}.itemId`, val)}
+                            error={errors.transferItems?.[index]?.itemId?.message}
+                          />
+
+                          {/* <select
                             {...register(`transferItems.${index}.itemId`)}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           >
@@ -219,7 +230,7 @@ const CreateTransferModal = ({ onClose, onSuccess }: CreateTransferModalProps) =
                             <p className="mt-1 text-sm text-red-600">
                               {errors.transferItems[index]?.itemId?.message}
                             </p>
-                          )}
+                          )} */}
                         </div>
 
                         <div>
