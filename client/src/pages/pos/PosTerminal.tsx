@@ -84,6 +84,8 @@ const PosTerminal = ({ session, onClose, onSaleComplete }: PosTerminalProps) => 
       queryFn: () => cashApi.getCashAccounts()
     });
 
+    
+
 React.useEffect(() => {
   watchedLines.forEach((line, index) => {
     if (line.itemId && items?.items) {

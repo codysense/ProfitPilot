@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { ReactNode, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -62,7 +56,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Inventory',
       href: '/inventory',
       icon: Package,
-      permission: 'inventory.item.read',
+      permission: 'inventory.item.create',
       children: [
         { name: 'Items', href: '/inventory/items' },
         { name: 'BOMs', href: '/inventory/boms' },
@@ -121,7 +115,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Cash Management',
       href: '/cash',
       icon: DollarSign,
-      permission: 'inventory.item.read',
+      permission: 'inventory.item.create',
       children: [
         { name: 'Cashbook', href: '/cash/cashbook' },
         { name: 'Customer Payments', href: '/cash/customer-payments' },
@@ -151,15 +145,16 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Reports',
       href: '/reports',
       icon: FileText,
-      permission: null
-    },
-    {
-      name: 'Users',
-      href: '/users',
-      icon: Users,
       permission: null,
-      requiresRole: ['CFO', 'General Manager']
-    }
+      requiresRole:['CFO','General Manager','Auditor']
+    },
+    // {
+    //   name: 'Users',
+    //   href: '/users',
+    //   icon: Users,
+    //   permission: null,
+    //   requiresRole: ['CFO', 'General Manager']
+    // }
   ];
 
   const filteredNavigation = navigation.filter(item => 

@@ -44,6 +44,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.use((req, res, next) => {
+  console.log("Incoming:", req.method, req.path);
+  next();
+});
 
 // Middleware
 app.use(cors());
@@ -64,6 +68,7 @@ app.use('/api/v1/memos', memoRoutes);
 // app.use("/api", memoRoutes);
 
 // app.use("/api/memos", memoRoutes);
+
 
 
 

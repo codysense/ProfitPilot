@@ -57,6 +57,9 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       roles,
       permissions
     };
+    console.log("AUTH middleware user:", user?.id);
+    console.log("Token payload:", payload);
+
 
     next();
   } catch (error) {

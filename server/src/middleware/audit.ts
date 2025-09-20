@@ -51,6 +51,7 @@ export  const auditLogger = (action: string, entity: string) => {
 
       return originalEnd.call(this, chunk, ...args);
     } as any;
+    console.log("AuditLogger sees req.user:", req.user);
 
     next();
   };

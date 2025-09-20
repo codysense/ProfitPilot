@@ -58,11 +58,13 @@ const CreatePosSessionModal = ({ onClose, onSuccess }: CreatePosSessionModalProp
     }
   };
 
+
+  console.log(user)
   // Filter warehouses and cash accounts based on user permissions
   // const availableWarehouses = user?.roles.includes('CFO') || user?.roles.includes('General Manager')
   //   ? warehouses?.warehouses
   //   : warehouses?.warehouses?.filter((w: any) => w.id === user?.warehouseId);
-  const availableWarehouses = user?.roles.includes('CFO') || user?.roles.includes('General Manager')||user?.roles.includes('POS User')
+  const availableWarehouses = user?.roles.includes('CFO') || user?.roles.includes('General Manager')||user?.roles[0].includes('POS')
     ? warehouses?.warehouses
     : warehouses?.warehouses?.filter((w: any) => w.id === user?.warehouseId);
 

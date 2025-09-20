@@ -16,12 +16,12 @@ const router = express.Router();
 router.use(authenticate);
 
 // Sales memos
-router.post("/sales", authorize('sales.memo.post'),auditLogger('CREATE', 'SALES_MEMO'), createSalesMemo);
-router.get("/sales" ,authorize('sales.memo.read') ,getSalesMemos);
+router.post("/sales", authorize('sales.order.create'),auditLogger('CREATE', 'SALES_MEMO'), createSalesMemo);
+router.get("/sales" ,authorize('sales.order.read') ,getSalesMemos);
 
 // Purchase memos
-router.post("/purchase",authorize('purchase.memo.post'),auditLogger('CREATE', 'PURCHASE_MEMO'), createPurchaseMemo);
-router.get("/purchase",authorize('purchase.memo.read'), getPurchaseMemos);
+router.post("/purchase",authorize('purchase.order.create'),auditLogger('CREATE', 'PURCHASE_MEMO'), createPurchaseMemo);
+router.get("/purchase",authorize('purchase.order.read'), getPurchaseMemos);
 
 export default router;
 

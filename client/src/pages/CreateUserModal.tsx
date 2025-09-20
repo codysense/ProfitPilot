@@ -56,7 +56,7 @@ const CreateUserModal = ({ roles, onClose, onSuccess }: CreateUserModalProps) =>
   const watchedRoleId = watch('roleId');
   
   // Check if selected role is POS User
-  const isPosUser = roles.find(role => role.id === watchedRoleId)?.name === 'POS User';
+  const isPosUser = roles.find(role => role.id === watchedRoleId)?.name.includes('POS ');
 
   const onSubmit = async (data: CreateUserFormData) => {
     try {

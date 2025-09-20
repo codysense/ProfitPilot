@@ -182,17 +182,15 @@ export const getSalesMemos = async (req: Request, res: Response) => {
 export const createSalesMemo = async (req: AuthRequest, res: Response) => {
   try {
 
-    console.log("=== MEMOS CONTROLLER DEBUG ===");
-    console.log("req.user:", req.user);
-    console.log("req.user?.id:", req.user?.id);
-    console.log("req.user!.id:", req.user!.id); // This should work if user exists
+  console.log("Controller req.user:", req.user);
+
     
     if (!req.user) {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
     const postedBy = req.user;
-    console.log("PostedBy user:", postedBy);
+    // console.log("PostedBy user:", postedBy);
 
 
     const { customerId, chartOfAccountId, type, amount, description } = req.body;

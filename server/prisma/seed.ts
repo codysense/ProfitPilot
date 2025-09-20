@@ -7,7 +7,7 @@ async function main() {
   console.log('🌱 Starting database seed...');
 
   // Create permissions first
-// Create permissions first
+
   const permissions = await Promise.all([
     // POS permissions
     prisma.permission.upsert({

@@ -1894,7 +1894,7 @@ const VendorLedger = ({ data }: { data: any }) => {
 
   const entriesWithBalance = entries.reduce((acc: any[], curr, idx) => {
   const prevBalance = idx > 0 ? Number(acc[idx - 1].runningBalance) : Number(data.openingBalance) || 0;
-  const runningBalance = prevBalance + Number(curr.debit || 0) - Number(curr.credit || 0);
+  const runningBalance = prevBalance + Number(curr.credit || 0) - Number(curr.debit || 0);
 
     acc.push({ ...curr, runningBalance });
     return acc;

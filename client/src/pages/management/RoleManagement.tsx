@@ -9,6 +9,7 @@ import { RoleWithPermissions, Permission } from '../../types/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
+import EditUserRolesModal from './EditUserRolesModal';
 
 const createRoleSchema = z.object({
   name: z.string().min(1, 'Role name is required'),
@@ -344,6 +345,8 @@ const RoleManagement = () => {
           </div>
         </div>
       )}
+
+      
     </div>
   );
 };
