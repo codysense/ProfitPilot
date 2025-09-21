@@ -16,3 +16,6 @@ dist/
 build/
 .env
 .DS_Store
+deploy.sh
+backup_db.sh
+backups/

@@ -663,6 +663,13 @@ export interface CreateCashTransactionRequest {
   description: string;
   transactionDate: string;
 }
+export interface CreateCustomerJournalRequest {
+  customerId: string;
+  transactionType: 'CREDIT' | 'DEBIT';
+  amount: number;
+  description: string;
+  transactionDate: string;
+}
 
 // Asset Types
 export interface AssetCategory {

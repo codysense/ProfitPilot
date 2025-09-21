@@ -46,6 +46,7 @@ export class CashController {
       res.status(400).json({ error: 'Failed to create cash account' });
     }
   }
+  
 
   // Update cash account
   async updateCashAccount(req: AuthRequest, res: Response) {
@@ -148,6 +149,128 @@ export class CashController {
   }
 
   // Create general cash transaction
+  // async createCustomerMemo(req: AuthRequest, res: Response) {
+  //   try {
+  //     const {
+  //       customertId,
+  //       glAccountId,
+  //       contraAccountId,
+  //       transactionType,
+  //       amount,
+  //       description,
+  //       transactionDate,
+  //       reference
+  //     } = req.body;
+
+  //     const result = await prisma.$transaction(async (tx) => {
+  //       // Generate transaction number
+  //       const count = await tx.cashTransaction.count();
+  //       const transactionNo = `CT${String(count + 1).padStart(6, '0')}`;
+
+  //       // Create cash transaction
+  //       const cashTransaction = await tx.cashTransaction.create({
+  //         data: {
+  //           transactionNo,
+  //           customerId,
+  //           glAccountId,
+  //           contraAccountId: contraAccountId?? null,
+  //           transactionType,
+  //           amount: new Decimal(amount),
+  //           description,
+  //           transactionDate: new Date(transactionDate),
+  //           reference,
+  //           refType: 'OTHER',
+  //           refId: null,
+  //           userId: req.user!.id
+  //         }
+  //       });
+        
+
+  //       const balanceChange = transactionType === 'CREDIT' ? amount : -amount;
+  //       await tx.cashAccount.update({
+  //         where: { id: customertId },
+  //         data: {
+  //           balance: {
+  //             increment: balanceChange
+  //           }
+  //         }
+  //       });
+
+  //       // Create journal entries for double-entry bookkeeping
+  //       const journalCount = await tx.journal.count();
+  //       const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+
+  //       const journal = await tx.journal.create({
+  //         data: {
+  //           journalNo,
+  //           date: new Date(transactionDate),
+  //           memo: description,
+  //           postedBy: req.user!.id
+  //         }
+  //       });
+  //       // console.log("Journal ", journal)
+  //       // Get cash account's GL account
+  //       const cashAccount = await tx.cashAccount.findUnique({
+  //         where: { id: customertId }
+  //       });
+
+  //       // console.log("CashAcount", cashAccount)
+
+  //       if (transactionType === 'CREDIT') {
+  //         // Debit Cash Account, Credit GL Account
+  //         await tx.journalLine.createMany({
+  //           data: [
+  //             {
+  //               journalId: journal.id,
+  //               accountId:  customertId!.glAccountId!,
+  //               debit: new Decimal(amount),
+  //               credit: new Decimal(0),
+  //               refType: 'MEMO_TRANSACATION',
+  //               refId: cashTransaction.id
+  //             },
+  //             {
+  //               journalId: journal.id,
+  //               accountId: glAccountId,
+  //               debit: new Decimal(0),
+  //               credit: new Decimal(amount),
+  //               refType: 'MEMO_TRANSACTION',
+  //               refId: cashTransaction.id
+  //             }
+  //           ]
+  //         });
+  //       } else {
+  //         // Credit Cash Account, Debit GL Account
+  //         await tx.journalLine.createMany({
+  //           data: [
+  //             {
+  //               journalId: journal.id,
+  //               accountId: glAccountId,
+  //               debit: new Decimal(amount),
+  //               credit: new Decimal(0),
+  //               refType: 'MEMO_TRANSACTION',
+  //               refId: cashTransaction.id
+  //             },
+  //             {
+  //               journalId: journal.id,
+  //               accountId: cashAccount!.glAccountId!,
+  //               debit: new Decimal(0),
+  //               credit: new Decimal(amount),
+  //               refType: 'MEMO_TRANSACTION',
+  //               refId: cashTransaction.id
+  //             }
+  //           ]
+  //         });
+  //       }
+
+  //       return cashTransaction;
+  //     });
+
+  //     res.status(201).json(result);
+  //   } catch (error) {
+  //     console.error('Create cash transaction error:', error);
+  //     res.status(400).json({ error: 'Failed to create cash transaction' });
+  //   }
+  // }
   async createCashTransaction(req: AuthRequest, res: Response) {
     try {
       const {

@@ -28,6 +28,7 @@ import SalesOrders from './pages/sales/Orders';
 import Customers from './pages/sales/Customers';
 import SalesMemos from './pages/sales/SalesMemosPage'
 
+
 // Production Pages
 import ProductionOrders from './pages/production/Orders';
 import WipSummary from './pages/production/WipSummary';
@@ -44,6 +45,8 @@ import CustomerPayments from './pages/cash/CustomerPayments';
 import VendorPayments from './pages/cash/VendorPayments';
 import SalesReceipts from './pages/cash/SalesReceipts';
 import PurchasePayments from './pages/cash/PurchasePayments';
+// import CustomerJournal from './pages/cash/CustomerJournal'
+
 
 // Management Pages
 import CompanySettings from './pages/management/CompanySettings';

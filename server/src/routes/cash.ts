@@ -18,6 +18,7 @@ router.delete('/accounts/:id', authorize('inventory.item.create'), auditLogger('
 // Cash Transactions
 router.get('/transactions', authorize('inventory.item.read'), cashController.getCashTransactions);
 router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
+// router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
 
 // Customer Payments
 router.post('/customer-payments', authorize('sales.order.create'), auditLogger('CREATE', 'CUSTOMER_PAYMENT'), cashController.createCustomerPayment);
