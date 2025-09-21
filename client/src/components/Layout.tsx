@@ -97,7 +97,7 @@ const Layout = ({ children }: LayoutProps) => {
         { name: 'Orders', href: '/sales/orders' },
         { name: 'Customers', href: '/sales/customers' },
       //   { name: 'Memos', href: '/sales/memos' },
-      // ]
+       ]
     },
     {
       name: 'Assets',
