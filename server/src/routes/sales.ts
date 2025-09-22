@@ -10,19 +10,19 @@ const salesController = new SalesController();
 router.use(authenticate);
 
 // Sales Orders
-router.get('/orders', authorize('sales.order.read'), salesController.getSales);
-router.post('/orders', authorize('sales.order.create'), auditLogger('CREATE', 'SALES_ORDER'), salesController.createSale);
-router.put('/orders/:id', authorize('sales.order.create'), auditLogger('UPDATE', 'SALES_ORDER'), salesController.updateSale);
-router.delete('/orders/:id', authorize('sales.order.create'), auditLogger('DELETE', 'SALES_ORDER'), salesController.deleteSale);
-router.get('/orders/:id/print', authorize('sales.order.read'), salesController.printSaleInvoice);
+router.get('/orders', requireRole(['Accountant', 'POS User']), salesController.getSales);
+router.post('/orders', requireRole(['Accountant', 'POS User']), auditLogger('CREATE', 'SALES_ORDER'), salesController.createSale);
+router.put('/orders/:id', requireRole(['Accountant', 'POS User']), auditLogger('UPDATE', 'SALES_ORDER'), salesController.updateSale);
+router.delete('/orders/:id', requireRole(['Accountant', 'POS User']), auditLogger('DELETE', 'SALES_ORDER'), salesController.deleteSale);
+router.get('/orders/:id/print', requireRole(['Accountant', 'POS User']),salesController.printSaleInvoice);
 
 // Sales Delivery and Invoicing
-router.post('/orders/:id/deliver', authorize('sales.order.create'), auditLogger('DELIVER', 'SALES_ORDER'), salesController.deliverSale);
-router.post('/orders/:id/invoice', authorize('sales.order.create'), auditLogger('INVOICE', 'SALES_ORDER'), salesController.invoiceSale);
+router.post('/orders/:id/deliver', requireRole(['Accountant', 'POS User']), auditLogger('DELIVER', 'SALES_ORDER'), salesController.deliverSale);
+router.post('/orders/:id/invoice', requireRole(['Accountant', 'POS User']), auditLogger('INVOICE', 'SALES_ORDER'), salesController.invoiceSale);
 
 // Customers
 router.get('/customers', requireRole(['Accountant','POS User']), salesController.getCustomers);
 // router.get('/customers', authorize('sales.customer.read'), salesController.getCustomers);
-router.post('/customers', requireRole(['Accountant']), auditLogger('CREATE', 'CUSTOMER'), salesController.createCustomer);
+router.post('/customers', requireRole(['Accountant', 'POS User']), auditLogger('CREATE', 'CUSTOMER'), salesController.createCustomer);
 
 export default router;

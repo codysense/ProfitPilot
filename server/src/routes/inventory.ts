@@ -30,7 +30,7 @@ router.get('/ledger/export', requireRole(['Inventory Manager','Assistant Invento
 router.get('/valuation', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getInventoryValuation);
 
 // Warehouses
-router.get('/warehouses', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getWarehouses);
+router.get('/warehouses', requireRole(['Inventory Manager','Assistant Inventory Manager','Accountant', 'POS User', 'Production Manager']), inventoryController.getWarehouses);
 router.get('/warehouses/list', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getWarehousesList);
 router.post('/warehouses', requireRole(['Inventory Manager']), auditLogger('CREATE', 'WAREHOUSE'), inventoryController.createWarehouse);
 router.put('/warehouses/:id', requireRole(['Inventory Manager']), auditLogger('UPDATE', 'WAREHOUSE'), inventoryController.updateWarehouse);
@@ -44,6 +44,6 @@ router.put('/locations/:id', requireRole(['Inventory Manager']), auditLogger('UP
 router.get('/transfers', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getInventoryTransfers);
 
 // Item stock by warehouse
-router.get('/stock/:itemId/:warehouseId', requireRole(['Inventory Manager','Production Manager','Assistant Inventory Manager','POS User']), inventoryController.getItemStock);
+router.get('/stock/:itemId/:warehouseId', requireRole(['Inventory Manager','Production Manager','Assistant Inventory Manager','POS User','Accountant']), inventoryController.getItemStock);
 
 export default router;

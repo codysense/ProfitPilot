@@ -42,18 +42,18 @@ router.delete('/roles/:id', requireRole(['Auditor']), auditLogger('DELETE', 'ROL
 router.get('/permissions', requireRole(['Auditor']), managementController.getAllPermissions);
 
 // Enhanced User Management (CFO and GM only)
-router.get('/users', requireRole(['Auditor']), managementController.getUsersWithDetails);
+router.get('/users', requireRole(['Auditor', 'Accountant','POS User', 'Inventory Manager','Assistant Inventory Manager','Production Manager']), managementController.getUsersWithDetails);
 router.put('/users/:id/roles', requireRole(['Auditor']), auditLogger('UPDATE', 'USER_ROLES'), managementController.updateUserRoles);
 
 // Chart of Accounts Management (CFO and GM only)
-router.get('/chart-of-accounts', requireRole(['Accountant']), managementController.getChartOfAccounts);
+router.get('/chart-of-accounts', requireRole(['Accountant','General Manager']), managementController.getChartOfAccounts);
 // router.get('/chart-of-accounts', requireRole('Accountant'), managementController.getChartOfAccounts);
 router.post('/chart-of-accounts', requireRole(['Auditor']), auditLogger('CREATE', 'CHART_ACCOUNT'), managementController.createChartAccount);
 router.put('/chart-of-accounts/:id', requireRole(['Auditor']), auditLogger('UPDATE', 'CHART_ACCOUNT'), managementController.updateChartAccount);
 router.delete('/chart-of-accounts/:id', requireRole(['Auditor']), auditLogger('DELETE', 'CHART_ACCOUNT'), managementController.deleteChartAccount);
 
 // Cash Account Management (CFO and GM only)
-router.get('/cash-accounts', requireRole(['Auditor', 'Accountant']), managementController.getCashAccountsManagement);
+router.get('/cash-accounts', requireRole(['Auditor', 'Accountant', 'General Manager']), managementController.getCashAccountsManagement);
 router.post('/cash-accounts', requireRole(['Auditor', 'Accountant']), auditLogger('CREATE', 'CASH_ACCOUNT'), managementController.createCashAccountManagement);
 router.put('/cash-accounts/:id', requireRole(['Auditor', 'Accountant']), auditLogger('UPDATE', 'CASH_ACCOUNT'), managementController.updateCashAccountManagement);
 router.delete('/cash-accounts/:id', requireRole(['Auditor', 'Accountant']), auditLogger('DELETE', 'CASH_ACCOUNT'), managementController.deleteCashAccountManagement);

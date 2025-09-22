@@ -12,7 +12,7 @@ const AssetCategories = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuthStore();
 
-  const canManageCategories = user?.roles.includes('CFO');
+  const canManageCategories = user?.roles.includes('General Manager');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['asset-categories'],

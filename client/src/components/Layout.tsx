@@ -45,8 +45,8 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Point of Sales',
       href: '/pos',
       icon: Monitor,
-      permission: null,
-      requireRole:['General Manager', 'POS User','Accountant'],
+      // permission: null,
+      requiresRole:['General Manager', 'POS User','Accountant'],
       children: [
         { name: 'POS Terminal', href: '/pos' },
         { name: 'Sales History', href: '/pos/sales' },
@@ -57,8 +57,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Inventory',
       href: '/inventory',
       icon: Package,
-      permission: null,
-      requireRole:['General Manager', 'Inventory Manager', 'Assistant Inventory Manager'],
+      requiresRole:['General Manager', 'Inventory Manager', 'Assistant Inventory Manager'],
       children: [
         { name: 'Items', href: '/inventory/items' },
         { name: 'BOMs', href: '/inventory/boms' },
@@ -73,8 +72,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Production',
       href: '/production',
       icon: Factory,
-      permission: null,
-      requireRole:['General Manager','Production Manager','Inventory Manager'],
+      requiresRole:['General Manager','Production Manager','Inventory Manager'],
       children: [
         { name: 'Orders', href: '/production/orders' },
         { name: 'WIP Summary', href: '/production/wip' }
@@ -84,8 +82,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Purchases',
       href: '/purchases',
       icon: ShoppingCart,
-      permission: null,
-      requireRole:['Inventory Manager', 'Assistant Invenotry Manager', 'General Manager'],
+      requiresRole:['Inventory Manager', 'Assistant Invenotry Manager', 'General Manager'],
       children: [
         { name: 'Orders', href: '/purchases/orders' },
         { name: 'Vendors', href: '/purchases/vendors' },
@@ -96,8 +93,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Sales',
       href: '/sales',
       icon: TrendingUp,
-      permission: null,
-      requireRole:['Accountant','POS User'],
+      requiresRole:['Accountant','POS User'],
       children: [
         { name: 'Orders', href: '/sales/orders' },
         { name: 'Customers', href: '/sales/customers' },
@@ -108,11 +104,11 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Assets',
       href: '/assets',
       icon: Building,
-      permission: null,
+      // permission: null,
       children: [
         { name: 'Dashboard', href: '/assets' },
         { name: 'Asset Register', href: '/assets/register' },
-        // { name: 'Categories', href: '/assets/categories' }
+        { name: 'Categories', href: '/assets/categories' }
       ],
       requiresRole: ['General Manager', 'Auditor']
     },
@@ -121,7 +117,7 @@ const Layout = ({ children }: LayoutProps) => {
       href: '/cash',
       icon: DollarSign,
       permission: null,
-      requuireRole:['General Manager', 'Accountant'],
+      requiresRole:['General Manager', 'Accountant'],
       children: [
         { name: 'Cashbook', href: '/cash/cashbook' },
         { name: 'Customer Payments', href: '/cash/customer-payments' },
@@ -135,7 +131,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Management',
       href: '/management',
       icon: Settings,
-      permission: null,
+      // permission: null,
       requiresRole: [ 'General Manager'],
       children: [
         { name: 'Company Settings', href: '/management/company' },
@@ -153,7 +149,7 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Reports',
       href: '/reports',
       icon: FileText,
-      permission: null,
+      // permission: null,
       requiresRole:['Inventory Manager','Assistant Inventory Manager','Production Manager','Accountant','General Manager','Auditor']
     },
     // {
@@ -166,7 +162,7 @@ const Layout = ({ children }: LayoutProps) => {
   ];
 
   const filteredNavigation = navigation.filter(item => 
-    (!item.permission || user?.permissions.includes(item.permission)) &&
+    // (!item.permission || user?.permissions.includes(item.permission)) &&
     (!item.requiresRole || item.requiresRole.some(role => user?.roles.includes(role)))
   );
 

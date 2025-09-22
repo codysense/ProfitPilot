@@ -21,9 +21,9 @@ router.delete('/accounts/:id', requireRole(['Accountant']), auditLogger('DELETE'
 
 // Cash Transactions
 // router.get('/transactions', authorize('inventory.item.read'), cashController.getCashTransactions);
-router.get('/transactions', requireRole(['Accountant']), cashController.getCashTransactions);
+router.get('/transactions', requireRole(['Accountant', 'POS User']), cashController.getCashTransactions);
 // router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
-router.post('/transactions', requireRole(['Accountant']), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
+router.post('/transactions', requireRole(['Accountant', 'POS User']), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
 // router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
 
 // Customer Payments

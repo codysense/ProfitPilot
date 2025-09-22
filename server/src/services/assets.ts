@@ -32,7 +32,12 @@ export class AssetsService {
 
   // Assets
   async getAssets(filters: any = {}) {
-    const { page = 1, limit = 10, categoryId, status, locationId } = filters;
+    let { page = 1, limit = 10, categoryId, status, locationId } = filters;
+
+    // ensure page & limit are numbers
+  page = parseInt(page, 10) || 1;
+  limit = parseInt(limit, 10) || 10;
+
     const skip = (page - 1) * limit;
 
     const where: any = {};
