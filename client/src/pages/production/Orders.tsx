@@ -31,7 +31,7 @@ const ProductionOrders = () => {
   const { user } = useAuthStore();
   
   // Check if user can perform actions (CFO or GM only)
-  const canPerformActions = user?.roles.includes('CFO') || user?.roles.includes('General Manager');
+  const canPerformActions = user?.roles.includes('Production Manager') || user?.roles.includes('General Manager');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['production-orders', { page, status: statusFilter }],

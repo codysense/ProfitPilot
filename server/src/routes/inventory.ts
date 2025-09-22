@@ -15,7 +15,7 @@ router.get('/items', requireRole(['Accountant','POS User','Production Manager','
 router.post('/items', requireRole(['Inventory Manager']), auditLogger('CREATE', 'ITEM'), inventoryController.createItem);
 
 // BOMs
-router.get('/boms', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getBoms);
+router.get('/boms', requireRole(['Inventory Manager','Assistant Inventory Manager', 'Production Manager']), inventoryController.getBoms);
 router.post('/boms', requireRole(['Inventory Manager']), auditLogger('CREATE', 'BOM'), inventoryController.createBom);
 
 // Inventory transactions

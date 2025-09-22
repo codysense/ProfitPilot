@@ -9,7 +9,7 @@ const productionController = new ProductionController();
 // Apply authentication to all routes
 router.use(authenticate);
 
-// Production Orders
+// Production Orders Production Manager
 router.get('/orders', requireRole(['Production Manager']), productionController.getProductionOrders);
 router.post('/orders', requireRole(['Production Manager']), auditLogger('CREATE', 'PRODUCTION_ORDER'), productionController.createProductionOrder);
 router.put('/orders/:id', requireRole(['Production Manager']), auditLogger('UPDATE', 'PRODUCTION_ORDER'), productionController.updateProductionOrder);
