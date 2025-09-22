@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { SalesController } from '../controllers/sales';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, requireRole } from '../middleware/auth';
 import { auditLogger } from '../middleware/audit';
 
 const router = Router();
@@ -21,7 +21,8 @@ router.post('/orders/:id/deliver', authorize('sales.order.create'), auditLogger(
 router.post('/orders/:id/invoice', authorize('sales.order.create'), auditLogger('INVOICE', 'SALES_ORDER'), salesController.invoiceSale);
 
 // Customers
-router.get('/customers', authorize('sales.customer.read'), salesController.getCustomers);
-router.post('/customers', authorize('sales.customer.create'), auditLogger('CREATE', 'CUSTOMER'), salesController.createCustomer);
+router.get('/customers', requireRole(['Accountant','POS User']), salesController.getCustomers);
+// router.get('/customers', authorize('sales.customer.read'), salesController.getCustomers);
+router.post('/customers', requireRole(['Accountant']), auditLogger('CREATE', 'CUSTOMER'), salesController.createCustomer);
 
 export default router;

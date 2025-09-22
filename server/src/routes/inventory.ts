@@ -10,39 +10,40 @@ const inventoryController = new InventoryController();
 router.use(authenticate);
 
 // Items
-router.get('/items', authorize('inventory.item.read'), inventoryController.getItems);
-router.post('/items', authorize('inventory.item.create'), auditLogger('CREATE', 'ITEM'), inventoryController.createItem);
+router.get('/items', requireRole(['Accountant','POS User','Production Manager','Inventory Manager','Assistant Inventory Manager']), inventoryController.getItems);
+// router.get('/items', authorize('inventory.item.read'), inventoryController.getItems);
+router.post('/items', requireRole(['Inventory Manager']), auditLogger('CREATE', 'ITEM'), inventoryController.createItem);
 
 // BOMs
-router.get('/boms', authorize('inventory.bom.read'), inventoryController.getBoms);
-router.post('/boms', authorize('inventory.bom.create'), auditLogger('CREATE', 'BOM'), inventoryController.createBom);
+router.get('/boms', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getBoms);
+router.post('/boms', requireRole(['Inventory Manager']), auditLogger('CREATE', 'BOM'), inventoryController.createBom);
 
 // Inventory transactions
-router.post('/adjust', authorize('inventory.item.create'), auditLogger('ADJUST', 'INVENTORY'), inventoryController.adjustInventory);
-router.post('/transfer', requireRole('CFO'), auditLogger('TRANSFER', 'INVENTORY'), inventoryController.transferInventory);
-router.get('/inventory/transfers', authorize('inventory.item.read'), inventoryController.getInventoryTransfers);
+router.post('/adjust', requireRole(['Inventory Manager']), auditLogger('ADJUST', 'INVENTORY'), inventoryController.adjustInventory);
+router.post('/transfer', requireRole(['Inventory Manager']), auditLogger('TRANSFER', 'INVENTORY'), inventoryController.transferInventory);
+router.get('/inventory/transfers', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getInventoryTransfers);
 
 
 // Reports
-router.get('/ledger', authorize('inventory.item.read'), inventoryController.getInventoryLedger);
-router.get('/ledger/export', authorize('inventory.item.read'), inventoryController.exportInventoryLedger);
-router.get('/valuation', authorize('inventory.item.read'), inventoryController.getInventoryValuation);
+router.get('/ledger', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getInventoryLedger);
+router.get('/ledger/export', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.exportInventoryLedger);
+router.get('/valuation', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getInventoryValuation);
 
 // Warehouses
-router.get('/warehouses', authorize('inventory.item.read'), inventoryController.getWarehouses);
-router.get('/warehouses/list', authorize('inventory.item.read'), inventoryController.getWarehousesList);
-router.post('/warehouses', authorize('inventory.item.create'), auditLogger('CREATE', 'WAREHOUSE'), inventoryController.createWarehouse);
-router.put('/warehouses/:id', authorize('inventory.item.create'), auditLogger('UPDATE', 'WAREHOUSE'), inventoryController.updateWarehouse);
+router.get('/warehouses', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getWarehouses);
+router.get('/warehouses/list', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getWarehousesList);
+router.post('/warehouses', requireRole(['Inventory Manager']), auditLogger('CREATE', 'WAREHOUSE'), inventoryController.createWarehouse);
+router.put('/warehouses/:id', requireRole(['Inventory Manager']), auditLogger('UPDATE', 'WAREHOUSE'), inventoryController.updateWarehouse);
 
 // Locations
-router.get('/locations', authorize('inventory.item.read'), inventoryController.getLocations);
-router.post('/locations', authorize('inventory.item.create'), auditLogger('CREATE', 'LOCATION'), inventoryController.createLocation);
-router.put('/locations/:id', authorize('inventory.item.create'), auditLogger('UPDATE', 'LOCATION'), inventoryController.updateLocation);
+router.get('/locations', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getLocations);
+router.post('/locations', requireRole(['Inventory Manager']), auditLogger('CREATE', 'LOCATION'), inventoryController.createLocation);
+router.put('/locations/:id', requireRole(['Inventory Manager']), auditLogger('UPDATE', 'LOCATION'), inventoryController.updateLocation);
 
 // Inventory transfers
-router.get('/transfers', authorize('inventory.item.read'), inventoryController.getInventoryTransfers);
+router.get('/transfers', requireRole(['Inventory Manager','Assistant Inventory Manager']), inventoryController.getInventoryTransfers);
 
 // Item stock by warehouse
-router.get('/stock/:itemId/:warehouseId', authorize('inventory.item.read'), inventoryController.getItemStock);
+router.get('/stock/:itemId/:warehouseId', requireRole(['Inventory Manager','Production Manager','Assistant Inventory Manager','POS User']), inventoryController.getItemStock);
 
 export default router;

@@ -6,7 +6,7 @@ import {
   getPurchaseMemos,
 } from "../controllers/memos";
 
-import { authenticate,authorize} from '../middleware/auth';
+import { authenticate,authorize, requireRole} from '../middleware/auth';
 import { auditLogger } from "../middleware/audit";
 
 const router = express.Router();
@@ -16,12 +16,12 @@ const router = express.Router();
 router.use(authenticate);
 
 // Sales memos
-router.post("/sales", authorize('sales.order.create'),auditLogger('CREATE', 'SALES_MEMO'), createSalesMemo);
-router.get("/sales" ,authorize('sales.order.read') ,getSalesMemos);
+router.post("/sales", requireRole(['Accountant', 'Auditor']),auditLogger('CREATE', 'SALES_MEMO'), createSalesMemo);
+router.get("/sales" ,requireRole(['Accountant', 'Auditor']) ,getSalesMemos);
 
 // Purchase memos
-router.post("/purchase",authorize('purchase.order.create'),auditLogger('CREATE', 'PURCHASE_MEMO'), createPurchaseMemo);
-router.get("/purchase",authorize('purchase.order.read'), getPurchaseMemos);
+router.post("/purchase",requireRole(['Accountant', 'Auditor']),auditLogger('CREATE', 'PURCHASE_MEMO'), createPurchaseMemo);
+router.get("/purchase",requireRole(['Accountant', 'Auditor']), getPurchaseMemos);
 
 export default router;
 

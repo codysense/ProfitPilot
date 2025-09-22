@@ -67,6 +67,50 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
+
+
+// export const requireRole = (requiredRole: []) => {
+//   return (req: AuthRequest, res: Response, next: NextFunction) => {
+//     if (!req.user) {
+//       return res.status(401).json({ error: 'Not authenticated' });
+//     }
+
+//     if (!req.user.roles.includes(requiredRole.values()) && !req.user.roles.includes('General Manager')) {
+//       return res.status(403).json({ error: `Role ${requiredRole} required` });
+//     }
+
+//     next();
+//   };
+// };
+
+
+// import { Response, NextFunction } from "express";
+// import { AuthRequest } from "../types"; // adjust import path
+
+export const requireRole = (requiredRoles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const userRoles = req.user.roles || [];
+
+    // Check if user has at least one required role OR is General Manager
+    const hasRole =
+      requiredRoles.some((role) => userRoles.includes(role)) ||
+      userRoles.includes("General Manager");
+
+    if (!hasRole) {
+      return res
+        .status(403)
+        .json({ error: `Requires one of: ${requiredRoles.join(", ")}` });
+    }
+
+    next();
+  };
+};
+
+
 export const authorize = (requiredPermission: string) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
@@ -74,26 +118,12 @@ export const authorize = (requiredPermission: string) => {
     }
 
     // Check if user has the required permission or is a CFO/General Manager with full access
-    const hasPermission = req.user.permissions.includes(requiredPermission);
-    const hasFullAccess = req.user.roles.includes('CFO') || req.user.roles.includes('General Manager');
+    // const hasPermission = req.user.permissions.includes(requiredPermission);
+    // const hasFullAccess = req.user.roles.includes('Auditor') || req.user.roles.includes('General Manager');
     
-    if (!hasPermission && !hasFullAccess) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
-    next();
-  };
-};
-
-export const requireRole = (requiredRole: string) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    if (!req.user.roles.includes(requiredRole) && !req.user.roles.includes('General Manager')) {
-      return res.status(403).json({ error: `Role ${requiredRole} required` });
-    }
+    // if (!hasPermission && !hasFullAccess) {
+    //   return res.status(403).json({ error: 'Insufficient permissions' });
+    // }
 
     next();
   };

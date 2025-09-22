@@ -45,7 +45,8 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Point of Sales',
       href: '/pos',
       icon: Monitor,
-      permission: 'pos.sale.read',
+      permission: null,
+      requireRole:['General Manager', 'POS User','Accountant'],
       children: [
         { name: 'POS Terminal', href: '/pos' },
         { name: 'Sales History', href: '/pos/sales' },
@@ -56,7 +57,8 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Inventory',
       href: '/inventory',
       icon: Package,
-      permission: 'inventory.item.create',
+      permission: null,
+      requireRole:['General Manager', 'Inventory Manager', 'Assistant Inventory Manager'],
       children: [
         { name: 'Items', href: '/inventory/items' },
         { name: 'BOMs', href: '/inventory/boms' },
@@ -71,7 +73,8 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Production',
       href: '/production',
       icon: Factory,
-      permission: 'production.order.read',
+      permission: null,
+      requireRole:['General Manager','Production Manager','Inventory Manager'],
       children: [
         { name: 'Orders', href: '/production/orders' },
         { name: 'WIP Summary', href: '/production/wip' }
@@ -81,7 +84,8 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Purchases',
       href: '/purchases',
       icon: ShoppingCart,
-      permission: 'purchase.order.read',
+      permission: null,
+      requireRole:['Inventory Manager', 'Assistant Invenotry Manager', 'General Manager'],
       children: [
         { name: 'Orders', href: '/purchases/orders' },
         { name: 'Vendors', href: '/purchases/vendors' },
@@ -92,7 +96,8 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Sales',
       href: '/sales',
       icon: TrendingUp,
-      permission: 'sales.order.read',
+      permission: null,
+      requireRole:['Accountant','POS User'],
       children: [
         { name: 'Orders', href: '/sales/orders' },
         { name: 'Customers', href: '/sales/customers' },
@@ -109,13 +114,14 @@ const Layout = ({ children }: LayoutProps) => {
         { name: 'Asset Register', href: '/assets/register' },
         // { name: 'Categories', href: '/assets/categories' }
       ],
-      requiresRole: ['CFO', 'General Manager']
+      requiresRole: ['General Manager', 'Auditor']
     },
     {
       name: 'Cash Management',
       href: '/cash',
       icon: DollarSign,
-      permission: 'inventory.item.create',
+      permission: null,
+      requuireRole:['General Manager', 'Accountant'],
       children: [
         { name: 'Cashbook', href: '/cash/cashbook' },
         { name: 'Customer Payments', href: '/cash/customer-payments' },
@@ -130,7 +136,7 @@ const Layout = ({ children }: LayoutProps) => {
       href: '/management',
       icon: Settings,
       permission: null,
-      requiresRole: ['CFO', 'General Manager'],
+      requiresRole: [ 'General Manager'],
       children: [
         { name: 'Company Settings', href: '/management/company' },
         { name: 'System Settings', href: '/management/settings' },
@@ -148,7 +154,7 @@ const Layout = ({ children }: LayoutProps) => {
       href: '/reports',
       icon: FileText,
       permission: null,
-      requiresRole:['CFO','General Manager','Auditor']
+      requiresRole:['Inventory Manager','Assistant Inventory Manager','Production Manager','Accountant','General Manager','Auditor']
     },
     // {
     //   name: 'Users',
