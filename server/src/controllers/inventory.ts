@@ -11,7 +11,7 @@ import {
 import { AuthRequest } from '../middleware/auth';
 import { CostingService } from '../services/costing';
 import { GeneralLedgerService } from '../services/gl';
-
+// import prisma from '@prisma/client';
 import { Prisma } from "@prisma/client";
 // import prisma from "../prisma"; //
 
@@ -996,66 +996,81 @@ const warehouses = await prisma.warehouse.findMany({
 
   
 
- async  getItems(req: AuthRequest, res: Response) {
+  async  getItems(req: AuthRequest, res: Response) {
   try {
-    const { page = 1, limit = 10, type, search, includeStock } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    // parse query params safely
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 10);
+    const rawType = req.query.type; // could be string | ParsedQs | (string|ParsedQs)[]
+    const search = req.query.search ? String(req.query.search) : undefined;
+    const includeStock = String(req.query.includeStock ?? "false");
+    const skip = (page - 1) * limit;
 
-    // 🔹 Apply warehouse filtering for non-admin users
+    // build a strongly-typed where for Prisma (avoid inline { type } usage)
+    const where: Prisma.ItemWhereInput = {};
+    // narrow rawType into a string and cast to ItemType
+    const typeFilter = typeof rawType === "string" && rawType.length ? (rawType as ItemType) : undefined;
+    if (typeFilter) where.type = typeFilter;
+
+    // Apply warehouse filtering for non-admin users
     let warehouseFilter: string | null = null;
     if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manager")) {
       const user = await prisma.user.findUnique({
         where: { id: req.user!.id },
         select: { warehouseId: true },
       });
-      warehouseFilter = user?.warehouseId || null;
+      warehouseFilter = user?.warehouseId ?? null;
     }
 
     let items: any[] = [];
     let total = 0;
 
+    // If searching: use raw SQL with LOWER/ILIKE + enum cast to avoid collation issues
     if (search) {
-  const query = Prisma.sql`
-    SELECT *
-    FROM "items"
-    WHERE 1=1
-    ${type ? Prisma.sql`AND "type" = ${type}::"ItemType"` : Prisma.empty}
-    AND (
-      "sku" ILIKE ${"%" + search + "%"} COLLATE "C"
-      OR "name" ILIKE ${"%" + search + "%"} COLLATE "C"
-    )
-    ORDER BY "createdAt" DESC
-    LIMIT ${Number(limit)} OFFSET ${skip};
-  `;
+      // ensure we only use a string type for the enum cast interpolation
+      const enumParam = typeFilter; // ItemType | undefined
 
-  const countQuery = Prisma.sql`
-    SELECT COUNT(*)::int AS count
-    FROM "items"
-    WHERE 1=1
-    ${type ? Prisma.sql`AND "type" = ${type}::"ItemType"` : Prisma.empty}
-    AND (
-      "sku" ILIKE ${"%" + search + "%"} COLLATE "C"
-      OR "name" ILIKE ${"%" + search + "%"} COLLATE "C"
-    );
-  `;
+      const query = Prisma.sql`
+        SELECT *
+        FROM "items"
+        WHERE 1=1
+        ${enumParam ? Prisma.sql`AND "type" = ${enumParam}::"ItemType"` : Prisma.empty}
+        AND (
+          "sku" ILIKE ${"%" + search + "%"} COLLATE "C"
+          OR "name" ILIKE ${"%" + search + "%"} COLLATE "C"
+        )
+        ORDER BY "createdAt" DESC
+        LIMIT ${limit} OFFSET ${skip};
+      `;
 
-  items = await prisma.$queryRaw(query);
-  const countResult = await prisma.$queryRaw<{ count: number }[]>(countQuery);
-  total = countResult[0]?.count || 0;
-} else {
-      // 🔹 Use Prisma for normal queries (no search)
+      const countQuery = Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        FROM "items"
+        WHERE 1=1
+        ${enumParam ? Prisma.sql`AND "type" = ${enumParam}::"ItemType"` : Prisma.empty}
+        AND (
+          "sku" ILIKE ${"%" + search + "%"} COLLATE "C"
+          OR "name" ILIKE ${"%" + search + "%"} COLLATE "C"
+        );
+      `;
+
+      items = await prisma.$queryRaw<any[]>(query);
+      const countResult = await prisma.$queryRaw<{ count: number }[]>(countQuery);
+      total = countResult[0]?.count ?? 0;
+    } else {
+      // No search → use Prisma client (typed where)
       [items, total] = await Promise.all([
         prisma.item.findMany({
-          where: type ? { type } : {},
+          where,
           skip,
-          take: Number(limit),
+          take: limit,
           orderBy: { createdAt: "desc" },
         }),
-        prisma.item.count({ where: type ? { type } : {} }),
+        prisma.item.count({ where }),
       ]);
     }
 
-    // 🔹 Include stock quantities if requested
+    // Include stock quantities if requested
     let itemsWithStock = items;
     if (includeStock === "true") {
       itemsWithStock = await Promise.all(
@@ -1063,28 +1078,31 @@ const warehouses = await prisma.warehouse.findMany({
           let stockQty = 0;
 
           if (warehouseFilter) {
-            // Non-admin → latest stock in their warehouse
+            // Non-admin user → latest stock in their warehouse
             const latestEntry = await prisma.inventoryLedger.findFirst({
               where: { itemId: item.id, warehouseId: warehouseFilter },
               orderBy: { postedAt: "desc" },
             });
-            stockQty = latestEntry?.runningQty || 0;
+            stockQty = Number(latestEntry?.runningQty ?? 0);
           } else {
-            // Admin → sum of latest balances across all warehouses
+            // Admin user → sum of latest balances across all warehouses
             const warehouses = await prisma.warehouse.findMany({ select: { id: true } });
+
+            // map to numbers immediately to avoid Decimal/number mismatch
             const balances = await Promise.all(
               warehouses.map(async (wh) => {
                 const latestEntry = await prisma.inventoryLedger.findFirst({
                   where: { itemId: item.id, warehouseId: wh.id },
                   orderBy: { postedAt: "desc" },
                 });
-                return latestEntry?.runningQty || 0;
+                return Number(latestEntry?.runningQty ?? 0);
               })
             );
-            stockQty = balances.reduce((sum, qty) => sum + Number(qty), 0);
+
+            stockQty = balances.reduce((sum, qty) => sum + qty, 0);
           }
 
-          return { ...item, stockQty: Number(stockQty) };
+          return { ...item, stockQty };
         })
       );
     }
@@ -1092,10 +1110,10 @@ const warehouses = await prisma.warehouse.findMany({
     res.json({
       items: itemsWithStock,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page,
+        limit,
         total,
-        pages: Math.ceil(total / Number(limit)),
+        pages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
@@ -1103,6 +1121,7 @@ const warehouses = await prisma.warehouse.findMany({
     res.status(500).json({ error: "Failed to fetch items" });
   }
 }
+
 
 
 }
