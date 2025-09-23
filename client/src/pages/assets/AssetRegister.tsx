@@ -98,7 +98,7 @@ const AssetRegister = () => {
       header: 'Net Book Value',
       cell: (asset: Asset) => (
         <span className="font-semibold text-blue-600">
-          ₦{(asset.netBookValue || asset.acquisitionCost).toLocaleString()}
+          ₦{(Number(asset.netBookValue).toLocaleString() || Number(asset.acquisitionCost)).toLocaleString()}
         </span>
       ),
       width: 'w-32'
@@ -323,7 +323,7 @@ const AssetRegister = () => {
                     Total Cost
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{data?.assets?.reduce((sum: number, a: Asset) => sum + a.acquisitionCost, 0).toLocaleString() || '0'}
+                    ₦{data?.assets?.reduce((sum: number, a: Asset) => Number(sum) + Number(a.acquisitionCost), 0).toLocaleString() || '0'}
                   </dd>
                 </dl>
               </div>
@@ -343,7 +343,7 @@ const AssetRegister = () => {
                     Net Book Value
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{data?.assets?.reduce((sum: number, a: Asset) => sum + (a.netBookValue || a.acquisitionCost), 0).toLocaleString() || '0'}
+                    ₦{data?.assets?.reduce((sum: number, a: Asset) => sum + (Number(a.netBookValue) || Number(a.acquisitionCost)), 0).toLocaleString() || '0'}
                   </dd>
                 </dl>
               </div>

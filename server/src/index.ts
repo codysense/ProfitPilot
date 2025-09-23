@@ -13,7 +13,8 @@ import managementRoutes from './routes/management';
 import assetsRoutes from './routes/assets';
 import posRoutes from './routes/pos';
 // import memosRoutes from './routes/memos';
-import memoRoutes from "./routes/memoRoutes";
+// import memoRoutes from "./routes/memoRoutes";
+import memos from './routes/memo'
 
 
 
@@ -64,7 +65,7 @@ app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/management', managementRoutes);
 app.use('/api/v1/assets', assetsRoutes);
 app.use('/api/v1/pos', posRoutes);
-app.use('/api/v1/memos', memoRoutes);
+app.use('/api/v1/memos', memos);
 // app.use("/api", memoRoutes);
 
 // app.use("/api/memos", memoRoutes);

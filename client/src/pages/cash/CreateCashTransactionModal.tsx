@@ -50,6 +50,7 @@ const CreateCashTransactionModal = ({ onClose, onSuccess }: CreateCashTransactio
   });
 
   const watchedType = watch('transactionType');
+  
 
   const onSubmit = async (data: CreateCashTransactionFormData) => {
     try {
@@ -61,7 +62,7 @@ const CreateCashTransactionModal = ({ onClose, onSuccess }: CreateCashTransactio
     }
   };
 
-  console.log(chartAccounts)
+  // console.log(chartAccounts)
   // Filter GL accounts based on transaction type
   const getFilteredGLAccounts = () => {
     if (!chartAccounts?.accounts) return [];

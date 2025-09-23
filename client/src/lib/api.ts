@@ -537,33 +537,21 @@ export const posApi = {
 
 };
 
+// Memo API
+export const memoApi = {
+  getMemos: (params?: { page?: number; limit?: number; search?: string }) =>
+    api.get(`/memos${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
 
-  export const memoApi = {
-  // --- Sales Memos ---
-  getSalesMemos: (params?: { page?: number; limit?: number; customerId?: string; type?: 'CREDIT' | 'DEBIT' }) =>
-    api.get(`/memos/sales${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+  getMemoById: (id: string) =>
+    api.get(`/memos/${id}`),
 
-  createSalesMemo: (data: {
-    customerId: string;
-    chartOfAccountId: string;
-    type: 'CREDIT' | 'DEBIT';
-    amount: number;
-    description?: string;
-  }) => api.post('/memos/sales', data),
+  createMemo: (data: { memoType: string; customerId?: string; vendorId?: string; accountId?: string; amount: number; description?: string; module:string }) =>
+    api.post('/memos', data),
 
-  // --- Purchase Memos ---
-  getPurchaseMemos: (params?: { page?: number; limit?: number; vendorId?: string; type?: 'CREDIT' | 'DEBIT' }) =>
-  api
-    .get(`/memos/purchase${params ? '?' + new URLSearchParams(params as any).toString() : ''}`)
-    .then(res => res.data.data), // unwrap { data: [...] }
+  updateMemo: (id: string, data: any) =>
+    api.put(`/memos/${id}`, data),
 
+  deleteMemo: (id: string) =>
+    api.delete(`/memos/${id}`),
+};
 
-  
-  createPurchaseMemo: (data: {
-    vendorId: string;
-    chartOfAccountId: string;
-    type: 'CREDIT' | 'DEBIT';
-    amount: number;
-    description?: string;
-  }) => api.post('/memos/purchase', data),
-  };

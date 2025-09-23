@@ -93,12 +93,21 @@ const Layout = ({ children }: LayoutProps) => {
       name: 'Sales',
       href: '/sales',
       icon: TrendingUp,
-      requiresRole:['Accountant','POS User'],
+      requiresRole:['Accountant','POS User', 'General Manager'],
       children: [
         { name: 'Orders', href: '/sales/orders' },
         { name: 'Customers', href: '/sales/customers' },
       //   { name: 'Memos', href: '/sales/memos' },
        ]
+    },
+    {
+      name:'Memo',
+      href:'/memos',
+      icon: Users,
+      requiresRole:['General Manager']
+      // children:[
+      //   {name:''}
+      // ]
     },
     {
       name: 'Assets',

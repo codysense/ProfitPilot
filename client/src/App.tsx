@@ -21,7 +21,7 @@ import InventoryValuation from './pages/inventory/Valuation';
 // Purchase Pages
 import PurchaseOrders from './pages/purchases/Orders';
 import Vendors from './pages/purchases/Vendors';
-import Memos from './pages/purchases/PurchaseMemosPage';
+// import Memos from './pages/purchases/PurchaseMemosPage';
 
 // Sales Pages
 import SalesOrders from './pages/sales/Orders';
@@ -68,6 +68,11 @@ import AssetCategories from './pages/assets/AssetCategories';
 import PosDashboard from './pages/pos/PosDashboard';
 import PosSalesHistory from './pages/pos/PosSalesHistory';
 import PosReturnsHistory from './pages/pos/PosReturnsHistory';
+
+
+//Memo Pages
+import  {Memos}  from './pages/memo/Memos';
+
 
 
 const queryClient = new QueryClient({
@@ -316,6 +321,15 @@ function App() {
                 <AuditLog />
               </ProtectedRoute>
             } />
+
+            {/* Memo Routes */}
+            <Route path="/memos" element={
+              <ProtectedRoute>
+                <Memos />
+              </ProtectedRoute>
+            } />
+
+
 
             {/* Catch all route */}
             <Route path="*" element={<Navigate to="/" replace />} />

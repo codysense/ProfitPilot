@@ -2,6 +2,10 @@
   "dependencies": {
     "@headlessui/react": "^2.2.8",
     "@heroicons/react": "^2.2.0",
+    "date-fns": "^4.1.0",
     "loadash": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/date-fns": "^2.5.3"
   }
 }
