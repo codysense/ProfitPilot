@@ -539,8 +539,21 @@ export const posApi = {
 
 // Memo API
 export const memoApi = {
-  getMemos: (params?: { page?: number; limit?: number; search?: string }) =>
-    api.get(`/memos${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+  // getMemos: (params?: { page?: number; limit?: number; search?: string }) =>
+  //   api.get(`/memos${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+
+   getMemos: (
+    params?: { page?: number; limit?: number; search?: string; [key: string]: any }
+  ) => {
+    // Remove empty/null/undefined values
+    const cleaned = Object.fromEntries(
+      Object.entries(params || {}).filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+    );
+
+    const queryString = new URLSearchParams(cleaned as any).toString();
+
+    return api.get(`/memos${queryString ? `?${queryString}` : ''}`);
+  },
 
   getMemoById: (id: string) =>
     api.get(`/memos/${id}`),

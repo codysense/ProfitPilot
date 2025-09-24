@@ -57,11 +57,12 @@ export const MemoModal = ({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors ,isSubmitting},
     watch,
     reset,
     getValues,
     setValue,
+  
   } = useForm<FormValues>({
     resolver: zodResolver(memoSchema),
     defaultValues: {
@@ -269,6 +270,7 @@ return (
               </button>
               <button
                 type="submit"
+                 disabled={isSubmitting}
                 className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white
                   ${watch("memoType") === "CREDIT"
                     ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
@@ -277,7 +279,7 @@ return (
                     : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
                   }`}
               >
-                {`Post ${watch("memoType") === "CREDIT" ? "Credit" : watch("memoType") === "DEBIT" ? "Debit" : ""}`}
+                {isSubmitting? 'Posting':`Post ${watch("memoType") === "CREDIT" ? "Credit" : watch("memoType") === "DEBIT" ? "Debit" : ""}`}
               </button>
             </div>
           </form>
