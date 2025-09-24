@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import {  PrismaClient MemoType, MemoModule } from '@prisma/client';
+import {  PrismaClient, MemoType, MemoModule } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { Decimal } from '@prisma/client/runtime/library';
 // import { Prisma } from '../../prisma/generated/client';
