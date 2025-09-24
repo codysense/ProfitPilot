@@ -298,10 +298,10 @@ export class MemoController {
     );
 
       res.status(201).json(result);
-    } catch (error) {
-      console.error('Create memo error:', error);
-      res.status(400).json({ error: 'Failed to create memo' });
-    }
+    } catch (error: any) {
+  console.error('Create memo error details:', error.message, error.stack);
+  res.status(400).json({ error: error.message });
+}
   }
 
 }
