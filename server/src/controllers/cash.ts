@@ -385,7 +385,13 @@ export class CashController {
         }
 
         return cashTransaction;
-      });
+      }
+        ,
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.status(201).json(result);
     } catch (error) {
@@ -541,7 +547,14 @@ export class CashController {
       });
 
       return receipt;
-    });
+    }
+    ,
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+  
+  );
 
     res.status(201).json(result);
   } catch (error) {

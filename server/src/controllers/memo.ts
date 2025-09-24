@@ -148,7 +148,13 @@ export class MemoController {
           where: { id: memo.id },
           data: { /* could add status: 'POSTED' later */ },
         });
-      });
+      }
+      ,
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.json(result);
     } catch (error) {
@@ -226,6 +232,7 @@ export class MemoController {
         const journalCount = await tx.journal.count();
         const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
 
+
         const journal = await tx.journal.create({
           data: {
             journalNo,
@@ -258,6 +265,7 @@ export class MemoController {
             creditAccountId = (await tx.chartOfAccount.findFirst({ where: { code: '2000' } }))!.id;
           }
         }
+        console.log('Debit Account',debitAccountId, 'Credit Account', creditAccountId)
 
         await tx.journalLine.createMany({
           data: [
@@ -281,7 +289,13 @@ export class MemoController {
         });
 
         return memo;
-      });
+      }
+      ,
+    {
+  maxWait: 5000,  // 5s wait for connection
+  timeout: 20000  // 20s max runtime
+}
+    );
 
       res.status(201).json(result);
     } catch (error) {
