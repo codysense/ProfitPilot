@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMemos } from '../../hooks/useMemo';
 import { MemoModal } from './CreateMemoModal';
-import { format } from 'date-fns';
+// import { format } from 'date-fns';
 
 export const Memos = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,7 +91,7 @@ data
   .map((memo: any) => (
     <tr key={memo.id} className="hover:bg-gray-50">
       <td className="px-3 py-2 border text-gray-500">
-        {format(new Date(memo.createdAt), "yyyy-MM-dd")}
+        {new Date(memo.createdAt).toISOString().split("T")[0]}
       </td>
       <td className="px-3 py-2 border text-gray-500">{memo.module}</td>
       <td className="px-3 py-2 border   text-gray-500">{memo.memoType}</td>
