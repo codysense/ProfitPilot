@@ -18,6 +18,7 @@ import { ChartAccountSelect } from '../../components/ChartAccountSelect';
 
 
 const memoSchema = z.object({
+  date: z.date().optional(),
   module: z.enum(["SALES", "PURCHASES"]),
   memoType: z.enum(["CREDIT", "DEBIT"]),
   accountId: z.string().min(1, "Account is required"), // GL account affected
@@ -79,6 +80,7 @@ export const MemoModal = ({
    
     try {
       await createMemo.mutateAsync({
+        date: data.date ?? new Date(),
         memoType: data.memoType,
         customerId: data.customerId,
         vendorId: data.vendorId,
@@ -126,8 +128,24 @@ return (
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Date *
+              </label>
+              <input
+                type="date"
+                {...register("date", { valueAsDate: true })}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 
+                           focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+              {errors.date && (
+                <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
+              )}
+            </div>
             {/* Module */}
             <div>
+            
               <label className="block text-sm font-medium text-gray-700">
                 Module *
               </label>
@@ -270,8 +288,8 @@ return (
               </button>
               <button
                 type="submit"
-                 disabled={isSubmitting}
-                className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white
+                disabled={isSubmitting}
+                className={`px-4 py-2  border border-transparent rounded-md shadow-sm text-sm font-medium text-white
                   ${watch("memoType") === "CREDIT"
                     ? "bg-green-600 hover:bg-green-700 focus:ring-green-500"
                     : watch("memoType") === "DEBIT"
@@ -292,122 +310,4 @@ return (
 }
 
 
-    
-//   return (
-//     <Dialog
-//       open={true}
-//       onClose={onClose}
-//       className="fixed inset-0 flex items-center justify-center"
-//     >
-//       <div className="bg-white p-6 rounded shadow-lg w-full max-w-lg overflow-y-auto">
-//         <Dialog.Title className="text-lg font-medium mb-4">New Memo</Dialog.Title>
-//         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-//             <div>
-//   <label className="block text-sm">Module</label>
-//   <select {...register('module')} className="border rounded w-full px-2 py-1">
-//     <option value="SALES">Sales</option>
-//     <option value="PURCHASES">Purchases</option>
-//   </select>
-//   {errors.module && <p className="text-red-600">{errors.module.message}</p>}
-// </div>
-//           {/* Type */}
-//           <div>
-//             <label className="block text-sm">Type</label>
-//             <select
-//               {...register('memoType')}
-//               className="border rounded w-full px-2 py-1"
-//             >
-//               <option value="CREDIT">Credit</option>
-//               <option value="DEBIT">Debit</option>
-//             </select>
-//             {errors.memoType && <p className="text-red-600">{errors.memoType.message}</p>}
-//           </div>
-
-//           {/* Reason */}
-//           <div>
-//             <label className="block text-sm">Reason</label>
-//             <input
-//               {...register('description')}
-//               className="border rounded w-full px-2 py-1"
-//             />
-//             {errors.description && (
-//               <p className="text-red-600">{errors.description.message}</p>
-//             )}
-//           </div>
-
-//           {/* Amount */}
-//           <div>
-//             <label className="block text-sm">Amount</label>
-//             <input
-//               type="number"
-//               {...register('amount', { valueAsNumber: true })}
-//               className="border rounded w-full px-2 py-1"
-//             />
-//             {errors.amount && (
-//               <p className="text-red-600">{errors.amount.message}</p>
-//             )}
-//           </div>
-
-//           {/* Customer */}
-//           <div>
-//             <label className="block text-sm">Customer (optional)</label>
-//             <select {...register('customerId')} className="border rounded w-full px-2 py-1">
-//               <option value="">-- Select Customer --</option>
-//               {customers?.customers?.map((c: any) => (
-//                 <option key={c.id} value={c.id}>
-//                   {c.name}
-//                 </option>
-//               ))}
-//             </select>
-//           </div>
-
-//           {/* Vendor */}
-//           <div>
-//             <label className="block text-sm">Vendor (optional)</label>
-//             <select {...register('vendorId')} className="border rounded w-full px-2 py-1">
-//               <option value="">-- Select Vendor --</option>
-//               {vendors?.vendors?.map((v: any) => (
-//                 <option key={v.id} value={v.id}>
-//                   {v.name}
-//                 </option>
-//               ))}
-//             </select>
-//           </div>
-
-//           {/* Chart of Accounts */}
-//           <div>
-//             <label className="block text-sm">GL Account</label>
-//             <select {...register('accountId')} className="border rounded w-full px-2 py-1">
-//               <option value="">-- Select Account --</option>
-//               {chartAccounts?.accounts?.map((acc: any) => (
-//                 <option key={acc.id} value={acc.id}>
-//                   {acc.code} - {acc.name}
-//                 </option>
-//               ))}
-//             </select>
-//             {errors.accountId && (
-//               <p className="text-red-600">{errors.accountId.message}</p>
-//             )}
-//           </div>
-
-//           {/* Actions */}
-//           <div className="flex justify-end gap-2">
-//             <button
-//               type="button"
-//               onClick={onClose}
-//               className="px-4 py-2 border rounded"
-//             >
-//               Cancel
-//             </button>
-//             <button
-//               type="submit" 
-//               className="px-4 py-2 bg-blue-600 text-white rounded"
-//             >
-//               Post
-//             </button>
-//           </div>
-//         </form>
-//       </div>
-//     </Dialog>
-//   );
- //};
+ 

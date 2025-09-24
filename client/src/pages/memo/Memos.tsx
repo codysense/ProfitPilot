@@ -16,7 +16,7 @@ export const Memos = () => {
   });
 
   const { data, isLoading, refetch } = useMemos(query);
-
+// console.log(data)
   return (
     <div>
       {/* Filters */}
@@ -89,9 +89,10 @@ data
     return true; // All
   })
   .map((memo: any) => (
+    
     <tr key={memo.id} className="hover:bg-gray-50">
       <td className="px-3 py-2 border text-gray-500">
-        {new Date(memo.createdAt).toISOString().split("T")[0]}
+        {memo.date?new Date(memo.date).toISOString().split("T")[0]:'-'}
       </td>
       <td className="px-3 py-2 border text-gray-500">{memo.module}</td>
       <td className="px-3 py-2 border   text-gray-500">{memo.memoType}</td>

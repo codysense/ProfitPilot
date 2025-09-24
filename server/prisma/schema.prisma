@@ -1029,6 +1029,7 @@ enum MemoType {
 
 model Memo {
   id          String     @id @default(cuid())
+  date       DateTime     @default(now())
   module      MemoModule // SALES or PURCHASES
   memoType    MemoType   // CREDIT or DEBIT
   amount      Decimal    @db.Decimal(15, 4)

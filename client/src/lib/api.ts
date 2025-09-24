@@ -558,7 +558,7 @@ export const memoApi = {
   getMemoById: (id: string) =>
     api.get(`/memos/${id}`),
 
-  createMemo: (data: { memoType: string; customerId?: string; vendorId?: string; accountId?: string; amount: number; description?: string; module:string }) =>
+  createMemo: (data: { memoType: string; customerId?: string; vendorId?: string; accountId?: string; amount: number; description?: string; module:string,date:Date }) =>
     api.post('/memos', data),
 
   updateMemo: (id: string, data: any) =>

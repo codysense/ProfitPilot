@@ -187,6 +187,7 @@ export class MemoController {
  async createMemo(req: AuthRequest, res: Response) {
     try {
       const {
+        date,
         module,      // "SALES" | "PURCHASES"
         memoType,    // "CREDIT" | "DEBIT"
         amount,
@@ -218,6 +219,7 @@ export class MemoController {
 
         const memo = await tx.memo.create({
           data: {
+            date,
             module: module as MemoModule,      // cast to enum
             memoType: memoType as MemoType, 
             amount: new Decimal(amount),

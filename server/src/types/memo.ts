@@ -14,6 +14,7 @@
 import { z } from "zod";
 
 export const memoSchema = z.object({
+  date: z.date().optional,
   module: z.enum(["SALES", "PURCHASES"]),
   memoType: z.enum(["CREDIT", "DEBIT"]),
   accountId: z.string().min(1, "Account is required"), // GL account affected
