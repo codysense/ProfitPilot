@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
-import {  PrismaClient,Prisma,MemoModule, MemoType } from '@prisma/client';
+import {  PrismaClient MemoType, MemoModule } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { Decimal } from '@prisma/client/runtime/library';
 // import { Prisma } from '../../prisma/generated/client';
 
 const prisma = new PrismaClient();
-console.log('Prisma export member',Object.keys(Prisma).includes('MemoType')? Object.keys(Prisma):'Not found');
+// console.log('Prisma export member',Object.keys(Prisma).includes('MemoType')? Object.keys(Prisma):'Not found');
 export class MemoController {
 
 
