@@ -46,7 +46,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use((req, res, next) => {
-  console.log("Incoming:", req.method, req.path);
+  // console.log("Incoming:", req.method, req.path);
   next();
 });
 

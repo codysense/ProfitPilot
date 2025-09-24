@@ -1,11 +1,15 @@
 import { Request, Response } from 'express';
-import { MemoModule, MemoType, PrismaClient } from '@prisma/client';
+import {  PrismaClient,Prisma,MemoModule, MemoType } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { Decimal } from '@prisma/client/runtime/library';
+// import { Prisma } from '../../prisma/generated/client';
 
 const prisma = new PrismaClient();
-
+console.log('Prisma export member',Object.keys(Prisma).includes('MemoType')? Object.keys(Prisma):'Not found');
 export class MemoController {
+
+
+      
   // GET /api/v1/memos
   async listMemos(req: AuthRequest, res: Response) {
     try {
@@ -38,6 +42,8 @@ export class MemoController {
 
   // GET /api/v1/memos/:id
   async getMemos(req: AuthRequest, res: Response) {
+
+
     try {
       const { id } = req.params;
 

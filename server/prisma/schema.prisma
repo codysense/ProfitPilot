@@ -1017,7 +1017,15 @@ model PosReturnLine {
 }
 
 // --- Memo model added for credit/debit memos (sales & purchases) ---
+enum MemoModule {
+  SALES
+  PURCHASES
+}
 
+enum MemoType {
+  CREDIT
+  DEBIT
+}
 
 model Memo {
   id          String     @id @default(cuid())
@@ -1039,12 +1047,4 @@ model Memo {
   @@map("memos")
 }
 
-enum MemoModule {
-  SALES
-  PURCHASES
-}
 
-enum MemoType {
-  CREDIT
-  DEBIT
-}
