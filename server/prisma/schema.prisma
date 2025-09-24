@@ -1017,6 +1017,8 @@ model PosReturnLine {
 }
 
 // --- Memo model added for credit/debit memos (sales & purchases) ---
+
+
 model Memo {
   id          String     @id @default(cuid())
   module      MemoModule // SALES or PURCHASES

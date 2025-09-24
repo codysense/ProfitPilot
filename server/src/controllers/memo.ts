@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { MemoType, PrismaClient } from '@prisma/client';
+import { MemoModule, MemoType, PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -57,7 +57,7 @@ export class MemoController {
       res.json(memo);
     } catch (error) {
       console.error('Get memo error:', error);
-      res.status(400).json({ error: 'Failed to get memo' });
+      res.status(400).json({ error: error.message });
     }
   }
 
@@ -212,8 +212,8 @@ export class MemoController {
 
         const memo = await tx.memo.create({
           data: {
-            module,
-            memoType,
+            module: module as MemoModule,      // cast to enum
+            memoType: memoType as MemoType, 
             amount: new Decimal(amount),
             description,
             //customerId: customerId || null,
