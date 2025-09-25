@@ -1068,7 +1068,7 @@ model StockAdjustment {
   user            User              @relation(fields: [createdBy], references: [id])
   account         ChartOfAccount    @relation(fields: [accountId], references: [id])
   warehouse       Warehouse         @relation(fields: [warehouseId], references: [id])
-  AdjustmentLines AdjustmentLines[]
+  //AdjustmentLines AdjustmentLines[]
 
   @@map("stock_adjustment")
 }
@@ -1087,7 +1087,7 @@ model AdjustmentLines {
   value          Decimal?        @db.Decimal(15, 4)
 
   // Relations
-  adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  //adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
   item       Item            @relation(fields: [itemId], references: [id])
 
   @@map("adjustment_lines")
