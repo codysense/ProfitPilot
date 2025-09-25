@@ -568,3 +568,10 @@ export const memoApi = {
     api.delete(`/memos/${id}`),
 };
 
+//Journal api
+export const journalApi ={
+
+  createJournal: (data: any) => api.post('/journal', data),
+  getJournal: (params?: { page?: number; limit?: number; search?: string }) =>
+     api.get(`/journal${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+}

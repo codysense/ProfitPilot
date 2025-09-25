@@ -105,15 +105,17 @@ const Layout = ({ children }: LayoutProps) => {
       href:'/memos',
       icon: Users,
       requiresRole:['General Manager']
-      // children:[
-      //   {name:''}
-      // ]
+    },
+    {
+      name:'Journal',
+      href:'/journal',
+      icon: FileText,
+      requiresRole:['General Manager']
     },
     {
       name: 'Assets',
       href: '/assets',
       icon: Building,
-      // permission: null,
       children: [
         { name: 'Dashboard', href: '/assets' },
         { name: 'Asset Register', href: '/assets/register' },

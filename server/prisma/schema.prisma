@@ -40,6 +40,7 @@ model User {
   posReturns       PosReturn[]
 
   warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+  Memo      Memo[]
 
   @@map("users")
 }
@@ -377,7 +378,7 @@ model Vendor {
   purchasePayments PurchasePayment[]
   assets           Asset[]
   Memo             Memo[]
- // PurchaseMemo     PurchaseMemo[]
+  // PurchaseMemo     PurchaseMemo[]
 
   @@map("vendors")
 }
@@ -513,7 +514,6 @@ model ChartOfAccount {
   Memo                        Memo[]
   //SalesMemo                   SalesMemo[]
   //PurchaseMemo                PurchaseMemo[]
- 
 
   @@map("chart_of_accounts")
 }
@@ -646,7 +646,7 @@ model SalesReceipt {
   createdAt      DateTime @default(now())
 
   // Relations
-  sale        Sale?        @relation(fields: [saleId], references: [id])
+  sale        Sale?       @relation(fields: [saleId], references: [id])
   customer    Customer    @relation(fields: [customerId], references: [id])
   cashAccount CashAccount @relation(fields: [cashAccountId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
@@ -668,7 +668,7 @@ model PurchasePayment {
   createdAt     DateTime @default(now())
 
   // Relations
-  purchase    Purchase?    @relation(fields: [purchaseId], references: [id])
+  purchase    Purchase?   @relation(fields: [purchaseId], references: [id])
   vendor      Vendor      @relation(fields: [vendorId], references: [id])
   cashAccount CashAccount @relation(fields: [cashAccountId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
@@ -906,7 +906,7 @@ model PosSession {
   userId         String
   warehouseId    String
   cashAccountId  String?
-  openingBalance Decimal?   @default(0) @db.Decimal(15, 2)
+  openingBalance Decimal?  @default(0) @db.Decimal(15, 2)
   closingBalance Decimal?  @db.Decimal(15, 2)
   totalSales     Decimal   @default(0) @db.Decimal(15, 2)
   totalReturns   Decimal   @default(0) @db.Decimal(15, 2)
@@ -916,8 +916,8 @@ model PosSession {
   createdAt      DateTime  @default(now())
 
   // Relations
-  user        User        @relation(fields: [userId], references: [id])
-  warehouse   Warehouse   @relation(fields: [warehouseId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
   cashAccount CashAccount? @relation(fields: [cashAccountId], references: [id])
   sales       PosSale[]
   returns     PosReturn[]
@@ -938,7 +938,7 @@ model PosSale {
   totalAmount    Decimal  @db.Decimal(15, 2)
   amountPaid     Decimal  @db.Decimal(15, 2)
   changeAmount   Decimal  @default(0) @db.Decimal(15, 2)
-  paymentMethod  String   // CASH, CARD, TRANSFER
+  paymentMethod  String // CASH, CARD, TRANSFER
   status         String   @default("COMPLETED") // COMPLETED, RETURNED
   notes          String?
   userId         String
@@ -1029,14 +1029,14 @@ enum MemoType {
 
 model Memo {
   id          String     @id @default(cuid())
-  date       DateTime     @default(now())
+  date        DateTime   @default(now())
   module      MemoModule // SALES or PURCHASES
-  memoType    MemoType   // CREDIT or DEBIT
+  memoType    MemoType // CREDIT or DEBIT
   amount      Decimal    @db.Decimal(15, 4)
   description String?
-  accountId   String     // GL account affected
-  customerId  String?    // for SALES memos
-  vendorId    String?    // for PURCHASE memos
+  accountId   String // GL account affected
+  customerId  String? // for SALES memos
+  vendorId    String? // for PURCHASE memos
   createdBy   String?
   createdAt   DateTime   @default(now())
 
@@ -1044,8 +1044,7 @@ model Memo {
   account  ChartOfAccount @relation(fields: [accountId], references: [id])
   customer Customer?      @relation(fields: [customerId], references: [id])
   vendor   Vendor?        @relation(fields: [vendorId], references: [id])
+  user     User?          @relation(fields: [createdBy], references: [id])
 
   @@map("memos")
 }
-
-

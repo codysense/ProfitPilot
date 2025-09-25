@@ -12,7 +12,7 @@ export function useMemos(query?: any) {
 export function useMemo(id: string) {
   return useQuery({
     queryKey: ['memo', id],
-    queryFn: () => memoApi. getMemoById(id),
+    queryFn: () => memoApi.getMemoById(id),
     enabled: !!id,
   });
 }

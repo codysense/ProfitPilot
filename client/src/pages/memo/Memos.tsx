@@ -16,7 +16,15 @@ export const Memos = () => {
   });
 
   const { data, isLoading, refetch } = useMemos(query);
-// console.log(data)
+
+  const memos = data ?? [];
+  const pagination = data?.pagination ?? {
+    total: 0,
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+  };
+ console.log(data)
   return (
     <div>
       {/* Filters */}
@@ -78,7 +86,7 @@ export const Memos = () => {
               </td>
             </tr>
           ) : (             
-data
+memos
   ?.filter((memo: any) => {
     if (query.partyType === "CUSTOMER") {
       return memo.customer !== null;
@@ -100,6 +108,7 @@ data
       <td className="px-3 py-2 border text-gray-500">{memo.vendor?.name || "-"}</td>
       <td className="px-3 py-2 border text-gray-500">{Number(memo.amount).toLocaleString()}</td>
       <td className="px-3 py-2 border text-gray-500">{memo.description}</td>
+      {/* <td className="px-3 py-2 border text-gray-500">{memo.user.name}</td> */}
     </tr>
   ))
         
@@ -108,7 +117,26 @@ data
           )}
         </tbody>
       </table>
-
+          {/* Pagination */}
+      <div className="flex justify-between items-center mt-4">
+        <button
+          disabled={query.page <= 1}
+          onClick={() => setQuery({ ...query, page: query.page - 1 })}
+          className="px-3 py-1 border rounded disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <span className="text-sm text-gray-600">
+          Page {pagination.page} of {pagination.totalPages} (Total {pagination.total})
+        </span>
+        <button
+          disabled={query.page >= pagination.totalPages}
+          onClick={() => setQuery({ ...query, page: query.page + 1 })}
+          className="px-3 py-1 border rounded disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
       {/* Modal */}
       {isModalOpen && (
         <MemoModal

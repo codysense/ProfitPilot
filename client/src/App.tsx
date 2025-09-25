@@ -73,6 +73,9 @@ import PosReturnsHistory from './pages/pos/PosReturnsHistory';
 //Memo Pages
 import  {Memos}  from './pages/memo/Memos';
 
+//Journal Pages
+import { Journals } from './pages/journals/journals';
+
 
 
 const queryClient = new QueryClient({
@@ -326,6 +329,12 @@ function App() {
             <Route path="/memos" element={
               <ProtectedRoute>
                 <Memos />
+              </ProtectedRoute>
+            } />
+            {/* Memo Routes */}
+            <Route path="/journal" element={
+              <ProtectedRoute>
+                <Journals />
               </ProtectedRoute>
             } />
 

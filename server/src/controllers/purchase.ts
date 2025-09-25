@@ -105,7 +105,7 @@ export class PurchaseController {
     res.status(201).json(purchase);
   } catch (error) {
     console.error('Create purchase error:', error);
-    res.status(400).json({ error: 'Failed to create purchase' });
+    res.status(400).json({ error: 'Failed to create purchase' + error.message });
   }
 }
 
@@ -136,7 +136,7 @@ export class PurchaseController {
           throw new Error(`Purchase line ${receiptLine.purchaseLineId} not found`);
         }
 
-        // You could update line quantities here if needed
+        // update line quantities here if needed
         return prisma.purchaseLine.update({
           where: { id: receiptLine.purchaseLineId },
           data: { qty: purchaseLine.qty } // adjust if needed
