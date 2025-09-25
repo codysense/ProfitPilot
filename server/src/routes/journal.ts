@@ -5,7 +5,7 @@ import { auditLogger } from '../middleware/audit';
 
 const router = Router();
 const journalController = new JournalController();
-router.post('/', authenticate, requireRole(['Auditor']), auditLogger('CREATE', 'MEMO'), (req, res) => journalController.createJournal(req, res));
+router.post('/', authenticate, requireRole(['Auditor']), auditLogger('CREATE', 'JOURNAL'), (req, res) => journalController.createJournal(req, res));
 router.get('/', authenticate, requireRole(['Auditor']),  (req, res) => journalController.getJournal(req, res));
 
 export default router

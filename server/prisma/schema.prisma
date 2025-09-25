@@ -39,8 +39,9 @@ model User {
   posSales         PosSale[]
   posReturns       PosReturn[]
 
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
-  Memo      Memo[]
+  warehouse       Warehouse?        @relation(fields: [warehouseId], references: [id])
+  Memo            Memo[]
+  StockAdjustment StockAdjustment[]
 
   @@map("users")
 }
@@ -149,6 +150,7 @@ model Warehouse {
   posSales         PosSale[]
   posReturns       PosReturn[]
   CashAccount      CashAccount[]
+  StockAdjustment  StockAdjustment[]
 
   @@map("warehouses")
 }
@@ -207,6 +209,7 @@ model Item {
   saleLines        SaleLine[]
   posSaleLines     PosSaleLine[]
   posReturnLines   PosReturnLine[]
+  AdjustmentLines  AdjustmentLines[]
 
   @@map("items")
 }
@@ -514,6 +517,7 @@ model ChartOfAccount {
   Memo                        Memo[]
   //SalesMemo                   SalesMemo[]
   //PurchaseMemo                PurchaseMemo[]
+  StockAdjustment             StockAdjustment[]
 
   @@map("chart_of_accounts")
 }
@@ -1047,4 +1051,44 @@ model Memo {
   user     User?          @relation(fields: [createdBy], references: [id])
 
   @@map("memos")
+}
+
+model StockAdjustment {
+  id             String   @id @default(cuid())
+  adjustmentDate String
+  accountId      String
+  warehouseId    String
+  totalQuantity  Decimal  @db.Decimal(15, 2)
+  notes          String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user            User              @relation(fields: [createdBy], references: [id])
+  account         ChartOfAccount    @relation(fields: [accountId], references: [id])
+  warehouse       Warehouse         @relation(fields: [warehouseId], references: [id])
+  AdjustmentLines AdjustmentLines[]
+
+  @@map("stock_adjustment")
+}
+
+enum AdjustmentType {
+  SURPLUS
+  DEFICIT
+}
+
+model AdjustmentLines {
+  id             String         @id @default(cuid())
+  adjustmentId   String?
+  itemId         String
+  qty            Decimal        @db.Decimal(15, 4)
+  adjustmentType AdjustmentType
+  value          Decimal?        @db.Decimal(15, 4)
+
+  // Relations
+  adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  item       Item            @relation(fields: [itemId], references: [id])
+
+  @@map("adjustment_lines")
 }

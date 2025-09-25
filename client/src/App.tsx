@@ -75,6 +75,8 @@ import  {Memos}  from './pages/memo/Memos';
 
 //Journal Pages
 import { Journals } from './pages/journals/journals';
+// import CreateAdjustmentModal from './pages/stockAdjustment/createAdjustmentModal';
+import {Adjustments} from './pages/stockAdjustment/adjusments';
 
 
 
@@ -331,7 +333,14 @@ function App() {
                 <Memos />
               </ProtectedRoute>
             } />
-            {/* Memo Routes */}
+            
+            {/* Adjustment Route */}
+            <Route path="/adjustment" element={
+              <ProtectedRoute>
+                <Adjustments />
+              </ProtectedRoute>
+            } />
+            {/* Journal Route */}
             <Route path="/journal" element={
               <ProtectedRoute>
                 <Journals />

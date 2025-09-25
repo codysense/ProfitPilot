@@ -575,3 +575,9 @@ export const journalApi ={
   getJournal: (params?: { page?: number; limit?: number; search?: string }) =>
      api.get(`/journal${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
 }
+export const adjustmentApi ={
+
+  adjustStock: (data: any) => api.post('/adjustment', data),
+  getStockAdjustment: (params?: { page?: number; limit?: number; search?: string }) =>
+     api.get(`/adjustment${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+}

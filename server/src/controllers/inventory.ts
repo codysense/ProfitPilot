@@ -1014,13 +1014,30 @@ const warehouses = await prisma.warehouse.findMany({
 
     // Apply warehouse filtering for non-admin users
     let warehouseFilter: string | null = null;
-    if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manager")) {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { warehouseId: true },
-      });
-      warehouseFilter = user?.warehouseId ?? null;
-    }
+
+if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manager")) {
+  // Non-admins → always force warehouse
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    select: { warehouseId: true },
+  });
+  warehouseFilter = user?.warehouseId ?? null;
+} else {
+  // Admins → only apply filter if warehouseId is provided
+  if (req.query.warehouseId) {
+    warehouseFilter = String(req.query.warehouseId);
+  }
+}
+
+
+    // let warehouseFilter: string | null = null;
+    // if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manager")) {
+    //   const user = await prisma.user.findUnique({
+    //     where: { id: req.user!.id },
+    //     select: { warehouseId: true },
+    //   });
+    //   warehouseFilter = user?.warehouseId ?? null;
+    // }
 
     let items: any[] = [];
     let total = 0;

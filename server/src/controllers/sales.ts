@@ -85,7 +85,7 @@ export class SalesController {
         // Generate order number
         const count = await tx.sale.count();
         const orderNo = `SO${String(count + 1).padStart(6, '0')}`;
-        console.log(orderNo)
+       // console.log(orderNo)
 
         // Calculate total amount
         const totalAmount = validatedData.saleLines.reduce((sum, line) => {
@@ -176,12 +176,12 @@ export class SalesController {
 
         if (sale) {
           const totalCogs = await calculateCogs(sale.saleLines, validatedData.deliveryLines);
-          
+          const itemType = getItemTypeById(sale.saleLines[0].itemId,)
           await glService.postJournal([
             { accountCode: '1200', debit: Number(sale.totalAmount), credit: 0, refType: 'SALE', refId: id },
             { accountCode: '4000', debit: 0, credit: Number(sale.totalAmount), refType: 'SALE', refId: id },
             { accountCode: '5000', debit: totalCogs, credit: 0, refType: 'SALE', refId: id },
-            { accountCode: '1350', debit: 0, credit: totalCogs, refType: 'SALE', refId: id }
+            { accountCode: await itemType === 'FINISHED_GOODS'?'1350':'1300', debit: 0, credit: totalCogs, refType: 'SALE', refId: id }
           ], `Sale delivery: ${sale.orderNo}`, req.user!.id);
         }
       },
@@ -443,4 +443,17 @@ async function calculateCogs(saleLines: any[], deliveryLines: any[]): Promise<nu
   }
 
   return totalCogs;
+}
+
+async function getItemTypeById(itemId: string) {
+  const item = await prisma.item.findUnique({
+    where: { id: itemId },
+    select: { type: true },
+  });
+
+  if (!item) {
+    throw new Error("Item not found");
+  }
+
+  return String(item.type);
 }

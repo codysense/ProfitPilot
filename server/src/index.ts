@@ -16,6 +16,7 @@ import posRoutes from './routes/pos';
 // import memoRoutes from "./routes/memoRoutes";
 import memos from './routes/memo'
 import journal from './routes/journal'
+import adjustment from './routes/stockAdjustment'
 
 
 
@@ -68,6 +69,7 @@ app.use('/api/v1/assets', assetsRoutes);
 app.use('/api/v1/pos', posRoutes);
 app.use('/api/v1/memos', memos);
 app.use('/api/v1/journal',journal)
+app.use('/api/v1/adjustment',adjustment)
 
 // app.use("/api", memoRoutes);
 

@@ -9,6 +9,7 @@ interface Item {
   id: string;
   sku: string;
   name: string;
+  stockQty:number;
 }
 
 interface ItemSelectProps {
@@ -106,7 +107,7 @@ export function ItemSelect({ value, onChange, error, typeFilter }: ItemSelectPro
                             selected ? "font-medium" : "font-normal"
                           }`}
                         >
-                          {i.sku} - {i.name}
+                          {i.sku} - {i.name} - {i.stockQty}
                         </span>
                         {selected && (
                           <span

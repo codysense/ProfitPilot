@@ -113,6 +113,12 @@ const Layout = ({ children }: LayoutProps) => {
       requiresRole:['General Manager']
     },
     {
+      name:'Stock Adjustment',
+      href:'/adjustment',
+      icon: FileText,
+      requiresRole:['General Manager']
+    },
+    {
       name: 'Assets',
       href: '/assets',
       icon: Building,

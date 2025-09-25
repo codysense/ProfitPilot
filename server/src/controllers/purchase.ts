@@ -165,11 +165,11 @@ export class PurchaseController {
     }, 0);
 
     const purchase = await prisma.purchase.findUnique({ where: { id } });
-
+     const itemType = getItemTypeById(purchaseLines[0].itemId,)
     if (purchase) {
       await glService.postJournal(
         [
-          { accountCode: '1300', debit: totalValue, credit: 0, refType: 'PURCHASE', refId: id },
+          { accountCode: await itemType === 'FINISHED_GOODS'?'1350':'1300', debit: totalValue, credit: 0, refType: 'PURCHASE', refId: id },
           { accountCode: '2150', debit: 0, credit: totalValue, refType: 'PURCHASE', refId: id }
         ],
         `Purchase receipt: ${purchase.orderNo}`,
@@ -396,4 +396,17 @@ async updatePurchase(req: AuthRequest, res: Response) {
       res.status(500).json({ error: 'Failed to generate purchase order' });
     }
   }
+}
+
+async function getItemTypeById(itemId: string) {
+  const item = await prisma.item.findUnique({
+    where: { id: itemId },
+    select: { type: true },
+  });
+
+  if (!item) {
+    throw new Error("Item not found");
+  }
+
+  return String(item.type);
 }
