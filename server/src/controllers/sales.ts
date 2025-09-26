@@ -176,12 +176,12 @@ export class SalesController {
 
         if (sale) {
           const totalCogs = await calculateCogs(sale.saleLines, validatedData.deliveryLines);
-          const itemType = getItemTypeById(sale.saleLines[0].itemId,)
+          const itemType = await getItemTypeById(sale.saleLines[0].itemId,)
           await glService.postJournal([
             { accountCode: '1200', debit: Number(sale.totalAmount), credit: 0, refType: 'SALE', refId: id },
             { accountCode: '4000', debit: 0, credit: Number(sale.totalAmount), refType: 'SALE', refId: id },
             { accountCode: '5000', debit: totalCogs, credit: 0, refType: 'SALE', refId: id },
-            { accountCode: await itemType === 'FINISHED_GOODS'?'1350':'1300', debit: 0, credit: totalCogs, refType: 'SALE', refId: id }
+            { accountCode: itemType === 'FINISHED_GOODS'?'1350':'1300', debit: 0, credit: totalCogs, refType: 'SALE', refId: id }
           ], `Sale delivery: ${sale.orderNo}`, req.user!.id);
         }
       },

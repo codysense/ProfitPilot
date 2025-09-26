@@ -1068,7 +1068,7 @@ model StockAdjustment {
   user            User              @relation(fields: [createdBy], references: [id])
   account         ChartOfAccount    @relation(fields: [accountId], references: [id])
   warehouse       Warehouse         @relation(fields: [warehouseId], references: [id])
-  //AdjustmentLines AdjustmentLines[]
+  adjustmentLines AdjustmentLines[]
 
   @@map("stock_adjustment")
 }
@@ -1080,14 +1080,14 @@ enum AdjustmentType {
 
 model AdjustmentLines {
   id             String         @id @default(cuid())
-  adjustmentId   String?
+  adjustmentId   String
   itemId         String
   qty            Decimal        @db.Decimal(15, 4)
   adjustmentType AdjustmentType
   value          Decimal?        @db.Decimal(15, 4)
 
   // Relations
-  //adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
   item       Item            @relation(fields: [itemId], references: [id])
 
   @@map("adjustment_lines")

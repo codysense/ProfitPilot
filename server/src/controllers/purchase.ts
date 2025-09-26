@@ -165,11 +165,11 @@ export class PurchaseController {
     }, 0);
 
     const purchase = await prisma.purchase.findUnique({ where: { id } });
-     const itemType = getItemTypeById(purchaseLines[0].itemId,)
+     const itemType = await getItemTypeById(purchaseLines[0].itemId,)
     if (purchase) {
       await glService.postJournal(
         [
-          { accountCode: await itemType === 'FINISHED_GOODS'?'1350':'1300', debit: totalValue, credit: 0, refType: 'PURCHASE', refId: id },
+          { accountCode: itemType === 'FINISHED_GOODS'?'1350':'1300', debit: totalValue, credit: 0, refType: 'PURCHASE', refId: id },
           { accountCode: '2150', debit: 0, credit: totalValue, refType: 'PURCHASE', refId: id }
         ],
         `Purchase receipt: ${purchase.orderNo}`,

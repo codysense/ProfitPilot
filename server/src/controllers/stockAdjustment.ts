@@ -26,7 +26,7 @@ export class AdjustmentController {
         warehouse: {
           select: { name: true },
         },
-        AdjustmentLines: {
+        adjustmentLines: {
           include: {
             item: {
               select: { name: true },
@@ -40,7 +40,7 @@ export class AdjustmentController {
     });
 
     const formatted = adjustments.flatMap((adj) =>
-      adj.AdjustmentLines.map((line) => ({
+      adj.adjustmentLines.map((line) => ({
         date: adj.adjustmentDate,
         itemName: line.item.name,
         adjustmentType: line.adjustmentType,
