@@ -76,7 +76,7 @@ import  {Memos}  from './pages/memo/Memos';
 //Journal Pages
 import { Journals } from './pages/journals/journals';
 // import CreateAdjustmentModal from './pages/stockAdjustment/createAdjustmentModal';
-import {Adjustments} from './pages/stockAdjustment/adjusments';
+import {Adjustments} from './pages/stockAdjustment/Adjusments';
 
 
 
