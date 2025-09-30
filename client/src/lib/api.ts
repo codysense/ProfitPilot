@@ -1,5 +1,6 @@
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { CreatePosReturnRequest } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -529,6 +530,8 @@ export const posApi = {
   
   // Returns
   createReturn: (data: CreatePosReturnRequest) => api.post('/pos/returns', data),
+  getReturns:(params?: { page?: number; limit?: number; sessionId?: string; customerId?: string; dateFrom?: string; dateTo?: string }) =>
+    api.get(`/pos/returns${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
   
   // Customers
   getCustomersWithBalances: () => api.get('/pos/customers-with-balances'),

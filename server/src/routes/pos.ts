@@ -21,6 +21,7 @@ router.get('/sales/:id/print', requireRole(['POS User','Accountant']), posContro
 
 // POS Returns
 router.post('/returns', requireRole(['POS User','Accountant']), auditLogger('CREATE', 'POS_RETURN'), posController.createReturn);
+router.get('/returns', requireRole(['POS User', 'Accountant']),posController.getReturns)
 
 // Customers with balances
 router.get('/customers-with-balances', requireRole(['POS User','Accountant']), posController.getCustomersWithBalances);

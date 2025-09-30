@@ -14,8 +14,8 @@ const posReturnSchema = z.object({
   returnLines: z.array(z.object({
     originalLineId: z.string().min(1, 'Original line is required'),
     itemId: z.string().min(1, 'Item is required'),
-    qtyReturned: z.number().positive('Return quantity must be positive'),
-    unitPrice: z.number().positive('Unit price must be positive'),
+    qtyReturned: z.coerce.number().min(0,'Return quantity must be positive'),
+    unitPrice: z.coerce.number().positive('Unit price must be positive'),
   })).min(1, 'At least one item must be returned'),
 });
 
@@ -71,14 +71,16 @@ const PosReturnsModal = ({ session, onClose, onReturnComplete }: PosReturnsModal
 
   const onSubmit = async (data: PosReturnFormData) => {
     try {
+     
       // Filter out lines with zero quantity
       const validReturnLines = data.returnLines.filter(line => line.qtyReturned > 0);
       
       if (validReturnLines.length === 0) {
+
         toast.error('Please specify quantities to return');
         return;
       }
-
+      
       await posApi.createReturn({
         ...data,
         sessionId: session.id,
@@ -103,6 +105,11 @@ const PosReturnsModal = ({ session, onClose, onReturnComplete }: PosReturnsModal
       return sum + (line.qtyReturned || 0) * (line.unitPrice || 0);
     }, 0) || 0;
   };
+
+  React.useEffect(() => {
+  console.log("Form errors:", errors);
+}, [errors]);
+
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -252,7 +259,7 @@ const PosReturnsModal = ({ session, onClose, onReturnComplete }: PosReturnsModal
                               </div>
                               <input type="hidden" {...register(`returnLines.${index}.originalLineId`)} />
                               <input type="hidden" {...register(`returnLines.${index}.itemId`)} />
-                              <input type="hidden" {...register(`returnLines.${index}.unitPrice`)} />
+                              <input type="hidden" {...register(`returnLines.${index}.unitPrice`, {valueAsNumber:true})} />
                             </div>
                             
                             <div>

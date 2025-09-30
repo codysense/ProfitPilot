@@ -22,7 +22,10 @@ export class CashController {
       }
 
       const accounts = await prisma.cashAccount.findMany({
-        where,
+        where: {
+          ...where,
+          NOT: { name: "Memo Clearing" }
+        },
         orderBy: { code: 'asc' }
       });
 

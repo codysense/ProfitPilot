@@ -84,6 +84,8 @@ const PosTerminal = ({ session, onClose, onSaleComplete }: PosTerminalProps) => 
       queryFn: () => cashApi.getCashAccounts()
     });
 
+    const filteredAccounts = cashAccounts?.accounts?.filter((account: any) => account.name !== 'Memo Clearing');
+
     
 
 React.useEffect(() => {
@@ -466,7 +468,7 @@ React.useEffect(() => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
                   <option value="">Select cash account</option>
-                  {cashAccounts?.accounts?.map((account: any) => (
+                  {filteredAccounts?.map((account: any) => (
                     <option key={account.id} value={account.id}>
                       {account.code} - {account.name} (₦{Number(account.balance).toLocaleString()})
                     </option>

@@ -10,21 +10,32 @@ const PosReturnsHistory = () => {
 
   const { data, isLoading } = useQuery({
     queryKey: ['pos-returns-history', { page }],
-    queryFn: () => posApi.getSales({ page, limit: 20 }) // Will be updated to get returns
+    queryFn: () => posApi.getReturns({ page, limit: 20 })
   });
 
+
+  console.log(data)
   const columns = [
     {
       key: 'returnNo',
       header: 'Return No',
       width: 'w-32'
     },
-    {
-      key: 'originalSale.saleNo',
-      header: 'Original Sale',
-      width: 'w-32'
-    },
-    {
+    // {
+    //   key: 'returnLines.item.name',
+    //   header: 'Item Name',
+    //   width: 'w-32'
+    // },
+    
+  {
+  Key: "itemsSummary",
+  header: "Items",
+  cell: (returnRecord: any) => returnRecord.itemsSummary,
+  width: 'w-32'
+},
+
+
+{
       key: 'customer.name',
       header: 'Customer',
       cell: (returnRecord: any) => returnRecord.customer?.name || 'Walk-in Customer',
@@ -54,6 +65,21 @@ const PosReturnsHistory = () => {
       width: 'w-32'
     }
   ];
+
+  const totalRefund = (data?.data ?? []).reduce(
+  (sum, ret) => sum + Number(ret.totalAmount ?? 0),
+  0
+);
+
+const today = new Date();
+today.setHours(0, 0, 0, 0); // start of today
+
+const totalRefundToday = (data?.data ?? [])
+  .filter((ret) => new Date(ret.createdAt) >= today)
+  .reduce((sum, ret) => sum + Number(ret.totalAmount ?? 0), 0);
+
+
+
 
   return (
     <div className="space-y-6">
@@ -99,7 +125,7 @@ const PosReturnsHistory = () => {
                     Total Refunds
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦0 {/* Will be calculated from actual returns data */}
+                    ₦ {Number(totalRefund).toLocaleString() }
                   </dd>
                 </dl>
               </div>
@@ -119,7 +145,7 @@ const PosReturnsHistory = () => {
                     Today's Returns
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    0 {/* Will be calculated from actual returns data */}
+                    ₦ {Number(totalRefundToday).toLocaleString()}
                   </dd>
                 </dl>
               </div>
@@ -129,13 +155,21 @@ const PosReturnsHistory = () => {
       </div>
 
       {/* Placeholder for returns table */}
-      <div className="bg-white shadow rounded-lg p-6">
+      {!data && <div className="bg-white shadow rounded-lg p-6">
         <div className="text-center py-8">
           <RotateCcw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-sm text-gray-500">Returns history will be displayed here</p>
           <p className="text-xs text-gray-400 mt-1">Process returns from the POS terminal to see data</p>
         </div>
-      </div>
+      </div>}
+      <DataTable
+              data={data?.data || []}
+              columns={columns}
+              loading={isLoading}
+              pagination={data?.pagination}
+              onPageChange={setPage}
+              // actions={actions}
+            />
     </div>
   );
 };

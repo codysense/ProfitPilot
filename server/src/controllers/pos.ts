@@ -299,7 +299,74 @@ export class PosController {
     }
   }
 
-  // POS Returns
+  //get POS returns
+
+
+
+async getReturns(req:AuthRequest, res:Response ) {
+ try {
+    const { page = 1, limit = 20, sessionId, customerId, dateFrom, dateTo } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    const where: any = {};
+    if (sessionId) where.sessionId = String(sessionId);
+    if (customerId) where.customerId = String(customerId);
+    if (dateFrom && dateTo) {
+      where.createdAt = {
+        gte: new Date(String(dateFrom)),
+        lte: new Date(String(dateTo)),
+      };
+    }
+
+    const [returns, total] = await Promise.all([
+      prisma.posReturn.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+        include: {
+          customer: { select: { id: true, name: true } },
+          user: { select: { id: true, name: true } },
+          returnLines: {
+            include: { item: { select: { id: true, name: true } } },
+          },
+        },
+      }),
+      prisma.posReturn.count({ where }),
+    ]);
+
+    // 🔑 Transform data: add itemsSummary field
+    const transformed = returns.map((ret) => {
+      const itemsSummary = ret.returnLines
+        .map((line) => `${line.item?.name ?? "Unknown"} (x${line.qtyReturned})`)
+        .join(", ");
+      
+
+      return {
+        ...ret,
+        itemsSummary,
+      };
+    });
+
+    res.json({
+      data: transformed,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Get POS returns error:", error);
+    res.status(500).json({ error: "Failed to fetch POS returns" });
+  }
+};
+
+
+  // Create POS Returns
   async createReturn(req: AuthRequest, res: Response) {
     try {
       const validatedData = createPosReturnSchema.parse(req.body);
