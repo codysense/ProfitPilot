@@ -10,7 +10,7 @@ async function main() {
 
   const permissions = await Promise.all([
     // POS permissions
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'pos.sale.read' },
       update: {},
       create: {
@@ -20,7 +20,7 @@ async function main() {
         description: 'Read POS sales'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'pos.sale.create' },
       update: {},
       create: {
@@ -30,7 +30,7 @@ async function main() {
         description: 'Create POS sales'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'pos.return.create' },
       update: {},
       create: {
@@ -40,7 +40,7 @@ async function main() {
         description: 'Process POS returns'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'pos.session.manage' },
       update: {},
       create: {
@@ -51,7 +51,7 @@ async function main() {
       }
     }),
     // Inventory permissions
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'inventory.item.read' },
       update: {},
       create: {
@@ -61,7 +61,7 @@ async function main() {
         description: 'Read inventory items'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'inventory.item.create' },
       update: {},
       create: {
@@ -71,7 +71,7 @@ async function main() {
         description: 'Create inventory items'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'inventory.bom.read' },
       update: {},
       create: {
@@ -81,7 +81,7 @@ async function main() {
         description: 'Read BOMs'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'inventory.bom.create' },
       update: {},
       create: {
@@ -92,7 +92,7 @@ async function main() {
       }
     }),
     // Sales permissions
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'sales.order.read' },
       update: {},
       create: {
@@ -102,7 +102,7 @@ async function main() {
         description: 'Read sales orders'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'sales.order.create' },
       update: {},
       create: {
@@ -112,7 +112,7 @@ async function main() {
         description: 'Create sales orders'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'sales.customer.read' },
       update: {},
       create: {
@@ -122,7 +122,7 @@ async function main() {
         description: 'Read customers'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'sales.customer.create' },
       update: {},
       create: {
@@ -133,7 +133,7 @@ async function main() {
       }
     }),
     // Purchase permissions
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'purchase.order.read' },
       update: {},
       create: {
@@ -143,7 +143,7 @@ async function main() {
         description: 'Read purchase orders'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'purchase.order.create' },
       update: {},
       create: {
@@ -153,7 +153,7 @@ async function main() {
         description: 'Create purchase orders'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'purchase.vendor.read' },
       update: {},
       create: {
@@ -163,7 +163,7 @@ async function main() {
         description: 'Read vendors'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'purchase.vendor.create' },
       update: {},
       create: {
@@ -174,7 +174,7 @@ async function main() {
       }
     }),
     // Production permissions
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'production.order.read' },
       update: {},
       create: {
@@ -184,7 +184,7 @@ async function main() {
         description: 'Read production orders'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'production.order.create' },
       update: {},
       create: {
@@ -194,7 +194,7 @@ async function main() {
         description: 'Create production orders'
       }
     }),
-    prisma.permission.upsert({
+    await prisma.permission.upsert({
       where: { name: 'production.order.release' },
       update: {},
       create: {
@@ -211,31 +211,31 @@ async function main() {
 //  Create roles
   
   const roles = await Promise.all([
-    prisma.role.upsert({
-      where: { name: 'Account Officer' },
-      update: {},
-      create: {
-        name: 'Account Officer',
-        description: 'Basic accounting operations'
-      }
-    }),
-    prisma.role.upsert({
-      where: { name: 'POS User' },
-      update: {},
-      create: {
-        name: 'POS User',
-        description: 'Point of Sales user with warehouse-specific access'
-      }
-    }),
-    prisma.role.upsert({
-      where: { name: 'CFO' },
-      update: {},
-      create: {
-        name: 'CFO',
-        description: 'Chief Financial Officer with full access'
-      }
-    }),
-    prisma.role.upsert({
+    // prisma.role.upsert({
+    //   where: { name: 'Account Officer' },
+    //   update: {},
+    //   create: {
+    //     name: 'Account Officer',
+    //     description: 'Basic accounting operations'
+    //   }
+    // }),
+    // prisma.role.upsert({
+    //   where: { name: 'POS User' },
+    //   update: {},
+    //   create: {
+    //     name: 'POS User',
+    //     description: 'Point of Sales user with warehouse-specific access'
+    //   }
+    // }),
+    // prisma.role.upsert({
+    //   where: { name: 'CFO' },
+    //   update: {},
+    //   create: {
+    //     name: 'CFO',
+    //     description: 'Chief Financial Officer with full access'
+    //   }
+    // }),
+    await prisma.role.upsert({
       where: { name: 'General Manager' },
       update: {},
       create: {
@@ -249,86 +249,86 @@ async function main() {
 
   // Assign permissions to roles
   // Account Officer permissions
-  const accountOfficerPermissions = [
-    'sales.order.read', 'sales.order.create', 'sales.customer.read', 'sales.customer.create',
-    'purchase.order.read', 'purchase.order.create', 'purchase.vendor.read', 'purchase.vendor.create',
-    'inventory.item.read'
-  ];
+  // const accountOfficerPermissions = [
+  //   'sales.order.read', 'sales.order.create', 'sales.customer.read', 'sales.customer.create',
+  //   'purchase.order.read', 'purchase.order.create', 'purchase.vendor.read', 'purchase.vendor.create',
+  //   'inventory.item.read'
+  // ];
 
-  // POS User permissions
-  const posUserPermissions = [
-    'pos.sale.read', 'pos.sale.create', 'pos.return.create', 'pos.session.manage',
-    'inventory.item.read', 'sales.customer.read', 'sales.customer.create'
-  ];
+  // // POS User permissions
+  // const posUserPermissions = [
+  //   'pos.sale.read', 'pos.sale.create', 'pos.return.create', 'pos.session.manage',
+  //   'inventory.item.read', 'sales.customer.read', 'sales.customer.create'
+  // ];
 
-  for (const permissionName of accountOfficerPermissions) {
-    const permission = permissions.find(p => p.name === permissionName);
-    if (permission) {
-      await prisma.rolePermission.upsert({
-        where: {
-          roleId_permissionId: {
-            roleId: roles[0].id,
-            permissionId: permission.id
-          }
-        },
-        update: {},
-        create: {
-          roleId: roles[0].id,
-          permissionId: permission.id
-        }
-      });
-    }
-  }
+  // for (const permissionName of accountOfficerPermissions) {
+  //   const permission = permissions.find(p => p.name === permissionName);
+  //   if (permission) {
+  //     await prisma.rolePermission.upsert({
+  //       where: {
+  //         roleId_permissionId: {
+  //           roleId: roles[0].id,
+  //           permissionId: permission.id
+  //         }
+  //       },
+  //       update: {},
+  //       create: {
+  //         roleId: roles[0].id,
+  //         permissionId: permission.id
+  //       }
+  //     });
+  //   }
+  // }
 
   // Assign permissions to POS User role
-  for (const permissionName of posUserPermissions) {
-    const permission = permissions.find(p => p.name === permissionName);
-    if (permission) {
-      await prisma.rolePermission.upsert({
-        where: {
-          roleId_permissionId: {
-            roleId: roles[1].id, // POS User role
-            permissionId: permission.id
-          }
-        },
-        update: {},
-        create: {
-          roleId: roles[1].id,
-          permissionId: permission.id
-        }
-      });
-    }
-  }
+  // for (const permissionName of posUserPermissions) {
+  //   const permission = permissions.find(p => p.name === permissionName);
+  //   if (permission) {
+  //     await prisma.rolePermission.upsert({
+  //       where: {
+  //         roleId_permissionId: {
+  //           roleId: roles[1].id, // POS User role
+  //           permissionId: permission.id
+  //         }
+  //       },
+  //       update: {},
+  //       create: {
+  //         roleId: roles[1].id,
+  //         permissionId: permission.id
+  //       }
+  //     });
+  //   }
+  // }
 
   // CFO permissions (all permissions)
-  for (const permission of permissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: roles[2].id, // CFO role
-          permissionId: permission.id
-        }
-      },
-      update: {},
-      create: {
-        roleId: roles[2].id,
-        permissionId: permission.id
-      }
-    });
-  }
+  // for (const permission of permissions) {
+  //   await prisma.rolePermission.upsert({
+  //     where: {
+  //       roleId_permissionId: {
+  //         roleId: roles[2].id, // CFO role
+  //         permissionId: permission.id
+  //       }
+  //     },
+  //     update: {},
+  //     create: {
+  //       roleId: roles[2].id,
+  //       permissionId: permission.id
+  //     }
+  //   });
+  // }
 
   // General Manager permissions (all permissions)
   for (const permission of permissions) {
     await prisma.rolePermission.upsert({
       where: {
         roleId_permissionId: {
-          roleId: roles[3].id, // General Manager role
+          roleId: roles[0].id, // General Manager role
           permissionId: permission.id
         }
       },
       update: {},
       create: {
-        roleId: roles[3].id,
+        roleId: roles[0].id,
         permissionId: permission.id
       }
     });
@@ -340,27 +340,27 @@ async function main() {
   const hashedPassword = await bcrypt.hash('pass4D3mo', 12);
   
   const users = await Promise.all([
-    prisma.user.upsert({
-      where: { email: 'officer@company.com' },
-      update: {},
-      create: {
-        name: 'Account Officer',
-        email: 'officer@company.com',
-        password: hashedPassword,
-        status: 'ACTIVE'
-      }
-    }),
-    prisma.user.upsert({
-      where: { email: 'cfo@company.com' },
-      update: {},
-      create: {
-        name: 'Chief Financial Officer',
-        email: 'cfo@company.com',
-        password: hashedPassword,
-        status: 'ACTIVE'
-      }
-    }),
-    prisma.user.upsert({
+    // prisma.user.upsert({
+    //   where: { email: 'officer@company.com' },
+    //   update: {},
+    //   create: {
+    //     name: 'Account Officer',
+    //     email: 'officer@company.com',
+    //     password: hashedPassword,
+    //     status: 'ACTIVE'
+    //   }
+    // }),
+    // prisma.user.upsert({
+    //   where: { email: 'cfo@company.com' },
+    //   update: {},
+    //   create: {
+    //     name: 'Chief Financial Officer',
+    //     email: 'cfo@company.com',
+    //     password: hashedPassword,
+    //     status: 'ACTIVE'
+    //   }
+    // }),
+    await prisma.user.upsert({
       where: { email: 'gm@company.com' },
       update: {},
       create: {
@@ -376,7 +376,7 @@ async function main() {
 
   // Assign roles to users
   await Promise.all([
-    prisma.userRole.upsert({
+    await prisma.userRole.upsert({
       where: {
         userId_roleId: {
           userId: users[0].id,
@@ -389,32 +389,32 @@ async function main() {
         roleId: roles[0].id
       }
     }),
-    prisma.userRole.upsert({
-      where: {
-        userId_roleId: {
-          userId: users[1].id,
-          roleId: roles[1].id
-        }
-      },
-      update: {},
-      create: {
-        userId: users[1].id,
-        roleId: roles[1].id
-      }
-    }),
-    prisma.userRole.upsert({
-      where: {
-        userId_roleId: {
-          userId: users[2].id,
-          roleId: roles[2].id
-        }
-      },
-      update: {},
-      create: {
-        userId: users[2].id,
-        roleId: roles[2].id
-      }
-    })
+    // prisma.userRole.upsert({
+    //   where: {
+    //     userId_roleId: {
+    //       userId: users[1].id,
+    //       roleId: roles[1].id
+    //     }
+    //   },
+    //   update: {},
+    //   create: {
+    //     userId: users[1].id,
+    //     roleId: roles[1].id
+    //   }
+    // }),
+    // prisma.userRole.upsert({
+    //   where: {
+    //     userId_roleId: {
+    //       userId: users[2].id,
+    //       roleId: roles[2].id
+    //     }
+    //   },
+    //   update: {},
+    //   create: {
+    //     userId: users[2].id,
+    //     roleId: roles[2].id
+    //   }
+    // })
   ]);
 
   console.log('✅ User roles assigned');
@@ -437,7 +437,7 @@ async function main() {
 
   // Create locations
   const locations = await Promise.all([
-    prisma.location.upsert({
+    await prisma.location.upsert({
       where: { code: 'LAG' },
       update: {},
       create: {
@@ -450,7 +450,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.location.upsert({
+    await prisma.location.upsert({
       where: { code: 'ABJ' },
       update: {},
       create: {
@@ -469,7 +469,7 @@ async function main() {
 
   // Create warehouses
   const warehouses = await Promise.all([
-    prisma.warehouse.upsert({
+     prisma.warehouse.upsert({
       where: { code: 'MAIN' },
       update: {},
       create: {
@@ -644,7 +644,7 @@ async function main() {
   // Create Chart of Accounts
   const accounts = await Promise.all([
     // Assets
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '1000' },
       update: {},
       create: {
@@ -654,7 +654,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '1100' },
       update: {},
       create: {
@@ -665,7 +665,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '1200' },
       update: {},
       create: {
@@ -675,7 +675,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '1300' },
       update: {},
       create: {
@@ -685,7 +685,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '1350' },
       update: {},
       create: {
@@ -695,7 +695,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '1400' },
       update: {},
       create: {
@@ -706,7 +706,7 @@ async function main() {
       }
     }),
     // Liabilities
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '2000' },
       update: {},
       create: {
@@ -716,7 +716,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '2100' },
       update: {},
       create: {
@@ -726,7 +726,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+   await prisma.chartOfAccount.upsert({
       where: { code: '2150' },
       update: {},
       create: {
@@ -737,7 +737,7 @@ async function main() {
       }
     }),
     // Revenue
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '4000' },
       update: {},
       create: {
@@ -748,7 +748,7 @@ async function main() {
       }
     }),
     // Expenses
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '5000' },
       update: {},
       create: {
@@ -758,7 +758,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '5150' },
       update: {},
       create: {
@@ -768,7 +768,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '5200' },
       update: {},
       create: {
@@ -778,7 +778,7 @@ async function main() {
         isActive: true
       }
     }),
-    prisma.chartOfAccount.upsert({
+    await prisma.chartOfAccount.upsert({
       where: { code: '8100' },
       update: {},
       create: {

@@ -267,7 +267,7 @@ const CashAccountManagement = () => {
   // Get GL accounts for cash/bank
   const cashGLAccounts = chartAccounts?.accounts?.filter((acc: any) => 
     ['CURRENT_ASSETS'].includes(acc.accountType) && 
-    (acc.name.toLowerCase().includes('cash') || acc.name.toLowerCase().includes('bank'))
+    (acc.name.toLowerCase().includes('cash') || acc.name.toLowerCase().includes('bank') || acc.name.toLowerCase().includes('Memo'))
   ) || [];
 
   return (
