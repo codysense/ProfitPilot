@@ -220,13 +220,13 @@ const filteredCustomers =
 
                 <div className="space-y-4">
                   {fields.map((field, index) => {
-                    const [query, setQuery] = useState('');
-                    const filteredItems =
-                      query === ''
-                        ? items?.items ?? []
-                        : items?.items?.filter((item: any) =>
-                            `${item.sku} ${item.name}`.toLowerCase().includes(query.toLowerCase())
-                          );
+                    // const [query, setQuery] = useState('');
+                  // const filteredItems =
+                  //     query === ''
+                  //       ? items?.items ?? []
+                  //       : items?.items?.filter((item: any) =>
+                  //           `${item.sku} ${item.name}`.toLowerCase().includes(query.toLowerCase())
+                  //         );
 
                     return (
                       <div key={field.id} className="bg-gray-50 p-4 rounded-lg">
