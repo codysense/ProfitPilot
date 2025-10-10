@@ -4,29 +4,29 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { cashApi, salesApi } from '../../lib/api';
+import { cashApi, purchaseApi } from '../../lib/api';
 import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
-import { CustomerSelect } from '../../components/CustomerSelect';
+import { VendorSelect } from '../../components/VendorSelect';
 
-const createCustomerPaymentSchema = z.object({
-  customerId: z.string().min(1, 'Customer is required'),
+const createVendorRefundSchema = z.object({
+  vendorId: z.string().min(1, 'Vendor is required'),
   cashAccountId: z.string().min(1, 'Cash account is required'),
   amount: z.number().positive('Amount must be positive'),
-  paymentDate: z.string().min(1, 'Payment date is required'),
+  refundDate: z.string().min(1, 'Refund date is required'),
   reference: z.string().optional(),
   notes: z.string().optional(),
-  saleId: z.string().optional(),
+  purchaseId: z.string().optional(),
 });
 
-type CreateCustomerPaymentFormData = z.infer<typeof createCustomerPaymentSchema>;
+type CreateVendorRefundFormData = z.infer<typeof createVendorRefundSchema>;
 
-interface CreateCustomerPaymentModalProps {
+interface CreateVendorRefundModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymentModalProps) => {
+const CreateVendorRefundModal = ({ onClose, onSuccess }: CreateVendorRefundModalProps) => {
   const {
     register,
     handleSubmit,
@@ -35,56 +35,55 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
     reset,
     getValues,
     formState: { errors, isSubmitting }
-  } = useForm<CreateCustomerPaymentFormData>({
-    resolver: zodResolver(createCustomerPaymentSchema),
+  } = useForm<CreateVendorRefundFormData>({
+    resolver: zodResolver(createVendorRefundSchema),
     defaultValues: {
-      paymentDate: new Date().toISOString().split('T')[0]
+      refundDate: new Date().toISOString().split('T')[0]
     }
   });
 
-  const selectedCustomerId = watch('customerId');
-  const selectedSaleId = watch('saleId');
+  const selectedVendorId = watch('vendorId');
+  const selectedPurchaseId = watch('purchaseId');
 
-  const { data: customers } = useQuery({
-    queryKey: ['customers-for-payment'],
-    queryFn: () => salesApi.getCustomers({ limit: 100 })
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors-for-Refund'],
+    queryFn: () => purchaseApi.getVendors({ limit: 100 })
   });
 
   const { data: cashAccounts } = useQuery({
-    queryKey: ['cash-accounts-for-payment'],
+    queryKey: ['cash-accounts-for-Refund'],
     queryFn: () => cashApi.getCashAccounts()
   });
 
-  const { data: customerSales } = useQuery({
-    queryKey: ['customer-sales', selectedCustomerId],
-    queryFn: () => selectedCustomerId ? 
-      salesApi.getSales({ customerId: selectedCustomerId, status: 'INVOICED', limit: 100 }) : null,
-    enabled: !!selectedCustomerId
+  const { data: vendorPurchases } = useQuery({
+    queryKey: ['vendor-purchases', selectedVendorId],
+    queryFn: () => selectedVendorId ? 
+      purchaseApi.getPurchases({ vendorId: selectedVendorId, status: 'PAID', limit: 100 }) : null,
+    enabled: !!selectedVendorId
   });
 
-  // Auto-populate amount when sale is selected
+  // Auto-populate amount when purchase is selected
   React.useEffect(() => {
-    if (selectedSaleId && customerSales?.sales) {
-      const selectedSale = customerSales.sales.find((sale: any) => sale.id === selectedSaleId);
-      if (selectedSale) {
-        setValue('amount', selectedSale.totalAmount);
+    if (selectedPurchaseId && vendorPurchases?.purchases) {
+      const selectedPurchase = vendorPurchases.purchases.find((purchase: any) => purchase.id === selectedPurchaseId);
+      if (selectedPurchase) {
+        setValue('amount', selectedPurchase.totalAmount);
       }
     }
-  }, [selectedSaleId, customerSales, setValue]);
+  }, [selectedPurchaseId, vendorPurchases, setValue]);
 
-  const onSubmit = async (data: CreateCustomerPaymentFormData) => {
+  const onSubmit = async (data: CreateVendorRefundFormData) => {
     try {
-      await cashApi.createCustomerPayment(data);
-      
-      toast.success('Customer payment recorded successfully');
+      await cashApi.createVendorRefund(data);
+      toast.success('Vendor Refund recorded successfully');
       onSuccess();
     } catch (error) {
-      console.error('Create customer payment error:', error);
+      console.error('Create vendor Refund error:', error);
     }
   };
 
-  const selectedCustomer = customers?.customers?.find((customer: any) => customer.id === selectedCustomerId);
-  const selectedSale = customerSales?.sales?.find((sale: any) => sale.id === selectedSaleId);
+  const selectedVendor = vendors?.vendors?.find((vendor: any) => vendor.id === selectedVendorId);
+  const selectedPurchase = vendorPurchases?.purchases?.find((purchase: any) => purchase.id === selectedPurchaseId);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -95,7 +94,7 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Record Customer Payment
+                Record Vendor Refund
               </h3>
               <button
                 onClick={onClose}
@@ -108,68 +107,55 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Customer *
+                  Vendor *
                 </label>
-
-                <CustomerSelect
-                  value={watch("customerId")}
-                  onChange={(val) => reset({ ...getValues(), customerId: val })}
-                  error={errors.customerId?.message}
+               <VendorSelect
+                value={watch("vendorId")}
+                onChange={(val) => reset({ ...getValues(), vendorId: val })}
+                error={errors.vendorId?.message}
                 />
-
-                {/* <select
-                  {...register('customerId')}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="">Select customer</option>
-                  {customers?.customers?.map((customer: any) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.code} - {customer.name}
-                    </option>
-                  ))}
-                </select> */}
-                {errors.customerId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.customerId.message}</p>
+                {errors.vendorId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.vendorId.message}</p>
                 )}
               </div>
 
-              {selectedCustomerId && customerSales?.sales && customerSales.sales.length > 0 && (
+              {selectedVendorId && vendorPurchases?.purchases && vendorPurchases.purchases.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Sales Order (Optional)
+                    Purchase Order
                   </label>
                   <select
-                    {...register('saleId')}
+                    {...register('purchaseId')}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
-                    <option value="">General payment (not against specific order)</option>
-                    {customerSales.sales.map((sale: any) => (
-                      <option key={sale.id} value={sale.id}>
-                        {sale.orderNo} - ₦{sale.totalAmount.toLocaleString()} ({sale.status})
+                    <option value="">General Refund (not against specific order)</option>
+                    {vendorPurchases.purchases.map((purchase: any) => (
+                      <option key={purchase.id} value={purchase.id}>
+                        {purchase.orderNo} - ₦{purchase.totalAmount.toLocaleString()} ({purchase.status})
                       </option>
                     ))}
                   </select>
                 </div>
               )}
 
-              {selectedSale && (
+              {selectedPurchase && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-500">Order No:</span>
-                      <div className="font-medium">{selectedSale.orderNo}</div>
+                      <div className="font-medium">{selectedPurchase.orderNo}</div>
                     </div>
                     <div>
                       <span className="text-gray-500">Invoice Amount:</span>
-                      <div className="font-medium">₦{selectedSale.totalAmount.toLocaleString()}</div>
+                      <div className="font-medium">₦{selectedPurchase.totalAmount.toLocaleString()}</div>
                     </div>
                     <div>
                       <span className="text-gray-500">Order Date:</span>
-                      <div className="font-medium">{new Date(selectedSale.orderDate).toLocaleDateString()}</div>
+                      <div className="font-medium">{new Date(selectedPurchase.orderDate).toLocaleDateString()}</div>
                     </div>
                     <div>
                       <span className="text-gray-500">Status:</span>
-                      <div><StatusBadge status={selectedSale.status} /></div>
+                      <div><StatusBadge status={selectedPurchase.status} /></div>
                     </div>
                   </div>
                 </div>
@@ -198,15 +184,15 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Payment Date *
+                    Refund Date *
                   </label>
                   <input
-                    {...register('paymentDate')}
+                    {...register('refundDate')}
                     type="date"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
-                  {errors.paymentDate && (
-                    <p className="mt-1 text-sm text-red-600">{errors.paymentDate.message}</p>
+                  {errors.refundDate && (
+                    <p className="mt-1 text-sm text-red-600">{errors.refundDate.message}</p>
                   )}
                 </div>
               </div>
@@ -214,7 +200,7 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Amount Received *
+                    Amount Paid *
                   </label>
                   <input
                     {...register('amount', { valueAsNumber: true })}
@@ -248,16 +234,16 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                   {...register('notes')}
                   rows={3}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Payment notes or additional details"
+                  placeholder="Refund notes or additional details"
                 />
               </div>
 
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-green-900 mb-2">Accounting Impact:</h4>
-                <div className="text-sm text-green-800 space-y-1">
-                  <div>• Cash Account will be <strong>debited</strong> (increased)</div>
-                  <div>• Trade Receivables will be <strong>credited</strong> (decreased)</div>
-                  <div>• Customer balance will be reduced</div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Accounting Impact:</h4>
+                <div className="text-sm text-blue-800 space-y-1">
+                  <div>• Trade Payables will be <strong>credited</strong> (increased)</div>
+                  <div>• Cash Account will be <strong>debited</strong> (decreased)</div>
+                  <div>• Vendor balance will be increased</div>
                 </div>
               </div>
               
@@ -272,9 +258,9 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Recording...' : 'Record Payment'}
+                  {isSubmitting ? 'Recording...' : 'Record Refund'}
                 </button>
               </div>
             </form>
@@ -285,4 +271,4 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
   );
 };
 
-export default CreateCustomerPaymentModal;
+export default CreateVendorRefundModal;

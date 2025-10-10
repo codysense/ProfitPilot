@@ -193,33 +193,76 @@ React.useEffect(() => {
   const handlePrintReceipt = async (saleId: string) => {
   try {
     const printData = await posApi.printReceipt(saleId);
+    const printerWidth = localStorage.getItem('printerWidth') || '80'; // default to 80mm
+    const paperWidth = `${printerWidth}mm`;
 
-    // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=400,height=600');
-    if (!printWindow) {
-      throw new Error('Unable to open print window');
-    }
+    if (!printWindow) throw new Error('Unable to open print window');
 
-    // Build receipt HTML
     const receiptHTML = `
       <html>
         <head>
           <title>Receipt - ${printData.printData.documentNo}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 10px; max-width: 300px; margin: auto; }
-            h1, h2 { margin: 5px 0; font-size: 14px; text-align: center; }
-            table { width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 10px; }
-            th, td { padding: 2px; }
-            th { border-bottom: 1px solid #000; text-align: left; }
-            td { text-align: right; }
-            td:first-child { text-align: left; }
-            .totals { border-top: 1px solid #000; padding-top: 5px; font-size: 12px; }
-            .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #666; }
+            @page {
+              size: ${paperWidth} auto;
+              margin: 0;
+            }
+
+            body {
+              font-family: Arial, sans-serif;
+              width: ${paperWidth};
+              padding: 5mm;
+              margin: 0;
+            }
+
+            h1, h2 {
+              margin: 5px 0;
+              font-size: 14px;
+              text-align: center;
+            }
+
+            table {
+              width: 100%;
+              font-size: 11px;
+              border-collapse: collapse;
+              margin-bottom: 10px;
+            }
+
+            th, td {
+              padding: 2px;
+            }
+
+            th {
+              border-bottom: 1px solid #000;
+              text-align: left;
+            }
+
+            td {
+              text-align: right;
+            }
+
+            td:first-child {
+              text-align: left;
+            }
+
+            .totals {
+              border-top: 1px solid #000;
+              padding-top: 5px;
+              font-size: 12px;
+            }
+
+            .footer {
+              text-align: center;
+              margin-top: 20px;
+              font-size: 10px;
+              color: #666;
+            }
           </style>
         </head>
         <body>
           <div>
-            <h1>${companyInformations.name}</h1>
+            <h1>${companyInformations.name} </h1>
             <h2>${companyInformations.address}</h2>
             <h2>${companyInformations.phone}</h2>
           </div>
@@ -284,6 +327,7 @@ React.useEffect(() => {
             Thank you for your business!<br>
             ProfitPilot ERP System
           </div>
+
           <script>
             window.onload = function() {
               window.print();
@@ -294,7 +338,6 @@ React.useEffect(() => {
       </html>
     `;
 
-    // Write to print window
     printWindow.document.open();
     printWindow.document.write(receiptHTML);
     printWindow.document.close();
@@ -302,6 +345,7 @@ React.useEffect(() => {
     console.error('Print receipt error:', error);
   }
 };
+
 
 
   // const handlePrintReceipt = async (saleId: string) => {

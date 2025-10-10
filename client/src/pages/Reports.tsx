@@ -20,6 +20,8 @@ import { DataTable } from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 import { ReportExporter } from '../utils/reportExport';
 import toast from 'react-hot-toast';
+import { CustomerSelect } from '../components/CustomerSelect';
+import { VendorSelect } from '../components/VendorSelect';
 
 const Reports = () => {
   const [selectedReport, setSelectedReport] = useState('');
@@ -34,6 +36,8 @@ const Reports = () => {
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [ accountFilter, setAccountFilter] = useState('')
+  const [customerId, setCustomerId] = useState("");
+
 
   // Get filter options
   const { data: warehouses } = useQuery({
@@ -64,7 +68,7 @@ const Reports = () => {
     
   })
 
-  console.log(accounts)
+  // console.log(accounts)
 
 
 
@@ -378,7 +382,7 @@ const Reports = () => {
           break;
         case 'customer-ledger':
          
-          if (!customerFilter) {
+          if (!customerId) {
             alert('Please select a customer');
             return;
           }
@@ -388,7 +392,7 @@ const Reports = () => {
             return;
           }
           data = await reportsApi.getCustomerLedger({
-            dateFrom,dateTo, customerId: customerFilter});
+            dateFrom,dateTo, customerId: customerId});
         break;
         case 'vendor-ledger':
          
@@ -965,7 +969,15 @@ const Reports = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Customers *
                   </label>
-                  <select
+                  
+<CustomerSelect
+  value={customerId}
+  onChange={setCustomerId}
+  typeFilter="retail"
+  error=""
+/>
+
+                  {/* <select
                     value={customerFilter}
                     onChange={(e) => setCustomerFilter(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -976,7 +988,7 @@ const Reports = () => {
                         {customer.code} - {customer.name}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                 </div>
               )}
               {selectedReportConfig?.supportAccount && (
@@ -1022,7 +1034,13 @@ const Reports = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Vendors *
                   </label>
-                  <select
+
+                  <VendorSelect
+                  value={vendorFilter}
+                  onChange={setVendorFilter}
+                  error=''
+                  />
+                  {/* <select
                     value={vendorFilter}
                     onChange={(e) => setVendorFilter(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -1033,7 +1051,7 @@ const Reports = () => {
                         {vendor.code} - {vendor.name}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                 </div>
               )}
 

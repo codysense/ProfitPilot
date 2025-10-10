@@ -56,7 +56,7 @@ const PurchasePayments = () => {
       ...(cashAccountFilter && { cashAccountId: cashAccountFilter })
     })
   });
-
+console.log(data)
   const { data: vendors } = useQuery({
     queryKey: ['vendors-for-payments'],
     queryFn: () => purchaseApi.getVendors({ limit: 100 })

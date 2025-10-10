@@ -13,13 +13,12 @@ interface Customer {
 }
 
 interface CustomerSelectProps {
-  customers: Customer[];
-  value: string;
-  onChange: (value: string) => void;
+  customers?: Customer[]; // make optional since you fetch inside anyway
+  value?: string; // make optional
+  onChange?: (value: string) => void; // optional handler
   error?: string;
-  typeFilter?:string;
+  typeFilter?: string;
 }
-
 export function CustomerSelect({  value, onChange, error, typeFilter }: CustomerSelectProps) {
   const [query, setQuery] = useState("");
 
@@ -74,7 +73,8 @@ const [page, setPage] = useState(1);
 
   return (
     <div>
-      <Combobox value={value} onChange={onChange}>
+      <Combobox value={value || ""} onChange={onChange || (() => {})}>
+
         <div className="relative mt-1">
           <div className="relative w-full cursor-default overflow-hidden rounded-md border border-gray-300 bg-white text-left shadow-sm focus-within:ring-2 focus-within:ring-blue-500 sm:text-sm">
             <Combobox.Input

@@ -42,10 +42,11 @@ import UserManagement from './pages/UserManagement';
 // Cash Management Pages  
 import Cashbook from './pages/cash/Cashbook';
 import CustomerPayments from './pages/cash/CustomerPayments';
+import CustomerRefunds from './pages/cash/CustomerRefunds';
 import VendorPayments from './pages/cash/VendorPayments';
 import SalesReceipts from './pages/cash/SalesReceipts';
 import PurchasePayments from './pages/cash/PurchasePayments';
-// import CustomerJournal from './pages/cash/CustomerJournal'
+import VendorRefunds from './pages/cash/VendorRefunds'
 
 
 // Management Pages
@@ -262,6 +263,11 @@ function App() {
                 <VendorPayments />
               </ProtectedRoute>
             } />
+            <Route path="/cash/vendor-refunds" element={
+              <ProtectedRoute>
+                <VendorRefunds />
+              </ProtectedRoute>
+            } />
             <Route path="/cash/sales-receipts" element={
               <ProtectedRoute>
                 <SalesReceipts />
@@ -270,6 +276,11 @@ function App() {
             <Route path="/cash/purchase-payments" element={
               <ProtectedRoute>
                 <PurchasePayments />
+              </ProtectedRoute>
+            } />
+            <Route path="/cash/customer-refunds" element={
+              <ProtectedRoute>
+                <CustomerRefunds />
               </ProtectedRoute>
             } />
             

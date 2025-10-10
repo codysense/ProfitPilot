@@ -518,7 +518,7 @@ async getPOSSalesReport(params: {
         c.name AS customer_name,
         COALESCE(SUM(s."totalAmount"), 0) AS total_sales,
         COALESCE(SUM(sr."amountReceived"), 0) AS total_receipts,
-        COALESCE(SUM(s."totalAmount"), 0) - COALESCE(SUM(sr."amountReceived"), 0) AS outstanding_balance
+        COALESCE(SUM(s."totalAmount"), 0) - COALESCE(SUM(sr."amountReceived"), 0) - COALESCE(SUM(srr."amountRefunded"), 0) AS outstanding_balance
     FROM customers c
     LEFT JOIN sales s 
         ON s."customerId" = c.id 
@@ -527,6 +527,9 @@ async getPOSSalesReport(params: {
     LEFT JOIN sales_receipts sr 
         ON sr."customerId" = c.id 
        AND date(sr."receiptDate") <= $1
+    LEFT JOIN sales_refunds srr 
+        ON srr."customerId" = c.id 
+       AND date(srr."refundDate") <= $1
     GROUP BY c.id, c.code, c.name
     ORDER BY c.name;
   `, asOfDate);
@@ -552,6 +555,12 @@ async getCustomerLedger( fromDate : Date, toDate:Date, customerId:string){
       FROM sales_receipts sr
       WHERE sr."customerId" = $1
         AND sr."receiptDate" <= $2
+      UNION ALL
+
+      SELECT -srr."amountRefunded" as balance
+      FROM sales_refunds srr
+      WHERE srr."customerId" = $1
+        AND srr."refundDate" <= $2
     ) x
     `,
     customerId,
@@ -610,6 +619,23 @@ async getCustomerLedger( fromDate : Date, toDate:Date, customerId:string){
     INNER JOIN "customers" c ON sr."customerId" = c."id"
     WHERE c."id" =$1
       AND sr."receiptDate" BETWEEN $2 AND $3
+    UNION ALL
+
+    SELECT 
+      'CUSTOMER' as type,
+      c."code" as account_code,
+      c."name" as account_name,
+      'REFUND' as transaction_type,
+      srr."refundNo" as reference,
+      srr."refundDate" as date,
+      0 as credit,
+      srr."amountRefunded" as debit,
+      srr."amountRefunded" as balance,
+      CONCAT('Payment refunded  ', COALESCE(srr."reference", '')) as description 
+    FROM sales_refunds srr
+    INNER JOIN "customers" c ON srr."customerId" = c."id"
+    WHERE c."id" =$1
+      AND srr."refundDate" BETWEEN $2 AND $3
 
     ORDER BY date, reference
     `,
@@ -654,6 +680,12 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
       FROM purchase_payments pp
       WHERE pp."vendorId" = $1
         AND pp."paymentDate" < $2
+      UNION ALL
+
+      SELECT -pr."amount" as balance
+      FROM purchase_refunds pr
+      WHERE pr."vendorId" = $1
+        AND pr."refundDate" < $2
     ) x
     `,
     vendorId,
@@ -712,6 +744,23 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
     INNER JOIN "vendors" v ON pp."vendorId" = v."id"
     WHERE v."id" = $1
       AND pp."paymentDate" BETWEEN $2 AND $3
+    UNION ALL
+
+    SELECT 
+      'VENDOR' as type,
+      v."code" as account_code,
+      v."name" as account_name,
+      'REFUND' as transaction_type,
+      pr."refundNo" as reference,
+      pr."refundDate" as date,
+      pr."amount" as credit,
+      0 as debit,
+      -pr."amount" as balance,
+      CONCAT('Refund made  ', COALESCE(pr."reference", '')) as description
+    FROM purchase_refunds pr
+    INNER JOIN "vendors" v ON pr."vendorId" = v."id"
+    WHERE v."id" = $1
+      AND pr."refundDate" BETWEEN $2 AND $3
 
     ORDER BY date, reference
     `,
@@ -758,7 +807,7 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
         v.name AS vendor_name,
         COALESCE(SUM(p."totalAmount"), 0) AS total_purchases,
         COALESCE(SUM(pp."amountPaid"), 0) AS total_payments,
-        COALESCE(SUM(p."totalAmount"), 0) - COALESCE(SUM(pp."amountPaid"), 0) AS outstanding_balance
+        COALESCE(SUM(p."totalAmount"), 0) - COALESCE(SUM(pp."amountPaid"), 0) + COALESCE(SUM(pr."amount"), 0) AS outstanding_balance
     FROM vendors v
     LEFT JOIN purchases p 
         ON p."vendorId" = v.id 
@@ -767,6 +816,9 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
     LEFT JOIN purchase_payments pp 
         ON pp."vendorId" = v.id 
        AND date(pp."paymentDate") <= $1
+    LEFT JOIN purchase_refunds pr 
+        ON pr."vendorId" = v.id 
+       AND date(pr."refundDate") <= $1
     GROUP BY v.id, v.code, v.name
     ORDER BY v.name;
   `, asOfDate);

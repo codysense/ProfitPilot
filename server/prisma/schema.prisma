@@ -42,6 +42,8 @@ model User {
   warehouse       Warehouse?        @relation(fields: [warehouseId], references: [id])
   Memo            Memo[]
   StockAdjustment StockAdjustment[]
+  SalesRefund     SalesRefund[]
+  PurchaseRefund  PurchaseRefund[]
 
   @@map("users")
 }
@@ -382,6 +384,7 @@ model Vendor {
   assets           Asset[]
   Memo             Memo[]
   // PurchaseMemo     PurchaseMemo[]
+  PurchaseRefund   PurchaseRefund[]
 
   @@map("vendors")
 }
@@ -405,6 +408,7 @@ model Customer {
   posReturns    PosReturn[]
   Memo          Memo[]
   //SalesMemo     SalesMemo[]
+  SalesRefund   SalesRefund[]
 
   @@map("customers")
 }
@@ -433,6 +437,7 @@ model Purchase {
   purchaseLines    PurchaseLine[]
   purchasePayments PurchasePayment[]
   assets           Asset[]
+  PurchaseRefund   PurchaseRefund[]
 
   @@map("purchases")
 }
@@ -475,6 +480,7 @@ model Sale {
   customer      Customer       @relation(fields: [customerId], references: [id])
   saleLines     SaleLine[]
   salesReceipts SalesReceipt[]
+  SalesRefund   SalesRefund[]
 
   @@map("sales")
 }
@@ -603,8 +609,10 @@ model CashAccount {
   posSessions      PosSession[]
   posSales         PosSale[]
 
-  chartOfAccount ChartOfAccount? @relation("CashAccountGLAccount", fields: [chartOfAccountId], references: [id])
-  warehouse      Warehouse?      @relation(fields: [warehouseId], references: [id])
+  chartOfAccount ChartOfAccount?  @relation("CashAccountGLAccount", fields: [chartOfAccountId], references: [id])
+  warehouse      Warehouse?       @relation(fields: [warehouseId], references: [id])
+  SalesRefund    SalesRefund[]
+  PurchaseRefund PurchaseRefund[]
 
   @@map("cash_accounts")
 }
@@ -650,12 +658,39 @@ model SalesReceipt {
   createdAt      DateTime @default(now())
 
   // Relations
+  sale        Sale?         @relation(fields: [saleId], references: [id])
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  cashAccount CashAccount   @relation(fields: [cashAccountId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+  refunds     SalesRefund[] @relation("RefundOriginalReceipt")
+
+  @@map("sales_receipts")
+}
+
+model SalesRefund {
+  id             String   @id @default(cuid())
+  refundNo       String   @unique
+  saleId         String?
+  customerId     String
+  cashAccountId  String
+  amountRefunded Decimal  @db.Decimal(15, 2)
+  refundDate     DateTime
+  reference      String?
+  notes          String?
+  userId         String
+  createdAt      DateTime @default(now())
+
+  // Optional link to the original receipt being refunded
+  originalReceiptId String?
+  originalReceipt   SalesReceipt? @relation("RefundOriginalReceipt", fields: [originalReceiptId], references: [id])
+
+  // Relations
   sale        Sale?       @relation(fields: [saleId], references: [id])
   customer    Customer    @relation(fields: [customerId], references: [id])
   cashAccount CashAccount @relation(fields: [cashAccountId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
 
-  @@map("sales_receipts")
+  @@map("sales_refunds")
 }
 
 model PurchasePayment {
@@ -678,6 +713,26 @@ model PurchasePayment {
   user        User        @relation(fields: [userId], references: [id])
 
   @@map("purchase_payments")
+}
+
+model PurchaseRefund {
+  id            String      @id @default(cuid())
+  refundNo      String      @unique
+  vendor        Vendor      @relation(fields: [vendorId], references: [id])
+  vendorId      String
+  cashAccount   CashAccount @relation(fields: [cashAccountId], references: [id])
+  cashAccountId String
+  purchase      Purchase?   @relation(fields: [purchaseId], references: [id])
+  purchaseId    String?
+  amount        Decimal
+  refundDate    DateTime
+  reference     String?
+  notes         String?
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  createdAt     DateTime    @default(now())
+
+  @@map("purchase_refunds")
 }
 
 model SystemSetting {
@@ -1084,7 +1139,7 @@ model AdjustmentLines {
   itemId         String
   qty            Decimal        @db.Decimal(15, 4)
   adjustmentType AdjustmentType
-  value          Decimal?        @db.Decimal(15, 4)
+  value          Decimal?       @db.Decimal(15, 4)
 
   // Relations
   adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)

@@ -490,7 +490,7 @@ export class CashController {
           cashAccountId,
           glAccountId: tradeReceivablesAccount.id,
           transactionType: 'RECEIPT',
-          amount: new Decimal(amount),
+          amount: (new Decimal(amount)),
           description,
           transactionDate: new Date(paymentDate),
           reference,
@@ -565,6 +565,177 @@ export class CashController {
     res.status(400).json({ error: 'Failed to create customer payment' });
   }
 }
+
+async createCustomerRefund(req: AuthRequest, res: Response) {
+  try {
+    const {
+      customerId,
+      cashAccountId,
+      amount,
+      refundDate,
+      reference,
+      notes,
+      saleId, // optional: refund linked to sale
+      originalReceiptId // optional: if refund relates to a specific receipt
+    } = req.body;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate refund number
+      const refundCount = await tx.salesRefund.count();
+      const refundNo = `RF${String(refundCount + 1).padStart(6, '0')}`;
+
+      // Fetch sale if provided
+      let sale: {
+        id: string;
+        totalAmount: any;
+        orderNo: string | null;
+        salesReceipts: { amountReceived: any }[];
+      } | null = null;
+
+      if (saleId) {
+        sale = await tx.sale.findUnique({
+          where: { id: saleId },
+          include: { salesReceipts: true },
+        });
+      }
+
+      // Create refund record
+      const refund = await tx.salesRefund.create({
+        data: {
+          refundNo,
+          saleId: saleId ?? null,
+          customerId,
+          cashAccountId,
+          amountRefunded: new Decimal(amount),
+          refundDate: new Date(refundDate),
+          notes,
+          reference,
+          originalReceiptId,
+          userId: req.user!.id,
+        },
+      });
+
+      // Update sale payment status if fully refunded
+      if (sale) {
+        const totalReceived = sale.salesReceipts.reduce(
+          (sum, r) => sum + Number(r.amountReceived),
+          0
+        );
+        const totalRefunded = await tx.salesRefund.aggregate({
+          _sum: { amountRefunded: true },
+          where: { saleId: sale.id },
+        });
+
+        const netReceived =
+          totalReceived - (Number(totalRefunded._sum.amountRefunded) || 0) - Number(amount);
+
+        if (netReceived <= 0) {
+          await tx.sale.update({
+            where: { id: sale.id },
+            data: { status: "INVOICED" },
+          });
+        }
+      }
+
+      // Generate cash transaction for refund
+      const cashTransactionCount = await tx.cashTransaction.count();
+      const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, "0")}`;
+
+      const tradeReceivablesAccount = await tx.chartOfAccount.findFirst({
+        where: { accountType: "TRADE_RECEIVABLES" },
+      });
+      if (!tradeReceivablesAccount) {
+        throw new Error("Trade Receivables account not found. Please create one first.");
+      }
+
+      // Get customer info for description
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { name: true },
+      });
+
+      let description = `Customer refund to ${customer?.name ?? ""}`;
+      if (sale?.orderNo) description += ` - ${sale.orderNo}`;
+
+      await tx.cashTransaction.create({
+        data: {
+          transactionNo,
+          cashAccountId,
+          glAccountId: tradeReceivablesAccount.id,
+          transactionType: "PAYMENT", // cash going out
+          amount: new Decimal(amount),
+          description,
+          transactionDate: new Date(refundDate),
+          reference,
+          refType: "CUSTOMER_REFUND",
+          refId: refund.id,
+          userId: req.user!.id,
+        },
+      });
+
+      // Decrease cash account balance
+      await tx.cashAccount.update({
+        where: { id: cashAccountId },
+        data: { balance: { decrement: amount } },
+      });
+
+      // Create journal entries
+      const journalCount = await tx.journal.count();
+      const journalNo = `J${String(journalCount + 1).padStart(6, "0")}`;
+
+      const journal = await tx.journal.create({
+        data: {
+          journalNo,
+          date: new Date(refundDate),
+          memo: `Customer refund: ${reference || refundNo}`,
+          postedBy: req.user!.id,
+        },
+      });
+
+      // Get cash account GL account
+      const cashAccount = await tx.cashAccount.findUnique({
+        where: { id: cashAccountId },
+        select: { glAccountId: true },
+      });
+      if (!cashAccount || !cashAccount.glAccountId)
+        throw new Error("Cash account GL not linked or not found");
+
+      // Journal lines — reverse of receipt
+      await tx.journalLine.createMany({
+        data: [
+          {
+            journalId: journal.id,
+            accountId: tradeReceivablesAccount.id, // DR Receivable
+            debit: new Decimal(amount),
+            credit: new Decimal(0),
+            refType: "CUSTOMER_REFUND",
+            refId: refund.id,
+          },
+          {
+            journalId: journal.id,
+            accountId: cashAccount.glAccountId, // CR Cash
+            debit: new Decimal(0),
+            credit: new Decimal(amount),
+            refType: "CUSTOMER_REFUND",
+            refId: refund.id,
+          },
+        ],
+      });
+
+      return refund;
+    },
+    {
+      maxWait: 5000,
+      timeout: 20000,
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("Create customer refund error:", error);
+    res.status(400).json({ error: "Failed to process customer refund" });
+  }
+}
+
 
 
   // Create vendor payment (Purchase Payment)
@@ -733,6 +904,228 @@ export class CashController {
 }
 
 
+//Create Vendor refund
+async createVendorRefund(req: AuthRequest, res: Response) {
+  try {
+    const {
+      vendorId,
+      cashAccountId,
+      amount,
+      refundDate,
+      reference,
+      notes,
+      purchaseId // optional
+    } = req.body;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate refund number
+      const count = await tx.purchaseRefund.count();
+      const refundNo = `PR${String(count + 1).padStart(6, "0")}`;
+
+      // Fetch related purchase if exists
+      let purchase: {
+        id: string;
+        totalAmount: any;
+        orderNo: string | null;
+      } | null = null;
+
+      if (purchaseId) {
+        purchase = await tx.purchase.findUnique({
+          where: { id: purchaseId },
+          select: { id: true, totalAmount: true, orderNo: true, purchasePayments:true }
+        });
+      }
+      // Update purchase status if fully refunded
+      
+
+
+      // Create the refund record
+      const refund = await tx.purchaseRefund.create({
+        data: {
+          refundNo,
+          purchaseId: purchaseId ? purchaseId : null,
+          vendorId,
+          cashAccountId,
+          amount: new Decimal(amount),
+          refundDate: new Date(refundDate),
+          reference,
+          notes,
+          userId: req.user!.id
+        }
+      });
+
+      if (purchase) {
+        // const totalRefunded =
+        //   purchase.purchaseRefund.reduce(
+        //     (sum, p) => sum + Number(p.amountPaid),
+        //     0
+        //   ) + Number(amount);
+
+        if (amount >= Number(purchase.totalAmount)) {
+          await tx.purchase.update({
+            where: { id: purchase.id },
+            data: { status: 'INVOICED' }
+          });
+        }
+      }
+
+      // Create a corresponding cash transaction
+      const cashTransactionCount = await tx.cashTransaction.count();
+      const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, "0")}`;
+
+      // Get Trade Payables GL account
+      const tradePayablesAccount = await tx.chartOfAccount.findFirst({
+        where: {
+          OR: [
+            { accountType: "TRADE_PAYABLES" },
+            { code: "2000" }
+          ]
+        }
+      });
+
+      if (!tradePayablesAccount) {
+        throw new Error(
+          "No Trade Payables account found. Please create one in Chart of Accounts first."
+        );
+      }
+
+      // Build transaction description
+      const vendor = await tx.vendor.findUnique({
+        where: { id: vendorId },
+        select: { name: true }
+      });
+
+      let description = `Vendor refund from ${vendor?.name ?? ""}`;
+      if (purchase?.orderNo) description += ` - ${purchase.orderNo}`;
+
+      await tx.cashTransaction.create({
+        data: {
+          transactionNo,
+          cashAccountId,
+          glAccountId: tradePayablesAccount.id,
+          transactionType: "REFUND",
+          amount: new Decimal(amount),
+          description,
+          transactionDate: new Date(refundDate),
+          reference,
+          refType: "PURCHASE_REFUND",
+          refId: refund.id,
+          userId: req.user!.id
+        }
+      });
+
+      // Update cash account balance (refund increases cash)
+      await tx.cashAccount.update({
+        where: { id: cashAccountId },
+        data: { balance: { increment: amount } }
+      });
+
+      // Create Journal Entries
+      const journalCount = await tx.journal.count();
+      const journalNo = `J${String(journalCount + 1).padStart(6, "0")}`;
+
+      const journal = await tx.journal.create({
+        data: {
+          journalNo,
+          date: new Date(refundDate),
+          memo: `Vendor refund: ${reference || refundNo}`,
+          postedBy: req.user!.id
+        }
+      });
+
+      // Get cash account's linked GL account
+      const cashAccount = await tx.cashAccount.findUnique({
+        where: { id: cashAccountId },
+        select: { glAccountId: true }
+      });
+
+      if (!cashAccount) throw new Error("Cash account not found");
+      if (!cashAccount.glAccountId)
+        throw new Error("Cash account does not have a linked GL account");
+
+      //  Debit Cash, Credit Trade Payables
+      await tx.journalLine.createMany({
+        data: [
+          {
+            journalId: journal.id,
+            accountId: cashAccount.glAccountId,
+            debit: new Decimal(amount),
+            credit: new Decimal(0),
+            refType: "VENDOR_REFUND",
+            refId: refund.id
+          },
+          {
+            journalId: journal.id,
+            accountId: tradePayablesAccount.id,
+            debit: new Decimal(0),
+            credit: new Decimal(amount),
+            refType: "VENDOR_REFUND",
+            refId: refund.id
+          }
+        ]
+      });
+
+      return refund;
+    }, {
+      maxWait: 5000, // 5s wait
+      timeout: 20000 // 20s max runtime
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("Create vendor refund error:", error);
+    res.status(400).json({ error: "Failed to create vendor refund" });
+  }
+}
+
+async getVendorRefunds(req: AuthRequest, res: Response) {
+  try {
+    const refunds = await prisma.purchaseRefund.findMany({
+      include: {
+        vendor: {
+          select: { name: true },
+        },
+        cashAccount: {
+          select: { name: true,accountType:true },
+          
+        },
+        user: {
+          select: { name: true },
+        },
+        purchase: {
+          select: { orderNo: true, totalAmount: true },
+        },
+      },
+      orderBy: {
+        refundDate: 'desc',
+      },
+    });
+
+    // Optional formatting (for frontend tables)
+    const formatted = refunds.map((r) => ({
+      id: r.id,
+      refundNo: r.refundNo,
+      refundDate: r.refundDate,
+      vendorName: r.vendor?.name || '',
+      cashAccount: r.cashAccount || '',
+      purchaseOrderNo: r.purchase?.orderNo || '',
+      amount: Number(r.amount),
+      reference: r.reference,
+      notes: r.notes,
+      userName: r.user?.name || '',
+      createdAt: r.createdAt,
+    }));
+
+    res.json({ data: formatted });
+  } catch (error) {
+    console.error('Get vendor refunds error:', error);
+    res.status(500).json({ error: 'Failed to fetch vendor refunds' });
+  }
+}
+
+
+
+
   // Get sales receipts
   async getSalesReceipts(req: AuthRequest, res: Response) {
     try {
@@ -781,6 +1174,57 @@ export class CashController {
       res.status(500).json({ error: 'Failed to fetch sales receipts' });
     }
   }
+//Get sales refunds
+async getCustomerRefunds(req: AuthRequest, res: Response) {
+  try {
+    const { page = 1, limit = 10, customerId, cashAccountId } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const where: any = {};
+    if (customerId) where.customerId = customerId;
+    if (cashAccountId) where.cashAccountId = cashAccountId;
+
+    const [refunds, total] = await Promise.all([
+      prisma.salesRefund.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        include: {
+          sale: {
+            select: { orderNo: true, totalAmount: true, status: true },
+          },
+          customer: {
+            select: { code: true, name: true },
+          },
+          cashAccount: {
+            select: { code: true, name: true, accountType: true },
+          },
+          user: {
+            select: { name: true },
+          },
+          originalReceipt: {
+            select: { receiptNo: true, receiptDate: true, amountReceived: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.salesRefund.count({ where }),
+    ]);
+
+    res.json({
+      refunds,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Get sales refunds error:", error);
+    res.status(500).json({ error: "Failed to fetch sales refunds" });
+  }
+}
 
   // Get purchase payments
   async getPurchasePayments(req: AuthRequest, res: Response) {

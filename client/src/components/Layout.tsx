@@ -138,8 +138,9 @@ const Layout = ({ children }: LayoutProps) => {
       children: [
         { name: 'Cashbook', href: '/cash/cashbook' },
         { name: 'Customer Payments', href: '/cash/customer-payments' },
-        { name: 'Vendor Payments', href: '/cash/vendor-payments' }
-        // { name: 'Customer Journal', href: '/cash/customer-journal' }
+        { name: 'Vendor Payments', href: '/cash/vendor-payments' },
+        { name: 'Customer Refunds', href: '/cash/customer-refunds' },
+        { name: 'Vendor Refunds', href: '/cash/vendor-refunds' },
 
       ],
       

@@ -295,11 +295,16 @@ export const cashApi = {
     api.get(`/cash/transactions${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
   createCashTransaction: (data: any) => api.post('/cash/transactions', data),
   
-  // Customer and Vendor Payments
+  // Customer and Vendor Payments and refund
   createCustomerPayment: (data: any) => api.post('/cash/customer-payments', data),
+  createCustomerRefund: (data: any) => api.post('/cash/customer-refunds', data),
   createVendorPayment: (data: any) => api.post('/cash/vendor-payments', data),
+  createVendorRefund: (data: any) => api.post('/cash/vendor-refunds', data),
+  getVendorRefunds: (params?: any) => api.get(`/cash/vendor-refunds${params ? '?' + new URLSearchParams(params).toString() : ''}`),
   createSalesReceipt: (data: any) => api.post('/cash/sales-receipts', data),
   createPurchasePayment: (data: any) => api.post('/cash/purchase-payments', data),
+  
+  getCustomerRefunds: (params?: any) => api.get(`/cash/customer-refunds${params ? '?' + new URLSearchParams(params).toString() : ''}`),
   getSalesReceipts: (params?: any) => api.get(`/cash/sales-receipts${params ? '?' + new URLSearchParams(params).toString() : ''}`),
   getPurchasePayments: (params?: any) => api.get(`/cash/purchase-payments${params ? '?' + new URLSearchParams(params).toString() : ''}`),
   

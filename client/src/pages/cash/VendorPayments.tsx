@@ -44,20 +44,20 @@ const VendorPayments = () => {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['vendor-payments', { page, vendorId: vendorFilter }],
-    queryFn: () => cashApi.getCashTransactions({ 
+    queryFn: () => cashApi.getPurchasePayments({ 
       page, 
       limit: 10,
-      transactionType: 'PAYMENT',
+      // transactionType: 'PAYMENT',
       ...(vendorFilter && { vendorId: vendorFilter })
     })
   });
+  console.log(data);
 
   const { data: vendors } = useQuery({
     queryKey: ['vendors-for-payments'],
     queryFn: () => purchaseApi.getVendors({ limit: 100 })
   });
 
- // console.log(data);
 
   const handlePrintPayment = async (payment: VendorPayment) => {
     try {
@@ -110,7 +110,7 @@ const VendorPayments = () => {
 
   const columns = [
     {
-      key: 'transactionNo',
+      key: 'paymentNo',
       header: 'Payment No',
       width: 'w-32'
     },
@@ -120,9 +120,9 @@ const VendorPayments = () => {
       width: 'w-48'
     },
     {
-      key: 'amount',
+      key: 'amountPaid',
       header: 'Amount Paid',
-      // cell: (payment: VendorPayment) => `₦${Number(payment.amountPaid).toLocaleString()}`,
+       cell: (payment: VendorPayment) => `₦${Number(payment.amountPaid).toLocaleString()}`,
       width: 'w-32'
     },
     {
@@ -143,9 +143,9 @@ const VendorPayments = () => {
       width: 'w-32'
     },
     {
-      key: 'transactionDate',
+      key: 'paymentDate',
       header: 'Payment Date',
-      cell: (payment: VendorPayment) => new Date(payment.transactionDate).toLocaleDateString(),
+      cell: (payment: VendorPayment) => new Date(payment.paymentDate).toLocaleDateString(),
       width: 'w-32'
     },
     {
@@ -249,7 +249,7 @@ const VendorPayments = () => {
                     Total Amount
                   </dt>
                   <dd className="text-2xl font-semibold text-red-600">
-                    ₦{data?.transactions?.reduce((sum: number, p: any) => sum + Number(p.amount), 0).toLocaleString() || '0'}
+                    ₦{data?.payments?.reduce((sum: number, p: any) => sum + Number(p.amountPaid), 0).toLocaleString() || '0'}
                   </dd>
                 </dl>
               </div>
@@ -269,8 +269,8 @@ const VendorPayments = () => {
                     Today's Payments
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.transactions?.filter((p: any) => 
-                      new Date(p.transactionDate).toDateString() === new Date().toDateString()
+                    {data?.payments?.filter((p: any) => 
+                      new Date(p.paymentDate).toDateString() === new Date().toDateString()
                     ).length || 0}
                   </dd>
                 </dl>
@@ -282,13 +282,13 @@ const VendorPayments = () => {
 
       {/* Data Table */}
       <DataTable
-        data={data?.transactions || []}
+        data={data?.payments || []}
         columns={columns}
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
       />
-      {console.log(data)}
+      
       {showCreateModal && (
         <CreateVendorPaymentModal
           onSuccess={handleCreatePayment}

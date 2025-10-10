@@ -9,24 +9,25 @@ import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
 import { CustomerSelect } from '../../components/CustomerSelect';
 
-const createCustomerPaymentSchema = z.object({
+const createCustomerRefundSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
   cashAccountId: z.string().min(1, 'Cash account is required'),
   amount: z.number().positive('Amount must be positive'),
-  paymentDate: z.string().min(1, 'Payment date is required'),
+  refundDate: z.string().min(1, 'Refund date is required'),
   reference: z.string().optional(),
   notes: z.string().optional(),
   saleId: z.string().optional(),
+  originalReceiptId:z.string().optional()
 });
 
-type CreateCustomerPaymentFormData = z.infer<typeof createCustomerPaymentSchema>;
+type CreateCustomerRefundFormData = z.infer<typeof createCustomerRefundSchema>;
 
-interface CreateCustomerPaymentModalProps {
+interface CreateCustomerRefundModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymentModalProps) => {
+const CreateCustomerRefundModal = ({ onClose, onSuccess }: CreateCustomerRefundModalProps) => {
   const {
     register,
     handleSubmit,
@@ -35,10 +36,10 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
     reset,
     getValues,
     formState: { errors, isSubmitting }
-  } = useForm<CreateCustomerPaymentFormData>({
-    resolver: zodResolver(createCustomerPaymentSchema),
+  } = useForm<CreateCustomerRefundFormData>({
+    resolver: zodResolver(createCustomerRefundSchema),
     defaultValues: {
-      paymentDate: new Date().toISOString().split('T')[0]
+      refundDate: new Date().toISOString().split('T')[0]
     }
   });
 
@@ -46,19 +47,25 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
   const selectedSaleId = watch('saleId');
 
   const { data: customers } = useQuery({
-    queryKey: ['customers-for-payment'],
+    queryKey: ['customers-for-refund'],
     queryFn: () => salesApi.getCustomers({ limit: 100 })
   });
 
   const { data: cashAccounts } = useQuery({
-    queryKey: ['cash-accounts-for-payment'],
+    queryKey: ['cash-accounts-for-Refund'],
     queryFn: () => cashApi.getCashAccounts()
   });
 
   const { data: customerSales } = useQuery({
     queryKey: ['customer-sales', selectedCustomerId],
     queryFn: () => selectedCustomerId ? 
-      salesApi.getSales({ customerId: selectedCustomerId, status: 'INVOICED', limit: 100 }) : null,
+      salesApi.getSales({ customerId: selectedCustomerId, status: 'PAID', limit: 100 }) : null,
+    enabled: !!selectedCustomerId
+  });
+  const { data: customerReceipts } = useQuery({
+    queryKey: ['customer-receipts', selectedCustomerId],
+    queryFn: () => selectedCustomerId ? 
+      cashApi.getSalesReceipts({ customerId: selectedCustomerId, limit: 100 }) : null,
     enabled: !!selectedCustomerId
   });
 
@@ -72,14 +79,14 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
     }
   }, [selectedSaleId, customerSales, setValue]);
 
-  const onSubmit = async (data: CreateCustomerPaymentFormData) => {
+  const onSubmit = async (data: CreateCustomerRefundFormData) => {
     try {
-      await cashApi.createCustomerPayment(data);
+      await cashApi.createCustomerRefund(data);
       
-      toast.success('Customer payment recorded successfully');
+      toast.success('Customer refund recorded successfully');
       onSuccess();
     } catch (error) {
-      console.error('Create customer payment error:', error);
+      console.error('Create customer refund error:', error);
     }
   };
 
@@ -95,7 +102,7 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Record Customer Payment
+                Record Customer Refund
               </h3>
               <button
                 onClick={onClose}
@@ -110,13 +117,12 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                 <label className="block text-sm font-medium text-gray-700">
                   Customer *
                 </label>
-
                 <CustomerSelect
-                  value={watch("customerId")}
-                  onChange={(val) => reset({ ...getValues(), customerId: val })}
-                  error={errors.customerId?.message}
+                    customers={customers?.customers || []}
+                    value={watch("customerId")}
+                onChange={(val) => reset({ ...getValues(), customerId: val })}
+                    error={errors.customerId?.message}
                 />
-
                 {/* <select
                   {...register('customerId')}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -136,13 +142,13 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
               {selectedCustomerId && customerSales?.sales && customerSales.sales.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Sales Order (Optional)
+                    Sales Order
                   </label>
                   <select
                     {...register('saleId')}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
-                    <option value="">General payment (not against specific order)</option>
+                    <option value="">General refund (not against specific order)</option>
                     {customerSales.sales.map((sale: any) => (
                       <option key={sale.id} value={sale.id}>
                         {sale.orderNo} - ₦{sale.totalAmount.toLocaleString()} ({sale.status})
@@ -150,6 +156,28 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                     ))}
                   </select>
                 </div>
+
+                    
+              )}
+              {selectedCustomerId && customerReceipts?.sales  && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Receipt Number (Optional)
+                  </label>
+                  <select
+                    {...register('originalReceiptId')}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">General refund (not against specific order)</option>
+                    {customerReceipts.sales.map((sale: any) => (
+                      <option key={sale.ReceiptNo} value={sale.ReceiptNo}>
+                        {sale.ReceiptNo} - ₦{sale.amountReceived.toLocaleString()} 
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                    
               )}
 
               {selectedSale && (
@@ -198,15 +226,15 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Payment Date *
+                    Refund Date *
                   </label>
                   <input
-                    {...register('paymentDate')}
+                    {...register('refundDate')}
                     type="date"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
-                  {errors.paymentDate && (
-                    <p className="mt-1 text-sm text-red-600">{errors.paymentDate.message}</p>
+                  {errors.refundDate && (
+                    <p className="mt-1 text-sm text-red-600">{errors.refundDate.message}</p>
                   )}
                 </div>
               </div>
@@ -214,7 +242,7 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Amount Received *
+                    Refund Amount *
                   </label>
                   <input
                     {...register('amount', { valueAsNumber: true })}
@@ -248,16 +276,16 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                   {...register('notes')}
                   rows={3}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Payment notes or additional details"
+                  placeholder="Refund notes or additional details"
                 />
               </div>
 
               <div className="bg-green-50 p-4 rounded-lg">
                 <h4 className="text-sm font-medium text-green-900 mb-2">Accounting Impact:</h4>
                 <div className="text-sm text-green-800 space-y-1">
-                  <div>• Cash Account will be <strong>debited</strong> (increased)</div>
-                  <div>• Trade Receivables will be <strong>credited</strong> (decreased)</div>
-                  <div>• Customer balance will be reduced</div>
+                  <div>• Cash Account will be <strong>credited</strong> (decreased)</div>
+                  <div>• Trade Receivables will be <strong>debited</strong> (increased)</div>
+                  <div>• Customer balance will be increased</div>
                 </div>
               </div>
               
@@ -272,9 +300,9 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Recording...' : 'Record Payment'}
+                  {isSubmitting ? 'Recording...' : 'Record Refund'}
                 </button>
               </div>
             </form>
@@ -285,4 +313,4 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: CreateCustomerPaymen
   );
 };
 
-export default CreateCustomerPaymentModal;
+export default CreateCustomerRefundModal;
