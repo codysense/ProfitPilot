@@ -518,7 +518,7 @@ async getPOSSalesReport(params: {
         c.name AS customer_name,
         COALESCE(SUM(s."totalAmount"), 0) AS total_sales,
         COALESCE(SUM(sr."amountReceived"), 0) AS total_receipts,
-        COALESCE(SUM(s."totalAmount"), 0) - COALESCE(SUM(sr."amountReceived"), 0) - COALESCE(SUM(srr."amountRefunded"), 0) AS outstanding_balance
+        COALESCE(SUM(s."totalAmount"), 0) - COALESCE(SUM(sr."amountReceived"), 0) + COALESCE(SUM(srr."amountRefunded"), 0) AS outstanding_balance
     FROM customers c
     LEFT JOIN sales s 
         ON s."customerId" = c.id 
@@ -557,7 +557,7 @@ async getCustomerLedger( fromDate : Date, toDate:Date, customerId:string){
         AND sr."receiptDate" <= $2
       UNION ALL
 
-      SELECT -srr."amountRefunded" as balance
+      SELECT srr."amountRefunded" as balance
       FROM sales_refunds srr
       WHERE srr."customerId" = $1
         AND srr."refundDate" <= $2
@@ -628,8 +628,8 @@ async getCustomerLedger( fromDate : Date, toDate:Date, customerId:string){
       'REFUND' as transaction_type,
       srr."refundNo" as reference,
       srr."refundDate" as date,
-      0 as credit,
       srr."amountRefunded" as debit,
+      0 as credit,
       srr."amountRefunded" as balance,
       CONCAT('Payment refunded  ', COALESCE(srr."reference", '')) as description 
     FROM sales_refunds srr
@@ -682,7 +682,7 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
         AND pp."paymentDate" < $2
       UNION ALL
 
-      SELECT -pr."amount" as balance
+      SELECT pr."amount" as balance
       FROM purchase_refunds pr
       WHERE pr."vendorId" = $1
         AND pr."refundDate" < $2
@@ -753,9 +753,9 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
       'REFUND' as transaction_type,
       pr."refundNo" as reference,
       pr."refundDate" as date,
-      pr."amount" as credit,
       0 as debit,
-      -pr."amount" as balance,
+      pr."amount" as credit,
+      pr."amount" as balance,
       CONCAT('Refund made  ', COALESCE(pr."reference", '')) as description
     FROM purchase_refunds pr
     INNER JOIN "vendors" v ON pr."vendorId" = v."id"
@@ -798,6 +798,7 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
       vendor_name: string;
       total_purchases: number;
       total_payments: number;
+      // total_refunds: number;
       outstanding_balance: number;
     }[]
   >(`

@@ -1889,7 +1889,7 @@ const CustomerLedger = ({ data }: { data: any }) => {
         <span>₦{Number(data.openingBalance).toLocaleString()}</span>
       </div>
       <div className="flex justify-end">
-        <span className='mx-2 font-bold'>Total Sales </span>
+        <span className='mx-2 font-bold'>Total Sales/Refunds </span>
         <span>₦{Number(data.totals.totalSales).toLocaleString()}</span>
       </div>
       <div className="flex justify-end">
@@ -1965,7 +1965,7 @@ const VendorLedger = ({ data }: { data: any }) => {
               <span>₦{Number(data.openingBalance).toLocaleString()}</span>
      </div>
      <div  className="flex justify-end">
-              <span className='mx-2 font-bold'>Total Purchases </span>
+              <span className='mx-2 font-bold'>Total Purchases/Refunds </span>
               <span>₦{Number(data.totals.totalPurchases).toLocaleString()}</span>
      </div>
      <div  className="flex justify-end">
