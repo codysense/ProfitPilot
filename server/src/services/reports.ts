@@ -1318,13 +1318,17 @@ async  getMaterialUsage(fromDate :Date, toDate:Date) {
           },
           salesReceipts: {
             select: { amountReceived: true }
+          },
+            SalesRefunds: {
+            select: { amountRefunded: true }
           }
         }
       });
 
       return invoicedSales.map(sale => {
         const totalReceived = sale.salesReceipts.reduce((sum, receipt) => sum + receipt.amountReceived.toNumber(), 0);
-        const outstandingAmount = sale.totalAmount.toNumber() - totalReceived;
+        const totalRefunded = sale.SalesRefunds.reduce((sum, refund) => sum + refund.amountRefunded.toNumber(), 0);
+        const outstandingAmount = sale.totalAmount.toNumber() - totalReceived + totalRefunded;
         const daysPastDue = Math.floor((asOfDate.getTime() - sale.orderDate.getTime()) / (1000 * 60 * 60 * 24));
 
         return {
@@ -1333,6 +1337,7 @@ async  getMaterialUsage(fromDate :Date, toDate:Date) {
           orderDate: sale.orderDate,
           totalAmount: sale.totalAmount.toNumber(),
           amountReceived: totalReceived,
+          AmountRefunded: totalRefunded,
           outstandingAmount,
           daysPastDue,
           agingBucket: daysPastDue <= 30 ? 'Current' : 
@@ -1354,26 +1359,33 @@ async  getMaterialUsage(fromDate :Date, toDate:Date) {
           purchasePayments: {
             select: { amountPaid: true }
           }
+          ,
+          PurchaseRefunds: {
+            select: { amount: true }
+          }
         }
       });
 
       return invoicedPurchases.map(purchase => {
         const totalPaid = purchase.purchasePayments.reduce((sum, payment) => sum + payment.amountPaid.toNumber(), 0);
-        const outstandingAmount = purchase.totalAmount.toNumber() - totalPaid;
+        const totalRefunds = purchase.PurchaseRefunds.reduce((sum, refund) => sum + refund.amount.toNumber(), 0);
+        const outstandingAmount = purchase.totalAmount.toNumber() - totalPaid + totalRefunds;
         const daysPastDue = Math.floor((asOfDate.getTime() - purchase.orderDate.getTime()) / (1000 * 60 * 60 * 24));
-
+        
         return {
           vendor: purchase.vendor,
           orderNo: purchase.orderNo,
           orderDate: purchase.orderDate,
           totalAmount: purchase.totalAmount.toNumber(),
           amountPaid: totalPaid,
+          amountRefunded:totalRefunds,
           outstandingAmount,
           daysPastDue,
           agingBucket: daysPastDue <= 30 ? 'Current' : 
                       daysPastDue <= 60 ? '31-60 Days' :
                       daysPastDue <= 90 ? '61-90 Days' : 'Over 90 Days'
         };
+        
       }).filter(item => item.outstandingAmount > 0);
     }
   }

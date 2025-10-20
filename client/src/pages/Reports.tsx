@@ -1369,9 +1369,9 @@ const VendorBalances = ({ data }: { data: any }) => {
   
     { key: 'vendor_code', header: 'Vendor Code', width: 'w-32' },
     { key: 'vendor_name', header: 'Vendor Name', width: 'w-32' },
-    {key:'total_purchases', header:'Total Purchases', width: 'w-32'},
-    {key:'total_payments', header:'Total Payments', width: 'w-32'},
-    {key:'outstanding_balance', header:'Outstanding Balances', width: 'w-32'},
+    {key:'total_purchases', header:'Total Purchases', cell: (item: any) => `₦${(Number(item.total_purchases) || 0).toLocaleString()}`, width: 'w-32'},
+    {key:'total_payments', header:'Total Payments', cell: (item: any) => `₦${(Number(item.total_payments) || 0).toLocaleString()}`, width: 'w-32'},
+    {key:'outstanding_balance', header:'Outstanding Balances', cell: (item: any) => `₦${(Number(item.outstanding_balance) || 0).toLocaleString()}`, width: 'w-32'},
 
    
   ];
@@ -1458,9 +1458,9 @@ const CustomerBalances = ({ data }: { data: any }) => {
   
     { key: 'customer_code', header: 'Customer Code', width: 'w-32' },
     { key: 'customer_name', header: 'Customer Name', width: 'w-32' },
-    {key:'total_sales', header:'Total Sales', width: 'w-32'},
-    {key:'total_receipts', header:'Total Receipts', width: 'w-32'},
-    {key:'outstanding_balance', header:'Outstanding Balances', width: 'w-32'},
+    {key:'total_sales', header:'Total Sales', cell: (item: any) => `₦${(Number(item.total_sales) || 0).toLocaleString()}`, width: 'w-32'},
+    {key:'total_receipts', header:'Total Receipts', cell: (item: any) => `₦${(Number(item.total_receipts) || 0).toLocaleString()}`, width: 'w-32'},
+    {key:'outstanding_balance', header:'Outstanding Balances', cell: (item: any) => `₦${(Number(item.outstanding_balance) || 0).toLocaleString()}`, width: 'w-32'},
 
    
   ];

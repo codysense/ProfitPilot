@@ -14,7 +14,7 @@ import { inventoryApi, productionApi, purchaseApi, salesApi, cashApi } from '../
 
 const Dashboard = () => {
   const { data: inventory } = useQuery({
-    queryKey: ['inventory-valuation'],
+    queryKey:['inventory-valuation'],
     queryFn: () => inventoryApi.getInventoryValuation()
   });
 
@@ -137,7 +137,7 @@ const Dashboard = () => {
                       <div className={`text-lg font-semibold ${
                         account.balance >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                       ₦{account.balance.toLocaleString('en-NG', {
+                       {Number(account.balance).toLocaleString('en-NG', {
                       style: 'currency',
                       currency: 'NGN'
                         })}
@@ -261,7 +261,7 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-500">{sale.customer.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium">₦{sale.totalAmount.toLocaleString()}</p>
+                  <p className="text-sm font-medium">₦{Number(sale.totalAmount).toLocaleString()}</p>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     sale.status === 'PAID' ? 'bg-green-100 text-green-800' :
                     sale.status === 'INVOICED' ? 'bg-blue-100 text-blue-800' :
