@@ -16,7 +16,8 @@ export class ReportsService {
     const chartAccounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
-        accountType: { in: ['CURRENT_ASSETS','NON_CURRENT_ASSETS', 'TRADE_RECEIVABLES', 'CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY', 'TRADE_PAYABLES', 'EQUITY'] }
+        accountType: { in: ['CURRENT_ASSETS','NON_CURRENT_ASSETS', 'TRADE_RECEIVABLES', 'CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY', 'TRADE_PAYABLES', 'EQUITY'] },
+        name: { notIn: [ 'Memo Cash Clearing'] }
       },
       include: {
         journalLines: {
@@ -31,9 +32,9 @@ export class ReportsService {
     });
 
     // Get cash accounts separately
-    const cashAccounts = await prisma.cashAccount.findMany({
-      // where: { isActive: true }
-    });
+    // const cashAccounts = await prisma.cashAccount.findMany({
+    //   // where: { isActive: true }
+    // });
 
     const assets: any[] = [];
     const liabilities: any[] = [];
@@ -72,18 +73,18 @@ export class ReportsService {
 
 
     // Add cash accounts to assets
-    let totalCashBalance = 0;
-    cashAccounts.forEach(cashAccount => {
+    // let totalCashBalance = 0;
+    // cashAccounts.forEach(cashAccount => {
       
-      const balance = Number(cashAccount.balance);
-      assets.push({
-        accountCode: cashAccount.code,
-        accountName: `${cashAccount.name} (${cashAccount.accountType})`,
-        balance: (balance)
-      });
-      totalAssets +=  balance;
-      totalCashBalance += balance;
-    });
+    //   const balance = Number(cashAccount.balance);
+    //   assets.push({
+    //     accountCode: cashAccount.code,
+    //     accountName: `${cashAccount.name} (${cashAccount.accountType})`,
+    //     balance: (balance)
+    //   });
+    //   totalAssets +=  balance;
+    //   totalCashBalance += balance;
+    // });
 
     const newDate = new Date(fromDate);
     newDate.setDate(newDate.getDate() - 1);
@@ -122,7 +123,7 @@ export class ReportsService {
       totalAssets,
       totalLiabilities,
       totalEquity,
-      totalCashBalance
+      // totalCashBalance
     };
   }
 
@@ -310,15 +311,18 @@ async getPOSSalesReport(params: {
 
   
 
-  async getTrialBalance(asOfDate: Date) {
+  async getTrialBalance(fromDate: Date, toDate: Date) {
     // Get chart of accounts
     const chartAccounts = await prisma.chartOfAccount.findMany({
-      where: { isActive: true },
+      where: { isActive: true,
+       name: { notIn: [ 'Memo Cash Clearing'] } 
+      },
+  
       include: {
         journalLines: {
           where: {
             journal: {
-              date: { lte: asOfDate }
+              date: {gte: fromDate,  lte: toDate }
             }
           }
         }
@@ -349,18 +353,33 @@ async getPOSSalesReport(params: {
       });
     });
 
+    const newDate = new Date(fromDate);
+    newDate.setDate(newDate.getDate() - 1);
+    
+    const {netIncome:retainProfit} = await this.getProfitAndLoss(new Date('01/01/1900'), newDate )
+
+    trialBalanceData.push(
+      {
+        accountName:'Retained Profit',
+        balance: retainProfit,
+        accountCode:'RetPrt001',
+        accountType:"Equity"
+      },
+      
+    )
+
     // Add cash accounts to trial balance
-    cashAccounts.forEach(cashAccount => {
-      const balance = Number(cashAccount.balance);
-      trialBalanceData.push({
-        accountCode: cashAccount.code,
-        accountName: `${cashAccount.name} (${cashAccount.accountType})`,
-        accountType: 'CURRENT_ASSETS',
-        debits: balance >= 0 ? balance : 0,
-        credits: balance < 0 ? Math.abs(balance) : 0,
-        balance: balance
-      });
-    });
+    // cashAccounts.forEach(cashAccount => {
+    //   const balance = Number(cashAccount.balance);
+    //   trialBalanceData.push({
+    //     accountCode: cashAccount.code,
+    //     accountName: `${cashAccount.name} (${cashAccount.accountType})`,
+    //     accountType: 'CURRENT_ASSETS',
+    //     debits: balance >= 0 ? balance : 0,
+    //     credits: balance < 0 ? Math.abs(balance) : 0,
+    //     balance: balance
+    //   });
+    // });
 
     return trialBalanceData.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
   }

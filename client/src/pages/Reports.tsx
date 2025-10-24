@@ -113,7 +113,7 @@ const Reports = () => {
       description: 'All account balances at a specific date',
       icon: BarChart3,
       category: 'Financial',
-      requiresAsOfDate: true
+      requiresDateRange: true
     },
     {
       id: 'general-ledger',
@@ -343,7 +343,11 @@ const Reports = () => {
 });
           break;
         case 'trial-balance':
-          data = await reportsApi.getTrialBalance({ asOfDate });
+          if (!dateFrom || !dateTo) {
+            alert('Please select date range');
+            return;
+          }
+          data = await reportsApi.getTrialBalance({ dateFrom, dateTo });
           break;
         case 'general-ledger':
           if (!dateFrom || !dateTo) {
@@ -1298,6 +1302,70 @@ const ProfitLossReport = ({ data }: { data: any }) => (
   
 );
 
+// const TrialBalanceReport = ({ data }: { data: any }) => {
+//   const columns = [
+//     { key: 'accountCode', header: 'Account Code', width: 'w-32' },
+//     { key: 'accountName', header: 'Account Name', width: 'w-48' },
+//     { key: 'accountType', header: 'Type', width: 'w-32' },
+//     { 
+//       key: 'debits', 
+//       header: 'Debits', 
+//       cell: (item: any) => `₦${Number(item.debits).toLocaleString()}`,
+//       width: 'w-32' 
+//     },
+//     { 
+//       key: 'credits', 
+//       header: 'Credits', 
+//       cell: (item: any) => `₦${Number(item.credits).toLocaleString()}`,
+//       width: 'w-32' 
+//     },
+//     { 
+//       key: 'balance', 
+//       header: 'Balance', 
+//       cell: (item: any) => (
+//         <span className={item.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
+//           ₦{Math.abs(item.balance).toLocaleString()}
+//         </span>
+//       ),
+//       width: 'w-32' 
+//     }
+//   ];
+
+//   // const totalDebits = (data || []).reduce((sum: number, item: any) => sum + (item.debits || 0), 0);
+//   const totalDebits = (data?.reduce((sum: number, item: any) => sum + (item.debits || 0), 0)) ?? 0;
+//   // const totalCredits = (data || []).reduce((sum: number, item: any) => sum + (item.credits || 0), 0);
+//   const totalCredits = (data?.reduce((sum: number, item: any) => sum + (item.credits || 0), 0));
+
+//   return (
+//     <div className="space-y-4">
+//       <div className="text-center">
+//         <h2 className="text-xl font-bold">Trial Balance</h2>
+//         <p className="text-gray-600">As of {new Date(data.asOfDate).toLocaleDateString()}</p>
+//       </div>
+      
+//       <DataTable data={data || []} columns={columns} />
+      
+//       <div className="bg-gray-50 p-4 rounded-lg">
+//         <div className="grid grid-cols-2 gap-4 text-center">
+//           <div>
+//             <div className="text-lg font-semibold">Total Debits</div>
+//             <div className="text-xl text-blue-600">₦{totalDebits.toLocaleString()}</div>
+//           </div>
+//           <div>
+//             <div className="text-lg font-semibold">Total Credits</div>
+//             <div className="text-xl text-blue-600">₦{totalCredits.toLocaleString()}</div>
+//           </div>
+//         </div>
+//         <div className="text-center mt-4">
+//           <div className={`text-sm ${Math.abs(totalDebits - totalCredits) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+//             {Math.abs(totalDebits - totalCredits) < 0.01 ? 'Trial Balance is balanced' : 'Trial Balance is NOT balanced'}
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
 const TrialBalanceReport = ({ data }: { data: any }) => {
   const columns = [
     { key: 'accountCode', header: 'Account Code', width: 'w-32' },
@@ -1306,32 +1374,33 @@ const TrialBalanceReport = ({ data }: { data: any }) => {
     { 
       key: 'debits', 
       header: 'Debits', 
-      cell: (item: any) => `₦${Number(item.debits).toLocaleString()}`,
+      cell: (item: any) => {
+        // All accounts: positive balance goes to debit
+        const value = item.balance >= 0 ? item.balance : 0;
+        return value > 0 ? `₦${Number(value).toLocaleString()}` : '-';
+      },
       width: 'w-32' 
     },
     { 
       key: 'credits', 
       header: 'Credits', 
-      cell: (item: any) => `₦${Number(item.credits).toLocaleString()}`,
-      width: 'w-32' 
-    },
-    { 
-      key: 'balance', 
-      header: 'Balance', 
-      cell: (item: any) => (
-        <span className={item.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
-          ₦{Math.abs(item.balance).toLocaleString()}
-        </span>
-      ),
+      cell: (item: any) => {
+        // All accounts: negative balance goes to credit
+        const value = item.balance < 0 ? Math.abs(item.balance) : 0;
+        return value > 0 ? `₦${Number(value).toLocaleString()}` : '-';
+      },
       width: 'w-32' 
     }
   ];
-
-  // const totalDebits = (data || []).reduce((sum: number, item: any) => sum + (item.debits || 0), 0);
-  const totalDebits = (data?.reduce((sum: number, item: any) => sum + (item.debits || 0), 0)) ?? 0;
-  // const totalCredits = (data || []).reduce((sum: number, item: any) => sum + (item.credits || 0), 0);
-  const totalCredits = (data?.reduce((sum: number, item: any) => sum + (item.credits || 0), 0));
-
+  
+  const totalDebits = (data?.reduce((sum: number, item: any) => {
+    return sum + (item.balance >= 0 ? item.balance : 0);
+  }, 0)) ?? 0;
+  
+  const totalCredits = (data?.reduce((sum: number, item: any) => {
+    return sum + (item.balance < 0 ? Math.abs(item.balance) : 0);
+  }, 0)) ?? 0;
+  
   return (
     <div className="space-y-4">
       <div className="text-center">

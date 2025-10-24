@@ -38,8 +38,12 @@ export class ReportsController {
 
   async getTrialBalance(req: AuthRequest, res: Response) {
     try {
-      const { asOfDate = new Date().toISOString() } = req.query;
-      const report = await reportsService.getTrialBalance(new Date(asOfDate as string));
+      const { dateFrom, dateTo = new Date().toISOString() } = req.query;
+       if (!dateFrom || !dateTo) {
+        return res.status(400).json({ error: 'Date range is required' });
+      }
+      const report = await reportsService.getTrialBalance(new Date(dateFrom as string), 
+        new Date(dateTo as string));
       res.json(report);
     } catch (error) {
       console.error('Trial balance error:', error);
