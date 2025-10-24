@@ -313,22 +313,69 @@ async getPOSSalesReport(params: {
 
   async getTrialBalance(fromDate: Date, toDate: Date) {
     // Get chart of accounts
-    const chartAccounts = await prisma.chartOfAccount.findMany({
-      where: { isActive: true,
-       name: { notIn: [ 'Memo Cash Clearing'] } 
-      },
-  
-      include: {
-        journalLines: {
-          where: {
-            journal: {
-              date: {gte: fromDate,  lte: toDate }
-            }
-          }
+    // For balance sheet accounts (equity, assets, liability)
+// For balance sheet accounts (equity, assets, liability) - EXCLUDING Cash and Bank
+const balanceSheetAccounts = await prisma.chartOfAccount.findMany({
+  where: { 
+    isActive: true,
+    name: { notIn: ['Memo Cash Clearing', 'Cash and Bank'] },
+    accountType: { in: ['EQUITY', 'CURRENT_ASSETS', 'NON_CURRENT_ASSETS', 
+                        'CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY'] }
+  },
+  include: {
+    journalLines: {
+      where: {
+        journal: {
+          date: { lte: toDate } // From inception till toDate
         }
-      },
-      orderBy: { code: 'asc' }
-    });
+      }
+    }
+  },
+  orderBy: { code: 'asc' }
+});
+
+// For Cash and Bank account - using date range
+const cashAndBankAccount = await prisma.chartOfAccount.findMany({
+  where: { 
+    isActive: true,
+    name: 'Cash and Bank',
+    accountType: 'CURRENT_ASSETS'
+  },
+  include: {
+    journalLines: {
+      where: {
+        journal: {
+          date: { gte: fromDate, lte: toDate } // Within date range
+        }
+      }
+    }
+  },
+  orderBy: { code: 'asc' }
+});
+
+// For income/expense accounts
+const incomeExpenseAccounts = await prisma.chartOfAccount.findMany({
+  where: { 
+    isActive: true,
+    name: { notIn: ['Memo Cash Clearing'] },
+    accountType: { notIn: ['EQUITY', 'CURRENT_ASSETS', 'NON_CURRENT_ASSETS', 
+                           'CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY'] }
+  },
+  include: {
+    journalLines: {
+      where: {
+        journal: {
+          date: { gte: fromDate, lte: toDate } // Within date range
+        }
+      }
+    }
+  },
+  orderBy: { code: 'asc' }
+});
+
+// Combine all results
+const chartAccounts = [...balanceSheetAccounts, ...cashAndBankAccount, ...incomeExpenseAccounts]
+  .sort((a, b) => a.code.localeCompare(b.code));
 
     // Get cash accounts
     const cashAccounts = await prisma.cashAccount.findMany({
