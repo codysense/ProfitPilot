@@ -77,25 +77,52 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
     })
   });
 
+  console.log('Customers Data', customers)
+
   const { data: items } = useQuery({
     queryKey: ['items-for-sale'],
     queryFn: () => inventoryApi.getItems({ limit: 100 })
   });
+  console.log('Item Data', items)
+
+  // useEffect(() => {
+  //   watchedLines.forEach((line, index) => {
+  //     if (line.itemId && items?.items && line.unitPrice === 0) {
+  //       const selectedItem = items.items.find((item: any) => item.id === line.itemId);
+  //       const selectedCustomer = customers?.customers?.find((customer: any)=> customer.id === customerId);
+  //       if (selectedItem && selectedCustomer) {
+  //         const unitPrice = selectedCustomer.CustomerGroup === 'Bulk'
+  //           ? selectedItem.sellingPriceBulk
+  //           : selectedItem.sellingPriceOrdinary;
+  //         setValue(`saleLines.${index}.unitPrice`, unitPrice);
+  //       }
+  //     }
+  //   });
+  // }, [watchedItemIds, items, customerId, setValue, watchedLines, customers?.customers]);
 
   useEffect(() => {
-    watchedLines.forEach((line, index) => {
-      if (line.itemId && items?.items && line.unitPrice === 0) {
-        const selectedItem = items.items.find((item: any) => item.id === line.itemId);
-        const selectedCustomer = customers?.customers?.find((customer: any)=> customer.id === customerId);
-        if (selectedItem && selectedCustomer) {
-          const unitPrice = selectedCustomer.CustomerGroup === 'Bulk'
-            ? selectedItem.sellingPriceBulk
-            : selectedItem.sellingPriceOrdinary;
-          setValue(`saleLines.${index}.unitPrice`, unitPrice);
-        }
+  watchedLines.forEach((line, index) => {
+    if (line.itemId && items?.items ) {
+      const selectedItem = items.items.find((item: any) => item.id === line.itemId);
+      const selectedCustomer = customers?.customers?.find((customer: any) => customer.id === customerId);
+
+      if (selectedItem && selectedCustomer) {
+        // find the matching price for this customer's group
+        const customerGroup = selectedCustomer.customerGroup.name; // adjust key if different
+        const groupPrice = selectedItem.priceList?.find(
+          (priceObj: any) => priceObj.customerGroup === customerGroup
+        );
+        console.log('selected customer', selectedCustomer)
+        console.log('selected item', selectedItem)
+        // fallback if no group-specific price found
+        const unitPrice = groupPrice ? groupPrice.price : selectedItem.defaultPrice || 0;
+
+        setValue(`saleLines.${index}.unitPrice`, unitPrice);
       }
-    });
-  }, [watchedItemIds, items, customerId, setValue, watchedLines, customers?.customers]);
+    }
+  });
+}, [watchedItemIds, items, customerId, setValue, watchedLines, customers?.customers]);
+
 
   const calculateTotal = () => {
     return watchedLines.reduce((sum, line) => {

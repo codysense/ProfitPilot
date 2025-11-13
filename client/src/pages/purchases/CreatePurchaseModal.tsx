@@ -34,8 +34,6 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
     handleSubmit,
     watch,
     setValue,
-    getValues,
-    reset,
     formState: { errors, isSubmitting }
   } = useForm<CreatePurchaseFormData>({
     resolver: zodResolver(createPurchaseSchema),

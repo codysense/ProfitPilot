@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { Decimal } from '@prisma/client/runtime/library';
+import { createCashTransactionSchema, reconcileCashTransactionSchema, updateCashTransactionSchema } from '../types/cash';
 
 const prisma = new PrismaClient();
 
@@ -95,225 +96,253 @@ export class CashController {
     }
   }
 
-  // Get cash transactions
-  async getCashTransactions(req: AuthRequest, res: Response) {
-    try {
-      const { 
-        page = 1, 
-        limit = 20, 
-        cashAccountId,
-        transactionType,
-        dateFrom,
-        dateTo
-      } = req.query;
-      
-      const skip = (Number(page) - 1) * Number(limit);
-
-      const where: any = {};
-      if (cashAccountId) where.cashAccountId = cashAccountId;
-      if (transactionType) where.transactionType = transactionType;
-      if (dateFrom || dateTo) {
-        where.transactionDate = {};
-        if (dateFrom) where.transactionDate.gte = new Date(dateFrom as string);
-        if (dateTo) where.transactionDate.lte = new Date(dateTo as string);
-      }
-
-      const [transactions, total] = await Promise.all([
-        prisma.cashTransaction.findMany({
-          where,
-          skip,
-          take: Number(limit),
-          include: {
-            cashAccount: true,
-            glAccount: true,
-            contraAccount: true,
-            user: {
-              select: { name: true, email: true }
-            }
-          },
-          orderBy: { transactionDate: 'desc' }
-        }),
-        prisma.cashTransaction.count({ where })
-      ]);
-
-      res.json({
-        transactions,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit))
-        }
-      });
-    } catch (error) {
-      console.error('Get cash transactions error:', error);
-      res.status(500).json({ error: 'Failed to fetch cash transactions' });
-    }
-  }
-
-  // Create general cash transaction
-  // async createCustomerMemo(req: AuthRequest, res: Response) {
+  // // Get cash transactions
+  // async getCashTransactions(req: AuthRequest, res: Response) {
   //   try {
-  //     const {
-  //       customertId,
-  //       glAccountId,
-  //       contraAccountId,
+  //     const { 
+  //       page = 1, 
+  //       limit = 20, 
+  //       cashAccountId,
   //       transactionType,
-  //       amount,
-  //       description,
-  //       transactionDate,
-  //       reference
-  //     } = req.body;
+  //       dateFrom,
+  //       dateTo
+  //     } = req.query;
+      
+  //     const skip = (Number(page) - 1) * Number(limit);
 
-  //     const result = await prisma.$transaction(async (tx) => {
-  //       // Generate transaction number
-  //       const count = await tx.cashTransaction.count();
-  //       const transactionNo = `CT${String(count + 1).padStart(6, '0')}`;
+  //     const where: any = {};
+  //     if (cashAccountId) where.cashAccountId = cashAccountId;
+  //     if (transactionType) where.transactionType = transactionType;
+  //     if (dateFrom || dateTo) {
+  //       where.transactionDate = {};
+  //       if (dateFrom) where.transactionDate.gte = new Date(dateFrom as string);
+  //       if (dateTo) where.transactionDate.lte = new Date(dateTo as string);
+  //     }
 
-  //       // Create cash transaction
-  //       const cashTransaction = await tx.cashTransaction.create({
-  //         data: {
-  //           transactionNo,
-  //           customerId,
-  //           glAccountId,
-  //           contraAccountId: contraAccountId?? null,
-  //           transactionType,
-  //           amount: new Decimal(amount),
-  //           description,
-  //           transactionDate: new Date(transactionDate),
-  //           reference,
-  //           refType: 'OTHER',
-  //           refId: null,
-  //           userId: req.user!.id
-  //         }
-  //       });
-        
-
-  //       const balanceChange = transactionType === 'CREDIT' ? amount : -amount;
-  //       await tx.cashAccount.update({
-  //         where: { id: customertId },
-  //         data: {
-  //           balance: {
-  //             increment: balanceChange
+  //     const [transactions, total] = await Promise.all([
+  //       prisma.cashTransaction.findMany({
+  //         where,
+  //         skip,
+  //         take: Number(limit),
+  //         include: {
+  //           cashAccount: true,
+  //           glAccount: true,
+  //           contraAccount: true,
+  //           user: {
+  //             select: { name: true, email: true }
   //           }
-  //         }
-  //       });
+  //         },
+  //         orderBy: { transactionDate: 'desc' }
+  //       }),
+  //       prisma.cashTransaction.count({ where })
+  //     ]);
 
-  //       // Create journal entries for double-entry bookkeeping
-  //       const journalCount = await tx.journal.count();
-  //       const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
-
-  //       const journal = await tx.journal.create({
-  //         data: {
-  //           journalNo,
-  //           date: new Date(transactionDate),
-  //           memo: description,
-  //           postedBy: req.user!.id
-  //         }
-  //       });
-  //       // console.log("Journal ", journal)
-  //       // Get cash account's GL account
-  //       const cashAccount = await tx.cashAccount.findUnique({
-  //         where: { id: customertId }
-  //       });
-
-  //       // console.log("CashAcount", cashAccount)
-
-  //       if (transactionType === 'CREDIT') {
-  //         // Debit Cash Account, Credit GL Account
-  //         await tx.journalLine.createMany({
-  //           data: [
-  //             {
-  //               journalId: journal.id,
-  //               accountId:  customertId!.glAccountId!,
-  //               debit: new Decimal(amount),
-  //               credit: new Decimal(0),
-  //               refType: 'MEMO_TRANSACATION',
-  //               refId: cashTransaction.id
-  //             },
-  //             {
-  //               journalId: journal.id,
-  //               accountId: glAccountId,
-  //               debit: new Decimal(0),
-  //               credit: new Decimal(amount),
-  //               refType: 'MEMO_TRANSACTION',
-  //               refId: cashTransaction.id
-  //             }
-  //           ]
-  //         });
-  //       } else {
-  //         // Credit Cash Account, Debit GL Account
-  //         await tx.journalLine.createMany({
-  //           data: [
-  //             {
-  //               journalId: journal.id,
-  //               accountId: glAccountId,
-  //               debit: new Decimal(amount),
-  //               credit: new Decimal(0),
-  //               refType: 'MEMO_TRANSACTION',
-  //               refId: cashTransaction.id
-  //             },
-  //             {
-  //               journalId: journal.id,
-  //               accountId: cashAccount!.glAccountId!,
-  //               debit: new Decimal(0),
-  //               credit: new Decimal(amount),
-  //               refType: 'MEMO_TRANSACTION',
-  //               refId: cashTransaction.id
-  //             }
-  //           ]
-  //         });
+  //     res.json({
+  //       transactions,
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         total,
+  //         pages: Math.ceil(total / Number(limit))
   //       }
-
-  //       return cashTransaction;
   //     });
-
-  //     res.status(201).json(result);
   //   } catch (error) {
-  //     console.error('Create cash transaction error:', error);
-  //     res.status(400).json({ error: 'Failed to create cash transaction' });
+  //     console.error('Get cash transactions error:', error);
+  //     res.status(500).json({ error: 'Failed to fetch cash transactions' });
   //   }
   // }
+
   async createCashTransaction(req: AuthRequest, res: Response) {
     try {
-      const {
-        cashAccountId,
-        glAccountId,
-        contraAccountId,
-        transactionType,
-        amount,
-        description,
-        transactionDate,
-        reference
-      } = req.body;
+      const validatedData = createCashTransactionSchema.parse(req.body);
 
-      const result = await prisma.$transaction(async (tx) => {
+      const cashTransaction = await prisma.$transaction(async (tx) => {
         // Generate transaction number
         const count = await tx.cashTransaction.count();
         const transactionNo = `CT${String(count + 1).padStart(6, '0')}`;
 
-        // Create cash transaction
-        const cashTransaction = await tx.cashTransaction.create({
+        // Calculate total amount from transaction lines
+        const totalAmount = validatedData.transactionLines.reduce((sum, line) => {
+          return sum + Number(line.lineAmount);
+        }, 0);
+
+        // Create cash transaction with PREPARED status
+        const newTransaction = await tx.cashTransaction.create({
           data: {
             transactionNo,
-            cashAccountId,
-            glAccountId,
-            contraAccountId: contraAccountId?? null,
-            transactionType,
-            amount: new Decimal(amount),
-            description,
-            transactionDate: new Date(transactionDate),
-            reference,
-            refType: 'OTHER',
-            refId: null,
+            cashAccountId: validatedData.cashAccountId,
+            transactionType: validatedData.transactionType,
+            amount: new Decimal(totalAmount),
+            description: validatedData.description,
+            transactionDate: new Date(validatedData.transactionDate),
+            reference: validatedData.reference,
+            refType: validatedData.refType || 'OTHER',
+            refId: validatedData.refId || null,
+            status: 'PREPARED',
+            preparedBy: req.user!.id,
             userId: req.user!.id
           }
         });
-        
 
-        const balanceChange = transactionType === 'RECEIPT' ? amount : -amount;
+        // Create transaction lines
+        for (const line of validatedData.transactionLines) {
+          await tx.cashTransactionLine.create({
+            data: {
+              cashTransactionId: newTransaction.id,
+              glAccountId: line.glAccountId,
+              lineAmount: line.lineAmount,
+              description:line.description
+            }
+          });
+        }
+
+        return newTransaction;
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      });
+
+      res.status(201).json(cashTransaction);
+    } catch (error) {
+      console.error('Create cash transaction error:', error);
+      res.status(400).json({ error: 'Failed to create cash transaction' });
+    }
+  }
+
+  async approveCashTransaction(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await prisma.$transaction(async (tx) => {
+        const cashTransaction = await tx.cashTransaction.findUnique({
+          where: { id }
+        });
+
+        if (!cashTransaction) {
+          throw new Error('Cash transaction not found');
+        }
+
+        if (cashTransaction.status !== 'PREPARED') {
+          throw new Error('Only PREPARED transactions can be approved');
+        }
+
+        // Prevent self-approval (optional business rule)
+        // if (cashTransaction.preparedBy === req.user!.id) {
+        //   throw new Error('You cannot approve your own transaction');
+        // }
+
+        // Update transaction status to APPROVED
+        await tx.cashTransaction.update({
+          where: { id },
+          data: {
+            status: 'APPROVED',
+            approvedBy: req.user!.id,
+            approvedAt: new Date()
+          }
+        });
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      });
+
+      res.json({ message: 'Cash transaction approved successfully' });
+    } catch (error) {
+      console.error('Approve cash transaction error:', error);
+      res.status(400).json({ error: 'Failed to approve cash transaction' });
+    }
+  }
+
+
+
+   async authorizeCashTransaction(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await prisma.$transaction(async (tx) => {
+        const cashTransaction = await tx.cashTransaction.findUnique({
+          where: { id }
+        });
+
+        if (!cashTransaction) {
+          throw new Error('Cash transaction not found');
+        }
+
+        if (cashTransaction.status !== 'APPROVED') {
+          throw new Error('Only APPROVED transactions can be authorized');
+        }
+
+        // Prevent self-authorization (optional business rule)
+        // if (cashTransaction.approvedBy === req.user!.id) {
+        //   throw new Error('You cannot authorize a transaction you approved');
+        // }
+
+        // Update transaction status to AUTHORIZED
+        await tx.cashTransaction.update({
+          where: { id },
+          data: {
+            status: 'AUTHORIZED',
+            authorizedBy: req.user!.id,
+            authorizedAt: new Date()
+          }
+        });
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      });
+
+      res.json({ message: 'Cash transaction authorized successfully' });
+    } catch (error) {
+      console.error('Authorize cash transaction error:', error);
+      res.status(400).json({ error: 'Failed to authorize cash transaction' });
+    }
+  }
+
+  async payCashTransaction(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await prisma.$transaction(async (tx) => {
+        // Get transaction with lines and cash account
+        const cashTransaction = await tx.cashTransaction.findUnique({
+          where: { id },
+          include: { 
+            transactionLines: true,
+            cashAccount: true
+          }
+        });
+
+        if (!cashTransaction) {
+          throw new Error('Cash transaction not found');
+        }
+
+        if (cashTransaction.status !== 'AUTHORIZED') {
+          throw new Error('Only AUTHORIZED transactions can be paid');
+        }
+
+        // Get cash account's GL account
+        const cashGLAccountId = cashTransaction.cashAccount.glAccountId;
+
+        if (!cashGLAccountId) {
+          throw new Error('Cash account does not have a linked GL account');
+        }
+
+        // Update transaction status to PAID
+        await tx.cashTransaction.update({
+          where: { id },
+          data: {
+            status: 'PAID',
+            paidBy: req.user!.id,
+            paidAt: new Date()
+          }
+        });
+
+        // Update cash account balance
+        const balanceChange = cashTransaction.transactionType === 'RECEIPT' 
+          ? cashTransaction.amount 
+          : new Decimal(cashTransaction.amount).negated();
+
         await tx.cashAccount.update({
-          where: { id: cashAccountId },
+          where: { id: cashTransaction.cashAccountId },
           data: {
             balance: {
               increment: balanceChange
@@ -328,80 +357,570 @@ export class CashController {
         const journal = await tx.journal.create({
           data: {
             journalNo,
-            date: new Date(transactionDate),
-            memo: description,
+            date: cashTransaction.transactionDate,
+            memo: `${cashTransaction.transactionType}: ${cashTransaction.reference}`,
             postedBy: req.user!.id
           }
         });
-        // console.log("Journal ", journal)
-        // Get cash account's GL account
-        const cashAccount = await tx.cashAccount.findUnique({
-          where: { id: cashAccountId }
+
+        // Create journal lines for each transaction line
+        for (const line of cashTransaction.transactionLines) {
+          if (cashTransaction.transactionType === 'RECEIPT') {
+            // RECEIPT: Debit Cash Account, Credit GL Account
+            await tx.journalLine.createMany({
+              data: [
+                {
+                  journalId: journal.id,
+                  accountId: cashGLAccountId,
+                  debit: line.lineAmount,
+                  credit: new Decimal(0),
+                  refType: 'CASH_TRANSACTION',
+                  refId: cashTransaction.id
+                },
+                {
+                  journalId: journal.id,
+                  accountId: line.glAccountId,
+                  debit: new Decimal(0),
+                  credit: line.lineAmount,
+                  refType: 'CASH_TRANSACTION',
+                  refId: cashTransaction.id
+                }
+              ]
+            });
+          } else {
+            // PAYMENT: Debit GL Account, Credit Cash Account
+            await tx.journalLine.createMany({
+              data: [
+                {
+                  journalId: journal.id,
+                  accountId: line.glAccountId,
+                  debit: line.lineAmount,
+                  credit: new Decimal(0),
+                  refType: 'CASH_TRANSACTION',
+                  refId: cashTransaction.id
+                },
+                {
+                  journalId: journal.id,
+                  accountId: cashGLAccountId,
+                  debit: new Decimal(0),
+                  credit: line.lineAmount,
+                  refType: 'CASH_TRANSACTION',
+                  refId: cashTransaction.id
+                }
+              ]
+            });
+          }
+        }
+
+        // Create posting record for audit trail
+        await tx.cashTransactionPosting.create({
+          data: {
+            cashTransactionId: cashTransaction.id,
+            journalId: journal.id,
+            postedBy: req.user!.id
+          }
+        });
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      });
+
+      res.json({ message: 'Cash transaction paid successfully' });
+    } catch (error) {
+      console.error('Pay cash transaction error:', error);
+      res.status(400).json({ error: 'Failed to pay cash transaction' });
+    }
+  }
+
+  async reconcileCashTransaction(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const validatedData = reconcileCashTransactionSchema.parse(req.body);
+
+      await prisma.$transaction(async (tx) => {
+        const cashTransaction = await tx.cashTransaction.findUnique({
+          where: { id }
         });
 
-        // console.log("CashAcount", cashAccount)
+        if (!cashTransaction) {
+          throw new Error('Cash transaction not found');
+        }
 
-        if (transactionType === 'RECEIPT') {
-          // Debit Cash Account, Credit GL Account
-          await tx.journalLine.createMany({
-            data: [
-              {
-                journalId: journal.id,
-                accountId:  cashAccount!.glAccountId!,
-                debit: new Decimal(amount),
-                credit: new Decimal(0),
-                refType: 'CASH_TRANSACTION',
-                refId: cashTransaction.id
-              },
-              {
-                journalId: journal.id,
-                accountId: glAccountId,
-                debit: new Decimal(0),
-                credit: new Decimal(amount),
-                refType: 'CASH_TRANSACTION',
-                refId: cashTransaction.id
-              }
-            ]
-          });
-        } else {
-          // Credit Cash Account, Debit GL Account
-          await tx.journalLine.createMany({
-            data: [
-              {
-                journalId: journal.id,
-                accountId: glAccountId,
-                debit: new Decimal(amount),
-                credit: new Decimal(0),
-                refType: 'CASH_TRANSACTION',
-                refId: cashTransaction.id
-              },
-              {
-                journalId: journal.id,
-                accountId: cashAccount!.glAccountId!,
-                debit: new Decimal(0),
-                credit: new Decimal(amount),
-                refType: 'CASH_TRANSACTION',
-                refId: cashTransaction.id
-              }
-            ]
+        if (cashTransaction.status !== 'PAID') {
+          throw new Error('Only PAID transactions can be reconciled');
+        }
+
+        if (cashTransaction.isReconciled) {
+          throw new Error('Transaction is already reconciled');
+        }
+
+        await tx.cashTransaction.update({
+          where: { id },
+          data: {
+            isReconciled: true,
+            reconciledAt: validatedData.reconciledDate 
+              ? new Date(validatedData.reconciledDate) 
+              : new Date()
+          }
+        });
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      });
+
+      res.json({ message: 'Cash transaction reconciled successfully' });
+    } catch (error) {
+      console.error('Reconcile cash transaction error:', error);
+      res.status(400).json({ error: 'Failed to reconcile cash transaction' });
+    }
+  }
+
+
+  async updateCashTransaction(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const validatedData = updateCashTransactionSchema.parse(req.body);
+
+      const cashTransaction = await prisma.$transaction(async (tx) => {
+        const existing = await tx.cashTransaction.findUnique({
+          where: { id }
+        });
+
+        if (!existing) {
+          throw new Error('Cash transaction not found');
+        }
+
+        if (existing.status !== 'PREPARED') {
+          throw new Error('Only PREPARED transactions can be updated');
+        }
+
+        // Only the preparer can update
+        if (existing.preparedBy !== req.user!.id) {
+          throw new Error('Only the preparer can update this transaction');
+        }
+
+        // Delete existing transaction lines
+        await tx.cashTransactionLine.deleteMany({
+          where: { cashTransactionId: id }
+        });
+
+        // Calculate new total amount
+        const totalAmount = validatedData.transactionLines.reduce((sum, line) => {
+          return sum + Number(line.lineAmount);
+        }, 0);
+
+        // Update cash transaction
+        const updated = await tx.cashTransaction.update({
+          where: { id },
+          data: {
+            amount: new Decimal(totalAmount),
+            description: validatedData.description,
+            transactionDate: new Date(validatedData.transactionDate),
+            reference: validatedData.reference
+          }
+        });
+
+        // Create new transaction lines
+        for (const line of validatedData.transactionLines) {
+          await tx.cashTransactionLine.create({
+            data: {
+              cashTransactionId: id,
+              glAccountId: line.glAccountId,
+              contraAccountId: line.contraAccountId || null,
+              lineAmount: new Decimal(line.lineAmount),
+              description: line.description
+            }
           });
         }
 
-        return cashTransaction;
-      }
-        ,
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-    );
+        return updated;
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      });
 
-      res.status(201).json(result);
+      res.json(cashTransaction);
     } catch (error) {
-      console.error('Create cash transaction error:', error);
-      res.status(400).json({ error: 'Failed to create cash transaction' });
+      console.error('Update cash transaction error:', error);
+      res.status(400).json({ error: 'Failed to update cash transaction' });
     }
   }
+
+  async deleteCashTransaction(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await prisma.$transaction(async (tx) => {
+        const existing = await tx.cashTransaction.findUnique({
+          where: { id }
+        });
+
+        if (!existing) {
+          throw new Error('Cash transaction not found');
+        }
+
+        if (existing.status !== 'PREPARED') {
+          throw new Error('Only PREPARED transactions can be deleted');
+        }
+
+        // Only the preparer can delete
+        if (existing.preparedBy !== req.user!.id) {
+          throw new Error('Only the preparer can delete this transaction');
+        }
+
+        // Transaction lines will be deleted automatically due to CASCADE
+        await tx.cashTransaction.delete({
+          where: { id }
+        });
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      });
+
+      res.json({ message: 'Cash transaction deleted successfully' });
+    } catch (error) {
+      console.error('Delete cash transaction error:', error);
+      res.status(400).json({ error: 'Failed to delete cash transaction' });
+    }
+  }
+
+
+  async getCashTransaction(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const cashTransaction = await prisma.cashTransaction.findUnique({
+        where: { id },
+        include: {
+          transactionLines: {
+            include: {
+              glAccount: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true
+                }
+              },
+              contraAccount: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true
+                }
+              }
+            }
+          },
+          cashAccount: {
+            select: {
+              id: true,
+              name: true,
+              accountNumber: true,
+              balance: true
+            }
+          },
+          preparer: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          authorizer: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          payer: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      if (!cashTransaction) {
+        return res.status(404).json({ error: 'Cash transaction not found' });
+      }
+
+      res.json(cashTransaction);
+    } catch (error) {
+      console.error('Get cash transaction error:', error);
+      res.status(500).json({ error: 'Failed to retrieve cash transaction' });
+    }
+  }
+
+
+  async getCashTransactions(req: AuthRequest, res: Response) {
+  try {
+    const { 
+      status, 
+      cashAccountId, 
+      startDate, 
+      endDate, 
+      transactionType,
+      excludeRefund,
+      page = '1',
+      limit = '50'
+    } = req.query;
+
+    const where: any = {};
+
+    if (status) where.status = status;
+    if (cashAccountId) where.cashAccountId = cashAccountId;
+    
+    // Handle transactionType with excludeRefund logic
+    if (transactionType) {
+      where.transactionType = transactionType;
+    } else if (excludeRefund === 'true') {
+      // Only apply exclusion if no specific transactionType is selected
+      where.transactionType = {
+        not: 'REFUND'
+      };
+    }
+    
+    if (startDate || endDate) {
+      where.transactionDate = {};
+      if (startDate) where.transactionDate.gte = new Date(startDate as string);
+      if (endDate) where.transactionDate.lte = new Date(endDate as string);
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    const [cashTransactions, total] = await Promise.all([
+      prisma.cashTransaction.findMany({
+        where,
+        include: {
+          cashAccount: {
+            select: {
+              id: true,
+              name: true,
+              accountNumber: true
+            }
+          },
+          transactionLines: {
+            include: {
+              glAccount: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true
+                }
+              }
+            }
+          },
+          preparer: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          approver: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          authorizer: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          payer: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: { transactionDate: 'desc' },
+        skip,
+        take
+      }),
+      prisma.cashTransaction.count({ where })
+    ]);
+
+    res.json({
+      data: cashTransactions,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get cash transactions error:', error);
+    res.status(500).json({ error: 'Failed to retrieve cash transactions' });
+  }
+}
+
+
+  async getCashTransactionsByStatus(req: AuthRequest, res: Response) {
+    try {
+      const statusCounts = await prisma.cashTransaction.groupBy({
+        by: ['status'],
+        _count: true,
+        _sum: {
+          amount: true
+        }
+      });
+
+      const summary = statusCounts.map(item => ({
+        status: item.status,
+        count: item._count,
+        totalAmount: item._sum.amount || 0
+      }));
+
+      res.json(summary);
+    } catch (error) {
+      console.error('Get status summary error:', error);
+      res.status(500).json({ error: 'Failed to retrieve status summary' });
+    }
+  }
+
+
+
+  //   async createCashTransaction(req: AuthRequest, res: Response) {
+//     try {
+//       const {
+//         cashAccountId,
+//         glAccountId,
+//         contraAccountId,
+//         transactionType,
+//         amount,
+//         description,
+//         transactionDate,
+//         reference
+//       } = req.body;
+
+//       const result = await prisma.$transaction(async (tx) => {
+//         // Generate transaction number
+//         const count = await tx.cashTransaction.count();
+//         const transactionNo = `CT${String(count + 1).padStart(6, '0')}`;
+
+//         // Create cash transaction
+//         const cashTransaction = await tx.cashTransaction.create({
+//           data: {
+//             transactionNo,
+//             cashAccountId,
+//             glAccountId,
+//             contraAccountId: contraAccountId?? null,
+//             transactionType,
+//             amount: new Decimal(amount),
+//             description,
+//             transactionDate: new Date(transactionDate),
+//             reference,
+//             refType: 'OTHER',
+//             refId: null,
+//             userId: req.user!.id
+//           }
+//         });
+        
+
+//         const balanceChange = transactionType === 'RECEIPT' ? amount : -amount;
+//         await tx.cashAccount.update({
+//           where: { id: cashAccountId },
+//           data: {
+//             balance: {
+//               increment: balanceChange
+//             }
+//           }
+//         });
+
+//         // Create journal entries for double-entry bookkeeping
+//         const journalCount = await tx.journal.count();
+//         const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+
+//         const journal = await tx.journal.create({
+//           data: {
+//             journalNo,
+//             date: new Date(transactionDate),
+//             memo: description,
+//             postedBy: req.user!.id
+//           }
+//         });
+//         // console.log("Journal ", journal)
+//         // Get cash account's GL account
+//         const cashAccount = await tx.cashAccount.findUnique({
+//           where: { id: cashAccountId }
+//         });
+
+//         // console.log("CashAcount", cashAccount)
+
+//         if (transactionType === 'RECEIPT') {
+//           // Debit Cash Account, Credit GL Account
+//           await tx.journalLine.createMany({
+//             data: [
+//               {
+//                 journalId: journal.id,
+//                 accountId:  cashAccount!.glAccountId!,
+//                 debit: new Decimal(amount),
+//                 credit: new Decimal(0),
+//                 refType: 'CASH_TRANSACTION',
+//                 refId: cashTransaction.id
+//               },
+//               {
+//                 journalId: journal.id,
+//                 accountId: glAccountId,
+//                 debit: new Decimal(0),
+//                 credit: new Decimal(amount),
+//                 refType: 'CASH_TRANSACTION',
+//                 refId: cashTransaction.id
+//               }
+//             ]
+//           });
+//         } else {
+//           // Credit Cash Account, Debit GL Account
+//           await tx.journalLine.createMany({
+//             data: [
+//               {
+//                 journalId: journal.id,
+//                 accountId: glAccountId,
+//                 debit: new Decimal(amount),
+//                 credit: new Decimal(0),
+//                 refType: 'CASH_TRANSACTION',
+//                 refId: cashTransaction.id
+//               },
+//               {
+//                 journalId: journal.id,
+//                 accountId: cashAccount!.glAccountId!,
+//                 debit: new Decimal(0),
+//                 credit: new Decimal(amount),
+//                 refType: 'CASH_TRANSACTION',
+//                 refId: cashTransaction.id
+//               }
+//             ]
+//           });
+//         }
+
+//         return cashTransaction;
+//       }
+//         ,
+//     {
+//   maxWait: 5000,  // 5s wait for connection
+//   timeout: 20000  // 20s max runtime
+// }
+//     );
+
+//       res.status(201).json(result);
+//     } catch (error) {
+//       console.error('Create cash transaction error:', error);
+//       res.status(400).json({ error: 'Failed to create cash transaction' });
+//     }
+//   }
 
   // Create customer payment (Sales Receipt)
   async createCustomerPayment(req: AuthRequest, res: Response) {

@@ -67,6 +67,11 @@ export interface Item {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  priceList:{
+    id:string;
+    customerGroup:string;
+    price:number;
+  }
 }
 
 export interface CreateItemRequest {
@@ -179,10 +184,22 @@ export interface Customer {
   phone?: string;
   email?: string;
   creditLimit?: number;
-  CustomerGroup?: string;
+  customerGroupId:string;
+  customerGroup?: CustomerGroup[];
   isActive: boolean;
   createdAt: string;
 }
+
+//Customer Groups types
+export interface CustomerGroup {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  customerCount?: number;
+  isActive: boolean;
+}
+
 
 // Sales Types
 export interface SaleLine {
@@ -338,6 +355,7 @@ export interface CashAccount {
   balance: number;
   isActive: boolean;
   createdAt: string;
+  warehouseId?:string;
 }
 
 export interface CashTransaction {
@@ -346,8 +364,9 @@ export interface CashTransaction {
   cashAccountId: string;
   transactionType: 'RECEIPT' | 'PAYMENT';
   amount: number;
-  description: string;
+  //description: string;
   refType?: 'SALES_RECEIPT' | 'PURCHASE_PAYMENT' | 'OTHER';
+  status:'PREPARED' | 'APPROVED' |'AUTHORIZED'|'PAID';
   refId?: string;
   transactionDate: string;
   userId: string;
@@ -361,6 +380,14 @@ export interface CashTransaction {
     name: string;
     email: string;
   };
+  CashTransactionLine:CashTransactionLine[];
+}
+
+export interface CashTransactionLine{
+  glAccountId: string;
+  contraAccountId: string;
+  lineAmount: number;
+  description: string;
 }
 
 export interface SalesReceipt {

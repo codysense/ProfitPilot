@@ -190,17 +190,50 @@ export class InventoryController {
     }
   
 
-  async createItem(req: AuthRequest, res: Response) {
+//   async createItem(req: AuthRequest, res: Response) {
+//   try {
+//     const validatedData = createItemSchema.parse(req.body);
+
+//     // console.log(req.body)
+
+//     const item = await prisma.item.upsert({
+//       where: { sku: validatedData.sku },
+//       update: { ...validatedData },
+//       create: { ...validatedData },
+//     });
+
+//     res.status(201).json(item);
+//   } catch (error) {
+//     console.error('Create/Update item error:', error);
+//     res.status(400).json({ error: 'Failed to create or update item' });
+//   }
+// }
+
+
+async createItem(req: AuthRequest, res: Response) {
   try {
     const validatedData = createItemSchema.parse(req.body);
-
-    // console.log(req.body)
+    const { priceList, ...itemData } = validatedData;
 
     const item = await prisma.item.upsert({
-      where: { sku: validatedData.sku },
-      update: { ...validatedData },
-      create: { ...validatedData },
+      where: { sku: itemData.sku },
+      update: { ...itemData },
+      create: { ...itemData },
     });
+
+    if (priceList && Array.isArray(priceList)) {
+      // Delete old price list entries
+      await prisma.itemPriceList.deleteMany({ where: { itemId: item.id } });
+
+      // Create new price list entries
+      await prisma.itemPriceList.createMany({
+        data: priceList.map((p: any) => ({
+          itemId: item.id,
+          customerGroup: p.customerGroup,
+          price: p.price,
+        })),
+      });
+    }
 
     res.status(201).json(item);
   } catch (error) {
@@ -996,116 +1029,125 @@ const warehouses = await prisma.warehouse.findMany({
 
   
 
-  async  getItems(req: AuthRequest, res: Response) {
+  async getItems(req: AuthRequest, res: Response) {
   try {
-    // parse query params safely
     const page = Number(req.query.page ?? 1);
     const limit = Number(req.query.limit ?? 10);
-    const rawType = req.query.type; // could be string | ParsedQs | (string|ParsedQs)[]
+    const rawType = req.query.type;
     const search = req.query.search ? String(req.query.search) : undefined;
     const includeStock = String(req.query.includeStock ?? "false");
     const skip = (page - 1) * limit;
 
-    // build a strongly-typed where for Prisma (avoid inline { type } usage)
     const where: Prisma.ItemWhereInput = {};
-    // narrow rawType into a string and cast to ItemType
-    const typeFilter = typeof rawType === "string" && rawType.length ? (rawType as ItemType) : undefined;
+    const typeFilter =
+      typeof rawType === "string" && rawType.length
+        ? (rawType as ItemType)
+        : undefined;
     if (typeFilter) where.type = typeFilter;
 
-    // Apply warehouse filtering for non-admin users
+    // Warehouse filter logic
     let warehouseFilter: string | null = null;
-
-if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manager")) {
-  // Non-admins → always force warehouse
-  const user = await prisma.user.findUnique({
-    where: { id: req.user!.id },
-    select: { warehouseId: true },
-  });
-  warehouseFilter = user?.warehouseId ?? null;
-} else {
-  // Admins → only apply filter if warehouseId is provided
-  if (req.query.warehouseId) {
-    warehouseFilter = String(req.query.warehouseId);
-  }
-}
-
-
-    // let warehouseFilter: string | null = null;
-    // if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manager")) {
-    //   const user = await prisma.user.findUnique({
-    //     where: { id: req.user!.id },
-    //     select: { warehouseId: true },
-    //   });
-    //   warehouseFilter = user?.warehouseId ?? null;
-    // }
+    if (
+      !req.user!.roles.includes("CFO") &&
+      !req.user!.roles.includes("General Manager")
+    ) {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { warehouseId: true },
+      });
+      warehouseFilter = user?.warehouseId ?? null;
+    } else if (req.query.warehouseId) {
+      warehouseFilter = String(req.query.warehouseId);
+    }
 
     let items: any[] = [];
     let total = 0;
 
-    // If searching: use raw SQL with LOWER/ILIKE + enum cast to avoid collation issues
     if (search) {
-      // ensure we only use a string type for the enum cast interpolation
-      const enumParam = typeFilter; // ItemType | undefined
+      const enumParam = typeFilter;
 
       const query = Prisma.sql`
-        SELECT *
-        FROM "items"
+        SELECT i.*
+        FROM "items" i
         WHERE 1=1
-        ${enumParam ? Prisma.sql`AND "type" = ${enumParam}::"ItemType"` : Prisma.empty}
+        ${enumParam ? Prisma.sql`AND i."type" = ${enumParam}::"ItemType"` : Prisma.empty}
         AND (
-          "sku" ILIKE ${"%" + search + "%"} COLLATE "C"
-          OR "name" ILIKE ${"%" + search + "%"} COLLATE "C"
+          i."sku" ILIKE ${"%" + search + "%"} COLLATE "C"
+          OR i."name" ILIKE ${"%" + search + "%"} COLLATE "C"
         )
-        ORDER BY "createdAt" DESC
+        ORDER BY i."createdAt" DESC
         LIMIT ${limit} OFFSET ${skip};
       `;
 
       const countQuery = Prisma.sql`
         SELECT COUNT(*)::int AS count
-        FROM "items"
+        FROM "items" i
         WHERE 1=1
-        ${enumParam ? Prisma.sql`AND "type" = ${enumParam}::"ItemType"` : Prisma.empty}
+        ${enumParam ? Prisma.sql`AND i."type" = ${enumParam}::"ItemType"` : Prisma.empty}
         AND (
-          "sku" ILIKE ${"%" + search + "%"} COLLATE "C"
-          OR "name" ILIKE ${"%" + search + "%"} COLLATE "C"
+          i."sku" ILIKE ${"%" + search + "%"} COLLATE "C"
+          OR i."name" ILIKE ${"%" + search + "%"} COLLATE "C"
         );
       `;
 
       items = await prisma.$queryRaw<any[]>(query);
       const countResult = await prisma.$queryRaw<{ count: number }[]>(countQuery);
       total = countResult[0]?.count ?? 0;
+
+      // Fetch price lists separately (since raw SQL doesn’t include relations)
+      const itemIds = items.map((i) => i.id);
+      const priceLists = await prisma.itemPriceList.findMany({
+        where: { itemId: { in: itemIds } },
+        select: {
+          id: true,
+          itemId: true,
+          customerGroup: true,
+          price: true,
+        },
+      });
+
+      // Merge priceList info into each item
+      items = items.map((item) => ({
+        ...item,
+        priceList: priceLists.filter((pl) => pl.itemId === item.id),
+      }));
     } else {
-      // No search → use Prisma client (typed where)
+      // Prisma query with relation
       [items, total] = await Promise.all([
         prisma.item.findMany({
           where,
           skip,
           take: limit,
           orderBy: { createdAt: "desc" },
+          include: {
+          priceList: { // This pulls all prices for the item
+            select: {
+              id: true,
+              customerGroup: true,
+              price: true,
+            },
+          },
+        },
         }),
         prisma.item.count({ where }),
       ]);
     }
 
-    // Include stock quantities if requested
-    let itemsWithStock = items;
     if (includeStock === "true") {
-      itemsWithStock = await Promise.all(
+      items = await Promise.all(
         items.map(async (item) => {
           let stockQty = 0;
 
           if (warehouseFilter) {
-            // Non-admin user → latest stock in their warehouse
             const latestEntry = await prisma.inventoryLedger.findFirst({
               where: { itemId: item.id, warehouseId: warehouseFilter },
               orderBy: { postedAt: "desc" },
             });
             stockQty = Number(latestEntry?.runningQty ?? 0);
           } else {
-            // Admin user → sum of latest balances across all warehouses
-            const warehouses = await prisma.warehouse.findMany({ select: { id: true } });
-
-            // map to numbers immediately to avoid Decimal/number mismatch
+            const warehouses = await prisma.warehouse.findMany({
+              select: { id: true },
+            });
             const balances = await Promise.all(
               warehouses.map(async (wh) => {
                 const latestEntry = await prisma.inventoryLedger.findFirst({
@@ -1115,7 +1157,6 @@ if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manag
                 return Number(latestEntry?.runningQty ?? 0);
               })
             );
-
             stockQty = balances.reduce((sum, qty) => sum + qty, 0);
           }
 
@@ -1125,7 +1166,7 @@ if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manag
     }
 
     res.json({
-      items: itemsWithStock,
+      items,
       pagination: {
         page,
         limit,
@@ -1138,6 +1179,7 @@ if (!req.user!.roles.includes("CFO") && !req.user!.roles.includes("General Manag
     res.status(500).json({ error: "Failed to fetch items" });
   }
 }
+
 
 
 

@@ -24,5 +24,9 @@ router.post('/orders/:id/invoice', requireRole(['Accountant', 'POS User']), audi
 router.get('/customers', requireRole(['Accountant','POS User']), salesController.getCustomers);
 // router.get('/customers', authorize('sales.customer.read'), salesController.getCustomers);
 router.post('/customers', requireRole(['Accountant', 'POS User']), auditLogger('CREATE', 'CUSTOMER'), salesController.createCustomer);
+router.post('/customer-groups', requireRole(['Accountant', 'POS User']), auditLogger('CREATE', 'CUSTOMER-GROUP'), salesController.createCustomerGroup);
+router.get('/customer-groups', requireRole(['Accountant','POS User']), salesController.getCustomerGroups);
+router.put('/customer-groups', requireRole(['Accountant','POS User']),auditLogger('UPDATE', 'CUSTOMER-GROUP'), salesController.updateCustomerGroup);
+
 
 export default router;

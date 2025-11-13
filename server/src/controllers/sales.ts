@@ -4,10 +4,16 @@ import { createCustomerSchema, createSaleSchema, deliverSaleSchema } from '../ty
 import { AuthRequest } from '../middleware/auth';
 import { CostingService } from '../services/costing';
 import { GeneralLedgerService } from '../services/gl';
+import { z } from 'zod';
 
 const prisma = new PrismaClient();
 const costingService = new CostingService();
 const glService = new GeneralLedgerService();
+const createCustomerGroupSchema = z.object({
+  name: z.string().min(1, 'Group name is required'),
+  code: z.string().optional(),
+  description: z.string().optional(),
+});
 
 export class SalesController {
   async getSales(req: AuthRequest, res: Response) {
@@ -233,7 +239,10 @@ export class SalesController {
           where,
           skip,
           take: Number(limit),
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          include: {
+      customerGroup: true, 
+    },
         }),
         prisma.customer.count({ where })
       ]);
@@ -271,28 +280,133 @@ export class SalesController {
     }
   }
 
-  async createCustomer(req: AuthRequest, res: Response) {
+   async createCustomerGroup(req: Request, res: Response) {
     try {
+      const data = createCustomerGroupSchema.parse(req.body);
+      const group = await prisma.customerGroup.create({
+        data,
+      });
+      res.status(201).json(group);
+    } catch (error) {
+      console.error('Create group error:', error);
+      res.status(400).json({ error: 'Failed to create group' });
+    }
+  }
 
-      const validatedData = createCustomerSchema.parse(req.body);
+  async updateCustomerGroup(req: Request, res: Response) {
+    try {
+      const id = req.params.id;
+      const data = createCustomerGroupSchema.partial().parse(req.body);
+      const group = await prisma.customerGroup.update({
+        where: { id },
+        data,
+      });
+      res.json(group);
+    } catch (error) {
+      console.error('Update group error:', error);
+      res.status(400).json({ error: 'Failed to update group' });
+    }
+  }
+
+   async getCustomerGroups(req: Request, res: Response) {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = (req.query.search as string) || '';
+
+    const where = search
+      ? { name: { contains: search, mode: 'insensitive' } }
+      : {};
+
+    const [groups, total] = await Promise.all([
+      prisma.customerGroup.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: { customers: true }, // ✅ only count, not full customer list
+          },
+        },
+      }),
+      prisma.customerGroup.count({ where }),
+    ]);
+
+    const groupsWithCount = groups.map((group) => ({
+      ...group,
+      customerCount: group._count.customers, // ✅ extract count into its own property
+    }));
+
+    res.json({
+      groups: groupsWithCount,
+      pagination: {
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Get customer groups error:', error);
+    res.status(500).json({ error: 'Failed to load customer groups' });
+  }
+}
+
+      
+
+  // async createCustomer(req: AuthRequest, res: Response) {
+  //   try {
+
+  //     const validatedData = createCustomerSchema.parse(req.body);
             
                
             
-                const customer = await prisma.customer.upsert({
-                  where: { code: validatedData.code },
-                  update: { ...validatedData },
-                  create: { ...validatedData },
-                });
-      // const customer = await prisma.customer.create({
-      //   data: req.body
-      // });
+  //               const customer = await prisma.customer.upsert({
+  //                 where: { code: validatedData.code },
+  //                 update: { ...validatedData },
+  //                 create: { ...validatedData },
+  //               });
+  //     // const customer = await prisma.customer.create({
+  //     //   data: req.body
+  //     // });
 
-      res.status(201).json(customer);
-    } catch (error) {
-      console.error('Create customer error:', error);
-      res.status(400).json({ error: 'Failed to create customer' });
-    }
+  //     res.status(201).json(customer);
+  //   } catch (error) {
+  //     console.error('Create customer error:', error);
+  //     res.status(400).json({ error: 'Failed to create customer' });
+  //   }
+  // }
+
+  async createCustomer(req: AuthRequest, res: Response) {
+  try {
+    const validatedData = createCustomerSchema.parse(req.body);
+
+    const { customerGroupId, ...rest } = validatedData;
+
+    const customer = await prisma.customer.upsert({
+      where: { code: validatedData.code },
+      update: {
+        ...rest,
+        ...(customerGroupId
+          ? { customerGroup: { connect: { id: customerGroupId } } }
+          : { customerGroup: { disconnect: true } }),
+      },
+      create: {
+        ...rest,
+        ...(customerGroupId
+          ? { customerGroup: { connect: { id: customerGroupId } } }
+          : {}),
+      },
+      include: { customerGroup: true }, // Optional: return group info too
+    });
+
+    res.status(201).json(customer);
+  } catch (error) {
+    console.error('Create customer error:', error);
+    res.status(400).json({ error: 'Failed to create customer' });
   }
+}
+
 
   async updateSale(req: AuthRequest, res: Response) {
     try {

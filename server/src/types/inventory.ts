@@ -12,6 +12,11 @@ export const createItemSchema = z.object({
   sellingPriceOrdinary: z.number().optional(),
   sellingPriceBulk: z.number().optional(),
   sellingPriceWIC: z.number().optional(),
+  priceList:z.array(z.object({
+    // itemId: z.string().cuid(),
+    customerGroup: z.string(),
+    price: z.number().positive(),
+  })),
   taxCode: z.string().optional(),
 });
 

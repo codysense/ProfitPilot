@@ -28,7 +28,8 @@ export const createCustomerSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Invalid email format').optional().or(z.literal('')),
   creditLimit: z.number().optional(),
-  CustomerGroup: z.string().min(1,"Customer Group"),
+  // customerGroup: z.string().optional(),
+  customerGroupId: z.string().optional(),
 });
 
 export type CreateSaleRequest = z.infer<typeof createSaleSchema>;

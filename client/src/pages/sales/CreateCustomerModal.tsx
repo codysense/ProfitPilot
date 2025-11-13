@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { X } from 'lucide-react';
 import { salesApi } from '../../lib/api';
 import toast from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
 
 const createCustomerSchema = z.object({
   code: z.string().min(1, 'Code is required'),
@@ -13,7 +14,7 @@ const createCustomerSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Invalid email format').optional().or(z.literal('')),
   creditLimit: z.number().optional(),
-  CustomerGroup: z.string().min(1,"Customer Group"),
+  customerGroup: z.string().min(1,"Customer Group"),
 });
 
 type CreateCustomerFormData = z.infer<typeof createCustomerSchema>;
@@ -31,6 +32,20 @@ const CreateCustomerModal = ({ onClose, onSuccess }: CreateCustomerModalProps) =
   } = useForm<CreateCustomerFormData>({
     resolver: zodResolver(createCustomerSchema)
   });
+
+  
+
+
+const { data: groupsData, isLoading: isGroupsLoading } = useQuery({
+  queryKey: ['customerGroups'],
+  queryFn: () => salesApi.getCustomerGroups({ page: 1, limit: 100 }), // adjust limit as needed
+  staleTime: 5 * 60 * 1000 // 5 mins cache
+});
+
+const groups = groupsData?.groups || [];
+
+console.log(groupsData)
+
 
   const onSubmit = async (data: CreateCustomerFormData) => {
     try {
@@ -155,6 +170,23 @@ const CreateCustomerModal = ({ onClose, onSuccess }: CreateCustomerModalProps) =
                     Customer Group
                   </label>
                   <select
+                    {...register('customerGroup')}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Select Customer Group</option>
+                    {isGroupsLoading ? (
+                      <option disabled>Loading...</option>
+                    ) : (
+                      groups.map((group) => (
+                        <option key={group.code} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  
+
+                  {/* <select
                     {...register('CustomerGroup')}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
@@ -167,7 +199,7 @@ const CreateCustomerModal = ({ onClose, onSuccess }: CreateCustomerModalProps) =
                     <option value="Net 60">Net 60 days</option>
                     <option value="COD">Cash on Delivery</option>
                     <option value="Prepaid">Prepaid</option> */}
-                  </select>
+                  {/* </select> */} 
                 </div>
               </div>
               

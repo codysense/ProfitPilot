@@ -11,6 +11,22 @@ export const createCashAccountSchema = z.object({
 });
 
 
+export const createCashTransactionSchema = z.object({
+  cashAccountId: z.string(),
+  transactionType: z.enum(['RECEIPT', 'PAYMENT']),
+  transactionDate: z.string(),
+  reference: z.string().optional(),
+  refType: z.string().optional(),
+  refId: z.string().optional(),
+  transactionLines: z.array(z.object({
+    glAccountId: z.string(),
+    contraAccountId: z.string().optional(),
+    lineAmount: z.number().positive(),
+    description: z.string().optional()
+  })).min(1, 'At least one transaction line is required')
+});
+
+
 export const updateCashAccountSchema = z.object({
   name: z.string(),
   accountType: z.enum(["CASH", "BANK"]),
@@ -22,18 +38,36 @@ export const updateCashAccountSchema = z.object({
 });
 
 
-export const createCashTransactionSchema = z.object({
-  cashAccountId: z.string().cuid('Cash account is required'),
-  glAccountId: z.string().cuid('GL account is required'),
-  transactionType: z.enum(['RECEIPT', 'PAYMENT']),
-  amount: z.number().positive('Amount must be positive'),
-  description: z.string().min(1, 'Description is required'),
-  transactionDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
-    message: "Invalid date format"
-  }),
+// export const createCashTransactionSchema = z.object({
+//   cashAccountId: z.string().cuid('Cash account is required'),
+//   glAccountId: z.string().cuid('GL account is required'),
+//   transactionType: z.enum(['RECEIPT', 'PAYMENT']),
+//   amount: z.number().positive('Amount must be positive'),
+//   description: z.string().min(1, 'Description is required'),
+//   transactionDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+//     message: "Invalid date format"
+//   }),
+//   reference: z.string().optional(),
+//   contraAccountId: z.string().optional(),
+// });
+
+
+export const updateCashTransactionSchema = z.object({
+  description: z.string(),
+  transactionDate: z.string(),
   reference: z.string().optional(),
-  contraAccountId: z.string().optional(),
+  transactionLines: z.array(z.object({
+    glAccountId: z.string(),
+    contraAccountId: z.string().optional(),
+    lineAmount: z.number().positive(),
+    description: z.string().optional()
+  })).min(1)
 });
+
+export const reconcileCashTransactionSchema = z.object({
+  reconciledDate: z.string().optional()
+});
+
 
 export const createCustomerPaymentSchema = z.object({
   customerId: z.string().cuid('Customer is required'),
@@ -83,6 +117,7 @@ export const importBankStatementSchema = z.object({
 export type CreateCashAccountRequest = z.infer<typeof createCashAccountSchema>;
 export type UpdateCashAccountRequest = z.infer<typeof updateCashAccountSchema>;
 export type CreateCashTransactionRequest = z.infer<typeof createCashTransactionSchema>;
+export type UpdateCashTransactionRequest = z.infer<typeof updateCashTransactionSchema>;
 export type CreateCustomerPaymentRequest = z.infer<typeof createCustomerPaymentSchema>;
 export type CreateVendorPaymentRequest = z.infer<typeof createVendorPaymentSchema>;
 export type BankReconciliationRequest = z.infer<typeof bankReconciliationSchema>;

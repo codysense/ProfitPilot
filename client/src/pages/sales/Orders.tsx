@@ -23,8 +23,8 @@ const SalesOrders = () => {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const { user } = useAuthStore();
   
-  // Check if user can perform actions (CFO or GM only)
-  const canPerformActions = user?.roles.includes('CFO') || user?.roles.includes('General Manager');
+  // Check if user can perform actions (Accountant or GM only)
+  const canPerformActions = user?.roles.includes('Accountant') || user?.roles.includes('General Manager');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['sales', { page, status: statusFilter }],
@@ -34,6 +34,8 @@ const SalesOrders = () => {
       ...(statusFilter && { status: statusFilter })
     })
   });
+
+
 
   const columns = [
     {

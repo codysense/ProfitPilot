@@ -22,6 +22,7 @@ import { ReportExporter } from '../utils/reportExport';
 import toast from 'react-hot-toast';
 import { CustomerSelect } from '../components/CustomerSelect';
 import { VendorSelect } from '../components/VendorSelect';
+import { ChartAccountSelect } from '../components/ChartAccountSelect';
 
 const Reports = () => {
   const [selectedReport, setSelectedReport] = useState('');
@@ -1000,7 +1001,13 @@ const Reports = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Chart Of Accounts *
                   </label>
-                  <select
+                  <ChartAccountSelect
+                      accounts={accounts?.accounts || []}
+                      value={accountFilter}
+                      onChange ={ setAccountFilter}
+                      // error={errors.accountId?.message}
+                  />
+                  {/* <select
                     value={accountFilter}
                     onChange={(e) => setAccountFilter(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -1011,7 +1018,7 @@ const Reports = () => {
                          {account.name}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                 </div>
               )}
               {selectedReportConfig?.supportUsers && (
@@ -1438,8 +1445,8 @@ const VendorBalances = ({ data }: { data: any }) => {
   
     { key: 'vendor_code', header: 'Vendor Code', width: 'w-32' },
     { key: 'vendor_name', header: 'Vendor Name', width: 'w-32' },
-    {key:'total_purchases', header:'Total Purchases', cell: (item: any) => `₦${(Number(item.total_purchases) || 0).toLocaleString()}`, width: 'w-32'},
-    {key:'total_payments', header:'Total Payments', cell: (item: any) => `₦${(Number(item.total_payments) || 0).toLocaleString()}`, width: 'w-32'},
+    // {key:'total_purchases', header:'Total Purchases', cell: (item: any) => `₦${(Number(item.total_purchases) || 0).toLocaleString()}`, width: 'w-32'},
+    // {key:'total_payments', header:'Total Payments', cell: (item: any) => `₦${(Number(item.total_payments) || 0).toLocaleString()}`, width: 'w-32'},
     {key:'outstanding_balance', header:'Outstanding Balances', cell: (item: any) => `₦${(Number(item.outstanding_balance) || 0).toLocaleString()}`, width: 'w-32'},
 
    
@@ -1527,8 +1534,8 @@ const CustomerBalances = ({ data }: { data: any }) => {
   
     { key: 'customer_code', header: 'Customer Code', width: 'w-32' },
     { key: 'customer_name', header: 'Customer Name', width: 'w-32' },
-    {key:'total_sales', header:'Total Sales', cell: (item: any) => `₦${(Number(item.total_sales) || 0).toLocaleString()}`, width: 'w-32'},
-    {key:'total_receipts', header:'Total Receipts', cell: (item: any) => `₦${(Number(item.total_receipts) || 0).toLocaleString()}`, width: 'w-32'},
+    // {key:'total_sales', header:'Total Sales', cell: (item: any) => `₦${(Number(item.total_sales) || 0).toLocaleString()}`, width: 'w-32'},
+    // {key:'total_receipts', header:'Total Receipts', cell: (item: any) => `₦${(Number(item.total_receipts) || 0).toLocaleString()}`, width: 'w-32'},
     {key:'outstanding_balance', header:'Outstanding Balances', cell: (item: any) => `₦${(Number(item.outstanding_balance) || 0).toLocaleString()}`, width: 'w-32'},
 
    
@@ -1551,9 +1558,9 @@ const CustomerBalances = ({ data }: { data: any }) => {
 
 const GeneralLedgerReport = ({ data }: { data: any[] }) => {
   // 1. Compute running balance
-  const dataWithBalance = data.reduce((acc: any[], curr, idx) => {
-    const prevBalance = idx > 0 ? acc[idx - 1].runningBalance : 0;
-    const runningBalance = prevBalance + (curr.credit || 0) - (curr.debit || 0);
+  const dataWithBalance = data.lines.reduce((acc: any[], curr, idx) => {
+    const prevBalance = idx > 0 ? acc[idx - 1].runningBalance : data.openingBalance;
+    const runningBalance = prevBalance + (curr.debit || 0) - (curr.credit || 0);
 
     acc.push({ ...curr, runningBalance });
     return acc;
@@ -1596,6 +1603,22 @@ const GeneralLedgerReport = ({ data }: { data: any[] }) => {
       <div className="text-center">
         <h2 className="text-xl font-bold">General Ledger</h2>
         <p className="text-gray-600">Detailed journal entries</p>
+      </div>
+      <div className="flex justify-end">
+        <span className='mx-2 font-bold'>Opening Balance: </span>
+        <span>₦{Number(data.openingBalance).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className='mx-2 font-bold'>Total Receipt: </span>
+        <span>₦{Number(data.totalReceipt).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className='mx-2 font-bold'>Total Payment: </span>
+        <span>₦{Number(data.totalPayment).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className='mx-2 font-bold'>Closing Balance: </span>
+        <span>₦{Number(data.closingBalance).toLocaleString()}</span>
       </div>
       
       <DataTable data={dataWithBalance} columns={columns} />
@@ -1981,7 +2004,7 @@ const VendorLedger = ({ data }: { data: any }) => {
 
   const entriesWithBalance = entries.reduce((acc: any[], curr, idx) => {
   const prevBalance = idx > 0 ? Number(acc[idx - 1].runningBalance) : Number(data.openingBalance) || 0;
-  const runningBalance = prevBalance + Number(curr.credit || 0) - Number(curr.debit || 0);
+  const runningBalance = prevBalance + Number(curr.debit || 0) - Number(curr.credit || 0);
 
     acc.push({ ...curr, runningBalance });
     return acc;

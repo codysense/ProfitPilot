@@ -27,6 +27,7 @@ import Vendors from './pages/purchases/Vendors';
 import SalesOrders from './pages/sales/Orders';
 import Customers from './pages/sales/Customers';
 import SalesMemos from './pages/sales/SalesMemosPage'
+import CustomerGroups from './pages/sales/CustomerGroups'
 
 
 // Production Pages
@@ -184,6 +185,11 @@ function App() {
             <Route path="/sales/customers" element={
               <ProtectedRoute>
                 <Customers />
+              </ProtectedRoute>
+            } />
+            <Route path="/sales/customergroups" element={
+              <ProtectedRoute>
+                <CustomerGroups/>
               </ProtectedRoute>
             } />
 

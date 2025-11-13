@@ -1,40 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Download, Filter, X, DollarSign, TrendingUp, TrendingDown, Calendar, Upload } from 'lucide-react';
+import { Plus, Download, Filter, X, DollarSign, TrendingUp, TrendingDown, Calendar, Upload, Package, Eye, Edit, Printer, Truck, FileText, MailboxIcon, Trash2 } from 'lucide-react';
 import { cashApi, managementApi } from '../../lib/api';
+import { CashTransaction } from '../../types/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import CreateCashTransactionModal from './CreateCashTransactionModal';
 import BankReconciliationModal from './BankReconciliationModal';
 import ImportBankStatementModal from './ImportBankStatementModal';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../store/authStore';
+import EditCashTransactionModal from './EditCashTransactionModal';
 
-interface CashTransaction {
-  id: string;
-  transactionNo: string;
-  transactionType: 'RECEIPT' | 'PAYMENT';
-  amount: number;
-  description: string;
-  reference?: string;
-  transactionDate: string;
-  runningBalance: number;
-  cashAccount: {
-    code: string;
-    name: string;
-    accountType: string;
-  };
-  glAccount: {
-    code: string;
-    name: string;
-  };
-  contraAccount?: {
-    code: string;
-    name: string;
-  };
-  user: {
-    name: string;
-  };
-}
+// interface CashTransaction {
+//   id: string;
+//   transactionNo: string;
+//   transactionType: 'RECEIPT' | 'PAYMENT';
+//   amount: number;
+//   description: string;
+//   reference?: string;
+//   transactionDate: string;
+//   runningBalance: number;
+//   cashAccount: {
+//     code: string;
+//     name: string;
+//     accountType: string;
+//   };
+//   glAccount: {
+//     code: string;
+//     name: string;
+//   };
+//   contraAccount?: {
+//     code: string;
+//     name: string;
+//   };
+//   user: {
+//     name: string;
+//   };
+// }
 
 const Cashbook = () => {
   const [page, setPage] = useState(1);
@@ -45,23 +48,147 @@ const Cashbook = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedCashTransaction, setselectedCashTransaction] = useState<CashTransaction | null>(null);
+  const { user } = useAuthStore();
 
-  const { data: cashbookData = [], isLoading, refetch } = useQuery({
-    queryKey: ['cashbook', { 
+  const canPerformActions = user?.roles.includes('Accountant') || user?.roles.includes('General Manager');
+
+//   useEffect(() => {
+//   console.log('Current page:', page);
+// }, [page]);
+
+const handleEditCashTransaction = () => {
+    refetch();
+    setShowEditModal(false);
+    setselectedCashTransaction(null);
+  };
+  const { data: cashTransactions, isLoading, refetch } = useQuery({
+    queryKey: ['cashTransactions', { 
       page, 
       cashAccountId: cashAccountFilter,
-      dateFrom: dateFromFilter,
-      dateTo: dateToFilter
+       startDate: dateFromFilter,
+       endDate: dateToFilter,
+      excludeRefund:true
+      //  transactionType:transactionTypeFilter
     }],
-    queryFn: () => cashApi.getCashbook({ 
-      
-      page, 
-      limit: 20,
-      ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
-      ...(dateFromFilter && { dateFrom: dateFromFilter }),
-      ...(dateToFilter && { dateTo: dateToFilter })
-    })
+queryFn: () => {
+      // console.log('Fetching page:', page);  
+      return cashApi.getCashTransactions({ 
+        page,
+        limit: 10,
+        ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+        ...(dateFromFilter && { startDate: dateFromFilter }),
+        ...(dateToFilter && { endDate: dateToFilter }),
+        excludeRefund: 'true',
+      });
+    }
   });
+
+  // console.log(cashTransactions)
+ 
+
+//   const { data, isLoading, refetch } = useQuery({
+//     queryKey: ['cashTransactions', { 
+//       page, 
+//       cashAccountId: cashAccountFilter,
+//       dateFrom: dateFromFilter,
+//       dateTo: dateToFilter
+//     }],
+//     queryFn: () => cashApi.getCashTransactions({ 
+//       page, 
+//       limit: 20,
+//       ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+//       ...(dateFromFilter && { dateFrom: dateFromFilter }),
+//       ...(dateToFilter && { dateTo: dateToFilter }),
+//     })
+//   });
+
+// // Debug logs
+// console.log('isLoading:', isLoading);
+// // console.log('error:', error);
+// console.log('raw data:', data);
+// console.log('data type:', typeof data);
+// console.log('data.data:', data?.data);
+
+// // Try to access the transactions
+// const cashTransactions = data?.data || [];
+// console.log('cashTransactions:', cashTransactions);
+// console.log('cashTransactions length:', cashTransactions.length);
+
+// // Filter out refunds
+// const filteredTransactions = cashTransactions.filter(
+//   transaction => transaction.transactionType !== 'REFUND'
+// );
+// console.log('filtered transactions:', filteredTransactions);
+// console.log('filtered length:', filteredTransactions.length);
+
+
+// const { data, isLoading, refetch } = useQuery({
+//     queryKey: ['cashTransactions', { 
+//       page, 
+//       cashAccountId: cashAccountFilter,
+//       dateFrom: dateFromFilter,
+//       dateTo: dateToFilter
+//     }],
+//     queryFn: () => cashApi.getCashTransactions({ 
+//       page, 
+//       limit: 20,
+//       ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+//       ...(dateFromFilter && { dateFrom: dateFromFilter }),
+//       ...(dateToFilter && { dateTo: dateToFilter }),
+//     })
+// });
+
+// // Get the transactions array from the response
+// const filteredTransactions = data?.data || [];
+
+// // Filter out REFUND transactions
+// const cashTransactions = filteredTransactions.filter(
+//   transaction => transaction.transactionType !== 'REFUND'
+// );
+
+// const { data:cashTransactions, isLoading, refetch } = useQuery({
+//     queryKey: ['cashTransactions', { 
+//       page, 
+//       cashAccountId: cashAccountFilter,
+//       dateFrom: dateFromFilter,
+//       dateTo: dateToFilter,
+//       // excludeRefunds: true 
+//     }],
+//     queryFn: async () => {
+//  await cashApi.getCashTransactions({ 
+//     page, 
+//     limit: 20,
+//     ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+//     ...(dateFromFilter && { dateFrom: dateFromFilter }),
+//     ...(dateToFilter && { dateTo: dateToFilter }),
+//   });
+
+  // return res.data.filter(t => t.transactionType !== 'REFUND');
+//}
+//});
+
+// const cashTransactions = data?.data || [];
+// console.log(cashTransactions)
+
+  // const { data: cashBookData = [] } = useQuery({
+  //   queryKey: ['cashbook', { 
+  //     page, 
+  //     cashAccountId: cashAccountFilter,
+  //     dateFrom: dateFromFilter,
+  //     dateTo: dateToFilter
+  //   }],
+  //   queryFn: () => cashApi.getCashbook({ 
+      
+  //     page, 
+  //     limit: 20,
+  //     ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+  //     ...(dateFromFilter && { dateFrom: dateFromFilter }),
+  //     ...(dateToFilter && { dateTo: dateToFilter })
+  //   })
+  // });
 
 //const cashbookData = (cashbookDataRaw.transactions).filter(entry => entry.glAccountId);
 
@@ -87,63 +214,80 @@ const Cashbook = () => {
       header: 'Transaction No',
       width: 'w-32'
     },
+    
+    // {
+    //   key: 'reference',
+    //   header: 'Reference',
+    //   cell: (transaction: CashTransaction) => transaction.reference || '-',
+    //   width: 'w-32'
+    // },
+    // {
+    //   key: 'glAccount',
+    //   header: 'GL Account',
+    //   cell: (transaction: CashTransaction) => (
+    //     <div>
+    //       <div className="font-medium">{transaction.CashTransactionLine.glAccountid}</div>
+    //       <div className="text-xs text-gray-500">{transaction.glAccount?.name}</div>
+    //     </div>
+    //   ),
+    //   width: 'w-48'
+    // },
     {
-      key: 'description',
-      header: 'Description',
-      width: 'w-64'
-    },
-    {
-      key: 'reference',
-      header: 'Reference',
-      cell: (transaction: CashTransaction) => transaction.reference || '-',
-      width: 'w-32'
-    },
-    {
-      key: 'glAccount',
-      header: 'GL Account',
-      cell: (transaction: CashTransaction) => (
-        <div>
-          <div className="font-medium">{transaction.glAccount?.code}</div>
-          <div className="text-xs text-gray-500">{transaction.glAccount?.name}</div>
-        </div>
-      ),
-      width: 'w-48'
-    },
-    {
-      key: 'contraAccount',
-      header: 'Contra Account',
+      key: 'cashAccount',
+      header: 'Cash Account',
       cell: (transaction: CashTransaction) => 
-        transaction.contraAccount ? (
+        transaction.cashAccount ? (
           <div>
-            <div className="font-medium">{transaction.contraAccount.code}</div>
-            <div className="text-xs text-gray-500">{transaction.contraAccount.name}</div>
+            <div className="font-medium">{transaction.cashAccount.code}</div>
+            <div className="text-xs text-gray-500">{transaction.cashAccount.name}</div>
           </div>
         ) : '-',
       width: 'w-48'
     },
     {
+      key: 'transactionType',
+      header: 'Transaction Type',
+      width: 'w-32'
+    },
+    
+    {
       key: 'amount',
       header: 'Amount',
       cell: (transaction: CashTransaction) => (
         <span className={transaction.transactionType === 'RECEIPT' ? 'text-green-600' : 'text-red-600'}>
-          {transaction.transactionType === 'RECEIPT' ? '+' : '-'}₦{transaction.amount.toLocaleString()}
+          {transaction.transactionType === 'RECEIPT' ? '+' : '-'}₦{Number(transaction.amount).toLocaleString()}
         </span>
       ),
       width: 'w-32'
     },
+    // {
+    //   key: 'runningBalance',
+    //   header: 'Running Balance',
+    //   cell: (transaction: CashTransaction) => (
+    //     <span className={`font-medium ${transaction.runningBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+    //       ₦{transaction.runningBalance.toLocaleString()}
+    //     </span>
+    //   ),
+    //   width: 'w-32'
+    // },
     {
-      key: 'runningBalance',
-      header: 'Running Balance',
-      cell: (transaction: CashTransaction) => (
-        <span className={`font-medium ${transaction.runningBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-          ₦{transaction.runningBalance.toLocaleString()}
-        </span>
-      ),
+      key: 'preparer.name',
+      header: 'Prepared By',
       width: 'w-32'
     },
     {
-      key: 'user.name',
-      header: 'User',
+      key: 'approver.name',
+      header: 'Approved By',
+      width: 'w-32'
+    },
+    {
+      key: 'authorizer.name',
+      header: 'Authorized By',
+      width: 'w-32'
+    },
+    {
+      key: 'payer.name',
+      header: 'Paid By',
       width: 'w-32'
     }
   ];
@@ -187,16 +331,127 @@ const Cashbook = () => {
     setShowImportModal(false);
   };
 
+  const handleApproveTransaction = async (cashTransaction: CashTransaction) => {
+      try {
+        await cashApi.approveCashTransaction(cashTransaction.id);
+        toast.success('Cash Transaction approved successfully');
+        refetch();
+      } catch (error) {
+        console.error('Cash Transaction approval:', error);
+      }
+    };
+  const handleAuthorizeTransaction = async (cashTransaction: CashTransaction) => {
+      try {
+        await cashApi.authorizeCashTransaction(cashTransaction.id);
+        toast.success('Cash Transaction authorized successfully');
+        refetch();
+      } catch (error) {
+        console.error('Cash Transaction authorize:', error);
+      }
+    };
+  const handlePayTransaction = async (cashTransaction: CashTransaction) => {
+      try {
+        await cashApi.payCashTransaction(cashTransaction.id);
+        toast.success('Cash Transaction paid successfully');
+        refetch();
+      } catch (error) {
+        console.error('Cash Transaction pay:', error);
+      }
+    };
+  const handleDeleteCashTransaction = async (cashTransaction: CashTransaction) => {
+      try {
+        await cashApi.deleteCashTransaction(cashTransaction.id);
+        toast.success('Cash Transaction deleted successfully');
+        refetch();
+      } catch (error) {
+        console.error('Cash Transaction Delete:', error);
+      }
+    };
+
   // Calculate summary statistics
-  const totalReceipts = cashbookData?.transactions
-    ?.filter((t: CashTransaction) => t.transactionType === 'RECEIPT')
-    .reduce((sum: number, t: CashTransaction) => sum + Number(t.amount), 0) || 0;
+  // const totalReceipts = cashBookData?.transactions
+  //   ?.filter((t: CashTransaction) => t.transactionType === 'RECEIPT')
+  //   .reduce((sum: number, t: CashTransaction) => sum + Number(t.amount), 0) || 0;
 
-  const totalPayments = cashbookData?.transactions
-    ?.filter((t: CashTransaction) => t.transactionType === 'PAYMENT')
-    .reduce((sum: number, t: CashTransaction) => sum + Number(t.amount), 0) || 0;
+  // const totalPayments = cashBookData?.transactions
+  //   ?.filter((t: CashTransaction) => t.transactionType === 'PAYMENT')
+  //   .reduce((sum: number, t: CashTransaction) => sum + Number(t.amount), 0) || 0;
 
-  const netCashFlow = totalReceipts - totalPayments;
+  // const netCashFlow = totalReceipts - totalPayments;
+
+  const actions = (cashTransaction: CashTransaction) => (
+      <div className="flex space-x-2">
+        <button
+          onClick={() => {
+            setselectedCashTransaction(cashTransaction);
+            setShowDetailsModal(true);
+          }}
+          className="text-blue-600 hover:text-blue-900"
+          title="View Details"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+        {['PREPARED', 'AUTHORIZED', 'APPROVED'].includes(cashTransaction.status) && canPerformActions && (
+          <button
+            onClick={() => {
+             setselectedCashTransaction(cashTransaction);
+            setShowEditModal(true);
+            }}
+            className="text-blue-600 hover:text-blue-900"
+            title="Edit CashTransaction"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+        )}
+        {['PREPARED'].includes(cashTransaction.status) && canPerformActions && (
+          <button
+            onClick={() => handleDeleteCashTransaction(cashTransaction)}
+            className="text-red-600 hover:text-red-900"
+            title="Delete CashTransaction"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+        {[ 'PAID'].includes(cashTransaction.status) && (
+          <button
+            onClick={() => handlePrintInvoice(cashTransaction)}
+            className="text-purple-600 hover:text-purple-900"
+            title="Print Invoice"
+          >
+            <Printer className="h-4 w-4" />
+          </button>
+        )}
+        {cashTransaction.status === 'PREPARED' && canPerformActions && (
+          <button
+            onClick={() => {
+             handleApproveTransaction(cashTransaction)
+            }}
+            className="text-green-600 hover:text-green-900"
+            title="Approve"
+          >
+            <DollarSign className="h-4 w-4" />
+          </button>
+        )}
+        {cashTransaction.status === 'APPROVED' && canPerformActions && (
+          <button
+            onClick={() => handleAuthorizeTransaction(cashTransaction)}
+            className="text-purple-600 hover:text-purple-900"
+            title="Authorize"
+          >
+            <DollarSign className="h-4 w-4" />
+          </button>
+        )}
+        {cashTransaction.status === 'AUTHORIZED' && canPerformActions && (
+          <button
+            onClick={() => handlePayTransaction(cashTransaction)}
+            className="text-purple-600 hover:text-purple-900"
+            title="Pay"
+          >
+            <DollarSign className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    );
 
   return (
     <div className="space-y-6">
@@ -332,7 +587,7 @@ const Cashbook = () => {
       )}
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+      {/* <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -405,14 +660,14 @@ const Cashbook = () => {
                     Total Transactions
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {cashbookData?.pagination?.total || 0}
+                    {cashTransactions?.pagination?.total || 0}
                   </dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Cash Account Balances */}
       <div className="bg-white shadow rounded-lg">
@@ -449,18 +704,63 @@ const Cashbook = () => {
         </div>
       </div>
 
+{/* Stats */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+        {['PREPARED',  'APPROVED','AUTHORIZED', 'PAID'].map(status => {
+          const count = cashTransactions?.data.filter((p: data) => p.status === status).length || 0;
+          const total = cashTransactions?.data.filter((p: data) => p.status === status)
+            .reduce((sum: number, p: CashTransaction) => sum + Number(p.amount), 0) || 0;
+
+          return (
+            <div key={status} className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Package className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        {status}
+                      </dt>
+                      <dd className="text-lg font-semibold text-gray-900">
+                        {count} transactions
+                      </dd>
+                      <dd className="text-sm text-gray-500">
+                        ₦{total.toLocaleString()}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Data Table */}
       <DataTable
-        data={cashbookData?.transactions || []}
+        data={cashTransactions?.data || []}
         columns={columns}
         loading={isLoading}
-        pagination={cashbookData?.pagination}
+        pagination={cashTransactions?.pagination }
         onPageChange={setPage}
+       //currentPage={page}
+        actions={actions}
       />
 
+
+      
       {/* Modals */}
       {showCreateModal && (
         <CreateCashTransactionModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateTransaction}
+        />
+      )}
+      {showEditModal && (
+        <EditCashTransactionModal
+          transaction={selectedCashTransaction}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleCreateTransaction}
         />

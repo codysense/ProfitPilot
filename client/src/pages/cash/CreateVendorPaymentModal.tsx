@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { cashApi, purchaseApi } from '../../lib/api';
 import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
+import { VendorSelect } from '../../components/VendorSelect';
 
 const createVendorPaymentSchema = z.object({
   vendorId: z.string().min(1, 'Vendor is required'),
@@ -106,7 +107,14 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: CreateVendorPaymentMod
                 <label className="block text-sm font-medium text-gray-700">
                   Vendor *
                 </label>
-                <select
+                <VendorSelect
+                vendors={vendors?.vendors || []}
+                value={watch("vendorId")}
+                onChange={(val) => setValue("vendorId", val, { shouldDirty: true })}
+                // error={errors.vendorId?.message}
+                />
+
+                {/* <select
                   {...register('vendorId')}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
@@ -116,7 +124,7 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: CreateVendorPaymentMod
                       {vendor.code} - {vendor.name}
                     </option>
                   ))}
-                </select>
+                </select> */}
                 {errors.vendorId && (
                   <p className="mt-1 text-sm text-red-600">{errors.vendorId.message}</p>
                 )}

@@ -1,10 +1,32 @@
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X } from 'lucide-react';
-import { inventoryApi } from '../../lib/api';
+import { X, Plus } from 'lucide-react';
+import { inventoryApi, salesApi } from '../../lib/api';
 import toast from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+
+// const createItemSchema = z.object({
+//   sku: z.string().min(1, 'SKU is required'),
+//   name: z.string().min(1, 'Name is required'),
+//   description: z.string().optional(),
+//   type: z.enum(['RAW_MATERIAL', 'WORK_IN_PROGRESS', 'FINISHED_GOODS', 'CONSUMABLE']),
+//   uom: z.string().default('QTY'),
+//   costingMethod: z.enum(['GLOBAL', 'FIFO', 'WEIGHTED_AVG']).default('GLOBAL'),
+//   standardCost: z.number().optional(),
+//   sellingPriceOrdinary: z.number().optional(),
+//   sellingPriceBulk: z.number().optional(),
+//   sellingPriceWIC:z.number().optional(),
+// });
+
+
+// // const priceListSchema = z.array(
+// //   z.object({
+// //     customerGroup: z.enum(['Ordinary', 'Bulk', 'WIC']),
+// //     price: z.number().positive('Price must be positive')
+// //   })
+// ).optional();
 
 const createItemSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
@@ -16,8 +38,14 @@ const createItemSchema = z.object({
   standardCost: z.number().optional(),
   sellingPriceOrdinary: z.number().optional(),
   sellingPriceBulk: z.number().optional(),
-  sellingPriceWIC:z.number().optional(),
+  sellingPriceWIC: z.number().optional(),
+  priceList:z.array(z.object({
+    // itemId: z.string().cuid(),
+    customerGroup: z.string(),
+    price: z.number().positive(),
+  })),
 });
+
 
 type CreateItemFormData = z.infer<typeof createItemSchema>;
 
@@ -30,6 +58,7 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting }
   } = useForm<CreateItemFormData>({
     resolver: zodResolver(createItemSchema),
@@ -39,9 +68,15 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
     }
   });
 
+  const { fields, append, remove } = useFieldArray({
+  control,
+  name: 'priceList'
+});
+
+
   const onSubmit = async (data: CreateItemFormData) => {
     try {
-      console.log(data)
+      //console.log(data)
       await inventoryApi.createItem(data);
       toast.success('Item created successfully');
       onSuccess();
@@ -49,6 +84,15 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
       console.error('Create item error:', error);
     }
   };
+
+  const { data: groupsData, isLoading: isGroupsLoading } = useQuery({
+    queryKey: ['customerGroups'],
+    queryFn: () => salesApi.getCustomerGroups({ page: 1, limit: 100 }), // adjust limit as needed
+    staleTime: 5 * 60 * 1000 // 5 mins cache
+  });
+  
+  const groups = groupsData?.groups || [];
+  
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -130,7 +174,7 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
                 />
               </div>
               
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 
                 
                 <div>
@@ -146,7 +190,7 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
                   />
                 </div>
                 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Retail Price
                   </label>
@@ -193,7 +237,10 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
                     <option value="FIFO">FIFO</option>
                     <option value="WEIGHTED_AVG">Weighted Average</option>
                   </select>
-                </div>
+                </div> */}
+
+                
+
 
                  <div>
                   <label className="block text-sm font-medium text-gray-700">
@@ -207,6 +254,67 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
                 </div>
                 
                 
+              </div>
+                  <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-md font-medium text-gray-900">Price List</h4>
+                  <button
+                    type="button"
+                    onClick={() => append({ customerGroup: '', price: 0 })}
+                    className="inline-flex items-center px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-50"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Price
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="grid grid-cols-5 gap-4 items-end">
+                      <div className='col-span-2'>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Customer Group *
+                        </label>
+                        <select
+                          {...register(`priceList.${index}.customerGroup`)}
+                          className="mt-1 block w-full border  border-gray-300 rounded-md py-2 px-3 sm:text-sm"
+                        >
+                          <option value="">Select Customer Group</option>
+                    {isGroupsLoading ? (
+                      <option disabled>Loading...</option>
+                    ) : (
+                      groups.map((group) => (
+                        <option key={group.code} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))
+                    )}
+                        </select>
+                      </div>
+
+                      <div className='col-span-2'>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Price *
+                        </label>
+                        <input
+                          {...register(`priceList.${index}.price`, { valueAsNumber: true })}
+                          type="number"
+                          step="0.01"
+                          className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        className="text-red-500 mt-5"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
               
               <div className="flex justify-end space-x-3 pt-4">

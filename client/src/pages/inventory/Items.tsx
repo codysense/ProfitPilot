@@ -9,6 +9,7 @@ import CreateItemModal from './CreateItemModal';
 import EditItemModal from './EditItemModal';
 import toast from 'react-hot-toast'
 import { useDebounce } from '../../utils/debounce';
+import PriceListCell from '../../components/PriceListCell';
 
 const Items = () => {
   const [page, setPage] = useState(1);
@@ -35,9 +36,9 @@ const Items = () => {
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(typeFilter && { type: typeFilter }),
       }),
-    placeholderData: keepPreviousData, // smoother pagination
+    placeholderData: keepPreviousData, 
   });
-
+// console.log(data)
 
 
   const columns = [
@@ -74,24 +75,30 @@ const Items = () => {
       cell: (item: Item) => item.standardCost ? `₦${item.standardCost.toLocaleString()}` : '-',
       width: 'w-32'
     },
-    {
-      key: 'sellingPriceWIC',
-      header: 'WIC Price',
-      cell: (item: Item) => item.sellingPriceWIC ? `₦${item.sellingPriceWIC.toLocaleString()}` : '-',
-      width: 'w-32'
-    },
-    {
-      key: 'sellingPriceOrdinary',
-      header: 'Retail Price',
-      cell: (item: Item) => item.sellingPriceOrdinary ? `₦${item.sellingPriceOrdinary.toLocaleString()}` : '-',
-      width: 'w-32'
-    },
-    {
-      key: 'sellingPriceBulk',
-      header: 'BUlk Price',
-      cell: (item: Item) => item.sellingPriceBulk ? `₦${item.sellingPriceBulk.toLocaleString()}` : '-',
-      width: 'w-32'
-    },
+    // {
+    //   key: 'sellingPriceWIC',
+    //   header: 'WIC Price',
+    //   cell: (item: Item) => item.sellingPriceWIC ? `₦${item.sellingPriceWIC.toLocaleString()}` : '-',
+    //   width: 'w-32'
+    // },
+    // {
+    //   key: 'sellingPriceOrdinary',
+    //   header: 'Retail Price',
+    //   cell: (item: Item) => item.sellingPriceOrdinary ? `₦${item.sellingPriceOrdinary.toLocaleString()}` : '-',
+    //   width: 'w-32'
+    // },
+    // {
+    //   key: 'sellingPriceBulk',
+    //   header: 'BUlk Price',
+    //   cell: (item: Item) => item.sellingPriceBulk ? `₦${item.sellingPriceBulk.toLocaleString()}` : '-',
+    //   width: 'w-32'
+    // },
+   {
+  key: "priceList",
+  header: "Selling Price",
+  cell: (item: Item) => <PriceListCell item={item} />,
+  width: "w-40",
+},
     {
       key: 'stockQty',
       header: 'Stock Qty',

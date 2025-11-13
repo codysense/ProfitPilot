@@ -24,6 +24,12 @@ router.delete('/accounts/:id', requireRole(['Accountant']), auditLogger('DELETE'
 router.get('/transactions', requireRole(['Accountant', 'POS User']), cashController.getCashTransactions);
 // router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
 router.post('/transactions', requireRole(['Accountant', 'POS User']), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
+router.post('/transactions/:id/approve', requireRole(['Accountant', 'POS User']), auditLogger('APPROVE', 'CASH_TRANSACTION'), cashController.approveCashTransaction)
+router.post('/transactions/:id/authorize', requireRole(['Accountant', 'POS User']), auditLogger('AUTHORIZE', 'CASH_TRANSACTION'), cashController.authorizeCashTransaction)
+router.post('/transactions/:id/pay', requireRole(['Accountant', 'POS User']), auditLogger('PAY', 'CASH_TRANSACTION'), cashController.payCashTransaction)
+router.put('/transactions/:id/update', requireRole(['Accountant', 'POS User']), auditLogger('UPDATE', 'CASH_TRANSACTION'), cashController.updateCashTransaction)
+router.delete('/transactions/:id/', requireRole(['Accountant', 'POS User']), auditLogger('DELETE', 'CASH_TRANSACTION'), cashController.deleteCashTransaction)
+
 // router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
 
 // Customer Payments

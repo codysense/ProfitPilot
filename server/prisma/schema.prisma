@@ -27,7 +27,7 @@ model User {
   auditLogs        AuditLog[]
   journals         Journal[]
   inventoryLedger  InventoryLedger[]
-  cashTransactions CashTransaction[]
+  //cashTransactions CashTransaction[]
   salesReceipts    SalesReceipt[]
   purchasePayments PurchasePayment[]
   SystemSetting    SystemSetting[]
@@ -44,6 +44,13 @@ model User {
   StockAdjustment StockAdjustment[]
   SalesRefund     SalesRefund[]
   PurchaseRefund  PurchaseRefund[]
+
+  cashTransactionsUser       CashTransaction[]        @relation("CashTransactionUser")
+  cashTransactionsPrepared   CashTransaction[]        @relation("CashTransactionPreparer")
+  cashTransactionsApproved   CashTransaction[]        @relation("CashTransactionApprover")
+  cashTransactionsAuthorized CashTransaction[]        @relation("CashTransactionAuthorizer")
+  cashTransactionsPaid       CashTransaction[]        @relation("CashTransactionPayer")
+  cashTransactionPostings    CashTransactionPosting[]
 
   @@map("users")
 }
@@ -200,6 +207,7 @@ model Item {
   isActive             Boolean       @default(true)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+  priceList ItemPriceList[]
 
   // Relations
   boms             Bom[]
@@ -214,7 +222,20 @@ model Item {
   AdjustmentLines  AdjustmentLines[]
 
   @@map("items")
+
 }
+
+model ItemPriceList {
+  id              String       @id @default(cuid())
+  itemId          String
+  customerGroup   String       // E.g., 'Bulk', 'Ordinary', 'WIC', etc.
+  price           Decimal      @db.Decimal(15, 4)
+
+  item            Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, customerGroup])
+}
+
 
 model Bom {
   id        String   @id @default(cuid())
@@ -389,17 +410,31 @@ model Vendor {
   @@map("vendors")
 }
 
+model CustomerGroup {
+  id        String     @id @default(cuid())
+  code      String?
+  description String?
+  name      String     @unique
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+
+  customers Customer[]
+}
+
+
 model Customer {
-  id            String   @id @default(cuid())
-  code          String   @unique
-  name          String
-  address       String?
-  phone         String?
-  email         String?
-  creditLimit   Decimal? @db.Decimal(15, 2)
-  CustomerGroup String
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  id              String         @id @default(cuid())
+  code            String         @unique
+  name            String
+  address         String?
+  phone           String?
+  email           String?
+  creditLimit     Decimal?       @db.Decimal(15, 2)
+  customerGroupId String?
+  customerGroup   CustomerGroup? @relation(fields: [customerGroupId], references: [id])
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+
 
   // Relations
   sales         Sale[]
@@ -407,11 +442,11 @@ model Customer {
   posSales      PosSale[]
   posReturns    PosReturn[]
   Memo          Memo[]
-  //SalesMemo     SalesMemo[]
   SalesRefund   SalesRefund[]
 
   @@map("customers")
 }
+
 
 enum PurchaseStatus {
   DRAFT
@@ -437,7 +472,7 @@ model Purchase {
   purchaseLines    PurchaseLine[]
   purchasePayments PurchasePayment[]
   assets           Asset[]
-  PurchaseRefunds   PurchaseRefund[]
+  PurchaseRefunds  PurchaseRefund[]
 
   @@map("purchases")
 }
@@ -480,7 +515,7 @@ model Sale {
   customer      Customer       @relation(fields: [customerId], references: [id])
   saleLines     SaleLine[]
   salesReceipts SalesReceipt[]
-  SalesRefunds   SalesRefund[]
+  SalesRefunds  SalesRefund[]
 
   @@map("sales")
 }
@@ -511,15 +546,17 @@ model ChartOfAccount {
   createdAt   DateTime @default(now())
 
   // Relations
-  parent                      ChartOfAccount?   @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children                    ChartOfAccount[]  @relation("AccountHierarchy")
+  parent                      ChartOfAccount?       @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children                    ChartOfAccount[]      @relation("AccountHierarchy")
   journalLines                JournalLine[]
-  cashTransactionsGL          CashTransaction[] @relation("CashTransactionGLAccount")
-  cashTransactionsContra      CashTransaction[] @relation("CashTransactionContraAccount")
-  cashAccounts                CashAccount[]     @relation("CashAccountGLAccount")
-  assetCategoriesAsset        AssetCategory[]   @relation("AssetCategoryAssetAccount")
-  assetCategoriesDepreciation AssetCategory[]   @relation("AssetCategoryDepreciationAccount")
-  assetCategoriesAccumulated  AssetCategory[]   @relation("AssetCategoryAccumulatedDepreciationAccount")
+  // Old:cashTransactionsGL          CashTransaction[] @relation("CashTransactionGLAccount")
+  // old: cashTransactionsContra      CashTransaction[] @relation("CashTransactionContraAccount")
+  cashAccounts                CashAccount[]         @relation("CashAccountGLAccount")
+  assetCategoriesAsset        AssetCategory[]       @relation("AssetCategoryAssetAccount")
+  assetCategoriesDepreciation AssetCategory[]       @relation("AssetCategoryDepreciationAccount")
+  assetCategoriesAccumulated  AssetCategory[]       @relation("AssetCategoryAccumulatedDepreciationAccount")
+  cashTransactionLinesGL      CashTransactionLine[] @relation("CashTransactionLineGLAccount")
+  cashTransactionLinesContra  CashTransactionLine[] @relation("CashTransactionLineContraAccount")
   Memo                        Memo[]
   //SalesMemo                   SalesMemo[]
   //PurchaseMemo                PurchaseMemo[]
@@ -537,10 +574,11 @@ model Journal {
   postedAt  DateTime @default(now())
 
   // Relations
-  postedByUser      User                @relation(fields: [postedBy], references: [id])
-  journalLines      JournalLine[]
-  assetDepreciation AssetDepreciation[]
-  assetDisposals    AssetDisposal[]
+  postedByUser            User                     @relation(fields: [postedBy], references: [id])
+  journalLines            JournalLine[]
+  assetDepreciation       AssetDepreciation[]
+  assetDisposals          AssetDisposal[]
+  cashTransactionPostings CashTransactionPosting[]
 
   @@map("journals")
 }
@@ -617,31 +655,107 @@ model CashAccount {
   @@map("cash_accounts")
 }
 
+//model CashTransaction {
+// id              String    @id @default(cuid())
+//transactionNo   String    @unique
+//cashAccountId   String
+//glAccountId     String?
+//contraAccountId String?
+//transactionType String // RECEIPT, PAYMENT
+//amount          Decimal   @db.Decimal(15, 2)
+//description     String
+//refType         String? // SALES_RECEIPT, PURCHASE_PAYMENT, OTHER
+//refId           String?
+//transactionDate DateTime
+//isReconciled    Boolean   @default(false)
+//reconciledAt    DateTime?
+//userId          String
+//createdAt       DateTime  @default(now())
+//reference       String
+
+// Relations
+//cashAccount   CashAccount     @relation(fields: [cashAccountId], references: [id])
+//glAccount     ChartOfAccount? @relation("CashTransactionGLAccount", fields: [glAccountId], references: [id])
+//contraAccount ChartOfAccount? @relation("CashTransactionContraAccount", fields: [contraAccountId], references: [id])
+//user          User            @relation(fields: [userId], references: [id])
+
+//@@map("cash_transactions")
+//}
+
 model CashTransaction {
-  id              String    @id @default(cuid())
-  transactionNo   String    @unique
+  id              String   @id @default(cuid())
+  transactionNo   String   @unique
   cashAccountId   String
-  glAccountId     String?
-  contraAccountId String?
   transactionType String // RECEIPT, PAYMENT
-  amount          Decimal   @db.Decimal(15, 2)
-  description     String
-  refType         String? // SALES_RECEIPT, PURCHASE_PAYMENT, OTHER
+  amount          Decimal  @db.Decimal(15, 2)
+  //description     String?
+  refType         String? // SALES_RECEIPT, PURCHASE_PAYMENT, CUSTOMER_PAYMENT, VENDOR_PAYMENT, OTHER
   refId           String?
   transactionDate DateTime
-  isReconciled    Boolean   @default(false)
-  reconciledAt    DateTime?
-  userId          String
-  createdAt       DateTime  @default(now())
-  reference       String
+  reference       String?
+  status          String   @default("PREPARED") // PREPARED, APPROVED, AUTHORIZED, PAID
+
+  // Approval tracking
+  preparedBy   String
+  approvedBy   String?
+  approvedAt   DateTime?
+  authorizedBy String?
+  authorizedAt DateTime?
+  paidBy       String?
+  paidAt       DateTime?
+
+  isReconciled Boolean   @default(false)
+  reconciledAt DateTime?
+  userId       String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime @updatedAt 
 
   // Relations
-  cashAccount   CashAccount     @relation(fields: [cashAccountId], references: [id])
-  glAccount     ChartOfAccount? @relation("CashTransactionGLAccount", fields: [glAccountId], references: [id])
-  contraAccount ChartOfAccount? @relation("CashTransactionContraAccount", fields: [contraAccountId], references: [id])
-  user          User            @relation(fields: [userId], references: [id])
+  cashAccount      CashAccount              @relation(fields: [cashAccountId], references: [id])
+  user             User                     @relation("CashTransactionUser", fields: [userId], references: [id])
+  preparer         User                     @relation("CashTransactionPreparer", fields: [preparedBy], references: [id])
+  approver         User?                    @relation("CashTransactionApprover", fields: [approvedBy], references: [id])
+  authorizer       User?                    @relation("CashTransactionAuthorizer", fields: [authorizedBy], references: [id])
+  payer            User?                    @relation("CashTransactionPayer", fields: [paidBy], references: [id])
+  transactionLines CashTransactionLine[]
+  postings         CashTransactionPosting[]
 
   @@map("cash_transactions")
+}
+
+// Transaction lines model (similar to SaleLine)
+model CashTransactionLine {
+  id                String   @id @default(cuid())
+  cashTransactionId String
+  glAccountId       String
+  contraAccountId   String?
+  lineAmount        Decimal  @db.Decimal(15, 2)
+  description       String?
+  createdAt         DateTime @default(now())
+
+  // Relations
+  cashTransaction CashTransaction @relation(fields: [cashTransactionId], references: [id], onDelete: Cascade)
+  glAccount       ChartOfAccount  @relation("CashTransactionLineGLAccount", fields: [glAccountId], references: [id])
+  contraAccount   ChartOfAccount? @relation("CashTransactionLineContraAccount", fields: [contraAccountId], references: [id])
+
+  @@map("cash_transaction_lines")
+}
+
+// Model to track GL postings when transaction is PAID
+model CashTransactionPosting {
+  id                String   @id @default(cuid())
+  cashTransactionId String
+  journalId         String
+  postedAt          DateTime @default(now())
+  postedBy          String
+
+  // Relations
+  cashTransaction CashTransaction @relation(fields: [cashTransactionId], references: [id])
+  journal         Journal         @relation(fields: [journalId], references: [id])
+  user            User            @relation(fields: [postedBy], references: [id])
+
+  @@unique([cashTransactionId, journalId])
+  @@map("cash_transaction_postings")
 }
 
 model SalesReceipt {

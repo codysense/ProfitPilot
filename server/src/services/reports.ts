@@ -445,6 +445,7 @@ const chartAccounts = [...balanceSheetAccounts, ...cashAndBankAccount, ...income
       where.accountId = accountId;
     }
 
+    // Get journal lines for the period
     const journalLines = await prisma.journalLine.findMany({
       where,
       include: {
@@ -458,19 +459,108 @@ const chartAccounts = [...balanceSheetAccounts, ...cashAndBankAccount, ...income
       orderBy: [{ journal: { date: 'asc' } }, { journal: { journalNo: 'asc' } }]
     });
 
-    return journalLines.map(line => ({
-      date: line.journal.date,
-      journalNo: line.journal.journalNo,
-      accountCode: line.account.code,
-      accountName: line.account.name,
-      accountType: line.account.accountType,
-      memo: line.journal.memo,
-      debit: line.debit.toNumber(),
-      credit: line.credit.toNumber(),
-      refType: line.refType,
-      refId: line.refId
-    }));
+    // Calculate opening balance (all transactions before fromDate)
+    const openingBalanceWhere: any = {
+      journal: {
+        date: {
+          lt: fromDate
+        }
+      }
+    };
+
+    if (accountId) {
+      openingBalanceWhere.accountId = accountId;
+    }
+
+    const openingBalanceLines = await prisma.journalLine.findMany({
+      where: openingBalanceWhere
+    });
+
+    const openingBalance = openingBalanceLines.reduce((balance, line) => {
+      return balance + line.debit.toNumber() - line.credit.toNumber();
+    }, 0);
+
+    // Calculate totals for the period
+    const totalReceipt = journalLines.reduce((sum, line) => sum + line.debit.toNumber(), 0);
+    const totalPayment = journalLines.reduce((sum, line) => sum + line.credit.toNumber(), 0);
+    
+    // Calculate closing balance
+    const closingBalance = openingBalance + totalReceipt - totalPayment;
+
+    // Map journal lines with running balance
+    let runningBalance = openingBalance;
+    const lines = journalLines.map(line => {
+      runningBalance += line.debit.toNumber() - line.credit.toNumber();
+      
+      return {
+        date: line.journal.date,
+        journalNo: line.journal.journalNo,
+        accountCode: line.account.code,
+        accountName: line.account.name,
+        accountType: line.account.accountType,
+        memo: line.journal.memo,
+        debit: line.debit.toNumber(),
+        credit: line.credit.toNumber(),
+        balance: runningBalance,
+        refType: line.refType,
+        refId: line.refId
+      };
+    });
+
+    return {
+      openingBalance,
+      closingBalance,
+      totalReceipt,
+      totalPayment,
+      lines,
+      accountInfo: journalLines.length > 0 ? {
+        code: journalLines[0].account.code,
+        name: journalLines[0].account.name,
+        accountType: journalLines[0].account.accountType
+      } : null
+    };
   }
+
+  // async getGeneralLedger(fromDate: Date, toDate: Date, accountId?: string) {
+  //   const where: any = {
+  //     journal: {
+  //       date: {
+  //         gte: fromDate,
+  //         lte: toDate
+  //       }
+  //     }
+  //   };
+
+  //   if (accountId) {
+  //     where.accountId = accountId;
+  //   }
+
+  //   const journalLines = await prisma.journalLine.findMany({
+  //     where,
+  //     include: {
+  //       journal: {
+  //         select: { journalNo: true, date: true, memo: true }
+  //       },
+  //       account: {
+  //         select: { code: true, name: true, accountType: true }
+  //       }
+  //     },
+  //     orderBy: [{ journal: { date: 'asc' } }, { journal: { journalNo: 'asc' } }]
+  //   });
+
+  //   return journalLines.map(line => ({
+  //     date: line.journal.date,
+  //     journalNo: line.journal.journalNo,
+  //     accountCode: line.account.code,
+  //     accountName: line.account.name,
+  //     accountType: line.account.accountType,
+  //     memo: line.journal.memo,
+  //     debit: line.debit.toNumber(),
+  //     credit: line.credit.toNumber(),
+  //     refType: line.refType,
+  //     refId: line.refId
+  //   }));
+  // }
 
 
   async  getCashAccountBalances(dateFrom: Date, dateTo: Date) {

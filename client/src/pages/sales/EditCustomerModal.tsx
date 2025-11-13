@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import {Customer} from '../../types/api'
 import { Combobox } from '@headlessui/react'
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
+import { useQuery } from '@tanstack/react-query';
 
 const createCustomerSchema = z.object({
   code: z.string().min(1, 'Code is required'),
@@ -16,7 +17,8 @@ const createCustomerSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Invalid email format').optional().or(z.literal('')),
   creditLimit: z.number().optional(),
-  CustomerGroup: z.string().min(1,"Customer Group"),
+  // customerGroup: z.string().min(1,"Customer Group"),
+  customerGroupId: z.string().optional(),
 });
 
 type CreateCustomerFormData = z.infer<typeof createCustomerSchema>;
@@ -41,9 +43,17 @@ const EditCustomerModal = ({ customer,onClose, onSuccess }: CreateCustomerModalP
         phone:customer.phone,
         email:customer.email,
         creditLimit:customer.creditLimit,
-        CustomerGroup: customer.CustomerGroup
+        customerGroupId: customer.customerGroupId
     }
   });
+
+  const { data: groupsData, isLoading: isGroupsLoading } = useQuery({
+    queryKey: ['customerGroups'],
+    queryFn: () => salesApi.getCustomerGroups({ page: 1, limit: 100 }), // adjust limit as needed
+    staleTime: 5 * 60 * 1000 // 5 mins cache
+  });
+  
+  const groups = groupsData?.groups || [];
 
   const onSubmit = async (data: CreateCustomerFormData) => {
     try {
@@ -55,7 +65,7 @@ const EditCustomerModal = ({ customer,onClose, onSuccess }: CreateCustomerModalP
         phone:data.phone,
         email:data.email,
         creditLimit:data.creditLimit,
-        CustomerGroup: data.CustomerGroup
+        customerGroupId: data.customerGroupId
       }
 
       );
@@ -182,19 +192,21 @@ const EditCustomerModal = ({ customer,onClose, onSuccess }: CreateCustomerModalP
                     Customer Group
                   </label>
                   <select
-                    {...register('CustomerGroup')}
+                    {...register('customerGroupId')}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">Select Customer Group</option>
-                    <option value="WIC">WIC Customer</option>
-                    <option value="Retail">Retail Customer</option>
-                    <option value="Bulk">Bulk Customer</option>
-                    {/* <option value="Net 30">Net 30 days</option>
-                    <option value="Net 45">Net 45 days</option>
-                    <option value="Net 60">Net 60 days</option>
-                    <option value="COD">Cash on Delivery</option>
-                    <option value="Prepaid">Prepaid</option> */}
+                    {isGroupsLoading ? (
+                      <option disabled>Loading...</option>
+                    ) : (
+                      groups.map((group) => (
+                        <option key={group.code} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))
+                    )}
                   </select>
+              
                 </div>
               </div>
               

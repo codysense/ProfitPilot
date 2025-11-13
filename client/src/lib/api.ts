@@ -276,6 +276,13 @@ export const salesApi = {
   getCustomers: (params?: { page?: number; limit?: number; search?: string }) =>
     api.get(`/sales/customers${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
   createCustomer: (data: any) => api.post('/sales/customers', data),
+
+createCustomerGroup: (data) => api.post('/sales/customer-groups', data),
+getCustomerGroups: (params?: { page?: number; limit?: number; search?: string }) =>
+  api.get(`/sales/customer-groups${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+
+
+updateCustomerGroup: (id: string) => api.put(`/sales/customer-group/${id}`),
 };
 
 // Cash Management API
@@ -294,6 +301,10 @@ export const cashApi = {
   }) =>
     api.get(`/cash/transactions${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
   createCashTransaction: (data: any) => api.post('/cash/transactions', data),
+  approveCashTransaction: (id: string) => api.post(`/cash/transactions/${id}/approve`),
+  authorizeCashTransaction: (id: string) => api.post(`/cash/transactions/${id}/authorize`),
+  payCashTransaction: (id: string) => api.post(`/cash/transactions/${id}/pay`),
+  deleteCashTransaction:(id: string) => api.delete(`/cash/transactions/${id}`),
   
   // Customer and Vendor Payments and refund
   createCustomerPayment: (data: any) => api.post('/cash/customer-payments', data),

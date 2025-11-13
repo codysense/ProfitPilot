@@ -1,142 +1,105 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, Users,Edit } from 'lucide-react';
+import { Plus, Search, Users, Edit } from 'lucide-react';
 import { salesApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
-import { Customer } from '../../types/api';
-import CreateCustomerModal from './CreateCustomerModal';
-import EditCustomerModal from './EditCustomerModal';
+import { CustomerGroup } from '../../types/api';
+import CreateCustomerGroupModal from './CreateCusomerGroupModal';
+import EditCustomerGroupModal from './EditCustomerGroup';
 
-const Customers = () => {
+const CustomerGroups = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<CustomerGroup | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['customers', { page, search }],
-    queryFn: () => salesApi.getCustomers({ 
-      page, 
-      limit: 10, 
-      ...(search && { search })
-    })
+    queryKey: ['customerGroups', { page, search }],
+    queryFn: () =>
+      salesApi.getCustomerGroups({
+        page,
+        limit: 10,
+        ...(search && { search }),
+      }),
   });
 
-  // console.log(data)
+  console.log(data)
 
   const columns = [
     {
       key: 'code',
       header: 'Code',
-      width: 'w-24'
+      width: 'w-24',
     },
     {
       key: 'name',
-      header: 'Name',
-      width: 'w-48'
+      header: 'Group Name',
+      width: 'w-48',
     },
     {
-      key: 'address',
-      header: 'Address',
-      cell: (customer: Customer) => customer.address || '-',
-      width: 'w-64'
+      key: 'description',
+      header: 'Description',
+      cell: (group: CustomerGroup) => group.description || '-',
+      width: 'w-64',
     },
     {
-      key: 'phone',
-      header: 'Phone',
-      cell: (customer: Customer) => customer.phone || '-',
-      width: 'w-32'
-    },
-    {
-      key: 'email',
-      header: 'Email',
-      cell: (customer: Customer) => customer.email || '-',
-      width: 'w-48'
-    },
-    {
-      key: 'creditLimit',
-      header: 'Credit Limit',
-      cell: (customer: Customer) => customer.creditLimit ? `₦${customer.creditLimit.toLocaleString()}` : '-',
-      width: 'w-32'
-    },
-    {
-      key: 'customerGroup.name',
-      header: 'Customer Group',
-      // cell: (customer: Customer) => customer.customerGroup.name || '-',
-      width: 'w-32'
+      key: 'customerCount',
+      header: 'Customers',
+      cell: (group: CustomerGroup) => group.customerCount || 0,
+      width: 'w-24',
     },
     {
       key: 'isActive',
       header: 'Status',
-      cell: (customer: Customer) => <StatusBadge status={customer.isActive ? 'Active' : 'Inactive'} />,
-      width: 'w-24'
-    }
+      cell: (group: CustomerGroup) => (
+        <StatusBadge status={group.isActive ? 'Active' : 'Inactive'} />
+      ),
+      width: 'w-24',
+    },
   ];
 
-  const handleCreateCustomer = () => {
+  const handleCreateGroup = () => {
     refetch();
     setShowCreateModal(false);
   };
 
-  const handleEditCustomer = ()=>{
-        refetch();
-        setShowEditModal(false);
-        setSelectedCustomer(null);
-      }
-    
-      //  const handleDeleteItem = async (item: Item) => {
-      //     if (confirm(`Are you sure you want to delete Inventory ${item.name}?`)) {
-      //       try {
-      //         await inventoryApi.deleteItem(item.sku);
-      //         toast.success('Item deleted successfully');
-      //         refetch();
-      //       } catch (error) {
-      //         console.error('Delete Item error:', error);
-      //       }
-      //     }
-      //   };
-    
-      const actions = (customer: Customer) => (
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                setSelectedCustomer(customer);
-                setShowEditModal(true);
-              }}
-              className="text-blue-600 hover:text-blue-900"
-              title="Edit Customer"
-            >
-              <Edit className="h-4 w-4" />
-            </button>
-    
-            
-                    {/* <button
-                      onClick={() => handleDeleteItem(item)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete Item"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button> */}
-                  
-          </div>
-        );
+  const handleEditGroup = () => {
+    refetch();
+    setShowEditModal(false);
+    setSelectedGroup(null);
+  };
+
+  const actions = (group: CustomerGroup) => (
+    <div className="flex space-x-2">
+      <button
+        onClick={() => {
+          setSelectedGroup(group);
+          setShowEditModal(true);
+        }}
+        className="text-blue-600 hover:text-blue-900"
+        title="Edit Group"
+      >
+        <Edit className="h-4 w-4" />
+      </button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-          <p className="text-gray-600">Manage your customer information</p>
+          <h1 className="text-2xl font-bold text-gray-900">Customer Groups</h1>
+          <p className="text-gray-600">Manage your customer group categories</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Create Customer
+          Create Customer Group
         </button>
       </div>
 
@@ -149,7 +112,7 @@ const Customers = () => {
             </div>
             <input
               type="text"
-              placeholder="Search customers..."
+              placeholder="Search customer groups..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -169,7 +132,7 @@ const Customers = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Customers
+                    Total Groups
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
                     {data?.pagination?.total || 0}
@@ -189,10 +152,10 @@ const Customers = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Active Customers
+                    Active Groups
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.customers?.filter((c: Customer) => c.isActive).length || 0}
+                    {data?.groups?.filter((g: CustomerGroup) => g.isActive).length || 0}
                   </dd>
                 </dl>
               </div>
@@ -209,10 +172,13 @@ const Customers = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Credit Limit
+                    Total Customers
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{data?.customers?.reduce((sum: number, c: Customer) => sum + Number(c.creditLimit || 0), 0).toLocaleString() || '0'}
+                    {data?.groups?.reduce(
+                      (sum: number, g: CustomerGroup) => sum + (g.customerCount || 0),
+                      0
+                    ) || 0}
                   </dd>
                 </dl>
               </div>
@@ -223,7 +189,7 @@ const Customers = () => {
 
       {/* Data Table */}
       <DataTable
-        data={data?.customers || []}
+        data={data?.groups || []}
         columns={columns}
         loading={isLoading}
         pagination={data?.pagination}
@@ -233,25 +199,25 @@ const Customers = () => {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <CreateCustomerModal
+        <CreateCustomerGroupModal
           onClose={() => setShowCreateModal(false)}
-          onSuccess={handleCreateCustomer}
+          onSuccess={handleCreateGroup}
         />
       )}
 
       {/* Edit Modal */}
-                  {showEditModal && selectedCustomer && (
-                    <EditCustomerModal
-                      customer={selectedCustomer}
-                      onClose={() => {
-                        setShowEditModal(false);
-                        setSelectedCustomer(null);
-                      }}
-                      onSuccess={handleEditCustomer}
-                    />
-                  )}
+      {showEditModal && selectedGroup && (
+        <EditCustomerGroupModal
+          group={selectedGroup}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedGroup(null);
+          }}
+          onSuccess={handleEditGroup}
+        />
+      )}
     </div>
   );
 };
 
-export default Customers;
+export default CustomerGroups;

@@ -196,7 +196,8 @@ const CashAccountManagement = () => {
       bankName: account.bankName || '',
       glAccountId: account.glAccountId || '',
       balance: Number(account.balance),
-      isActive: account.isActive
+      isActive: account.isActive,
+      warehouseId:account.warehouseId
     });
     setShowCreateModal(true);
   };
