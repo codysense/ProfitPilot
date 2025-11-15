@@ -11,6 +11,7 @@ import ImportBankStatementModal from './ImportBankStatementModal';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import EditCashTransactionModal from './EditCashTransactionModal';
+import ViewCashTransactionModal from './ViewCashTransactionModal';
 
 // interface CashTransaction {
 //   id: string;
@@ -62,6 +63,11 @@ const Cashbook = () => {
 const handleEditCashTransaction = () => {
     refetch();
     setShowEditModal(false);
+    setselectedCashTransaction(null);
+  };
+const handleViewCashTransaction = () => {
+    refetch();
+    setShowDetailsModal(false);
     setselectedCashTransaction(null);
   };
   const { data: cashTransactions, isLoading, refetch } = useQuery({
@@ -761,10 +767,26 @@ queryFn: () => {
       {showEditModal && (
         <EditCashTransactionModal
           transaction={selectedCashTransaction}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleCreateTransaction}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditCashTransaction}
         />
       )}
+      {showDetailsModal && (
+        <ViewCashTransactionModal
+          transaction={selectedCashTransaction}
+          onClose={() => setShowDetailsModal(false)}
+          onSuccess={handleViewCashTransaction}
+        />
+      )}
+      {showEditModal && (
+        <EditCashTransactionModal
+          transaction={selectedCashTransaction}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditCashTransaction}
+        />
+      )}
+
+
 
       {showReconciliationModal && (
         <BankReconciliationModal

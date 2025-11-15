@@ -305,9 +305,18 @@ export const cashApi = {
   authorizeCashTransaction: (id: string) => api.post(`/cash/transactions/${id}/authorize`),
   payCashTransaction: (id: string) => api.post(`/cash/transactions/${id}/pay`),
   deleteCashTransaction:(id: string) => api.delete(`/cash/transactions/${id}`),
+  updateCashTransaction:(id:string, data:any)=>api.put(`/cash/transactions/${id}/update`, data),
   
   // Customer and Vendor Payments and refund
   createCustomerPayment: (data: any) => api.post('/cash/customer-payments', data),
+  getCustomerPayments: (params?: any) => api.get(`/cash/customer-payments${params ? '?' + new URLSearchParams(params).toString() : ''}`),
+  getCustomerPayment: (id?: string) => api.get(`/cash/customer-payments${id}`),
+  approveCustomerPayment: (id: string) => api.post(`/cash/customer-payments/${id}/approve`),
+  authorizeCustomerPayment: (id: string) => api.post(`/cash/customer-payments/${id}/authorize`),
+  payCustomerPayment: (id: string) => api.post(`/cash/customer-payments/${id}/pay`),
+  deleteCustomerPayment:(id: string) => api.delete(`/cash/customer-payments/${id}`),
+  updateCustomerPayment:(id:string, data:any)=>api.put(`/cash/customer-payments/${id}/update`, data),
+
   createCustomerRefund: (data: any) => api.post('/cash/customer-refunds', data),
   createVendorPayment: (data: any) => api.post('/cash/vendor-payments', data),
   createVendorRefund: (data: any) => api.post('/cash/vendor-refunds', data),

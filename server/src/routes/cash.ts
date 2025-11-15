@@ -34,7 +34,15 @@ router.delete('/transactions/:id/', requireRole(['Accountant', 'POS User']), aud
 
 // Customer Payments
 // router.post('/customer-payments', authorize('sales.order.create'), auditLogger('CREATE', 'CUSTOMER_PAYMENT'), cashController.createCustomerPayment);
+router.get('/customer-payments', requireRole(['Accountant']),  cashController.getCustomerPayments);
+router.get('/customer-payment/:id', requireRole(['Accountant']),  cashController.getCustomerPayment);
+
 router.post('/customer-payments', requireRole(['Accountant']), auditLogger('CREATE', 'CUSTOMER_PAYMENT'), cashController.createCustomerPayment);
+router.post('/customer-payments/:id/approve', requireRole(['Accountant']), auditLogger('APPROVE', 'CASH_TRANSACTION'), cashController.approveCustomerPayment)
+router.post('/customer-payments/:id/authorize', requireRole(['Accountant']), auditLogger('AUTHORIZE', 'CASH_TRANSACTION'), cashController.authorizeCustomerPayment)
+router.post('/customer-payments/:id/pay', requireRole(['Accountant']), auditLogger('PAY', 'CASH_TRANSACTION'), cashController.payCustomerPayment)
+router.put('/customer-payments/:id/update', requireRole(['Accountant']), auditLogger('UPDATE', 'CASH_TRANSACTION'), cashController.updateCustomerPayment)
+router.delete('/customer-payments/:id/', requireRole(['Accountant']), auditLogger('DELETE', 'CASH_TRANSACTION'), cashController.deleteCustomerPayment)
 router.post('/customer-refunds', requireRole(['Accountant']), auditLogger('CREATE', 'CUSTOMER_REFUND'), cashController.createCustomerRefund);
 router.get('/customer-refunds', requireRole(['Accountant']), cashController.getCustomerRefunds);
 // Sales Receipts (alias for customer payments)

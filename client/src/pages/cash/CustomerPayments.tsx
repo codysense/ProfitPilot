@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Eye, DollarSign, Users, Calendar, Printer } from 'lucide-react';
+import { Plus, Eye, DollarSign, Users, Calendar, Printer, Edit, Trash2, Package } from 'lucide-react';
 import { cashApi, salesApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
@@ -8,15 +8,20 @@ import CreateCustomerPaymentModal from './CreateCustomerPaymentModal';
 // import { ReportExporter } from '../../lib/reportExporter';
 import { toast } from 'react-hot-toast';
 import { CustomerSelect } from '../../components/CustomerSelect';
+import { useAuthStore } from '../../store/authStore';
+import EditCustomerPaymentModal from './EditCustomerPaymentModal';
+import ViewCustomerPaymentModal from './ViewCustomerPaymenModal';
 
 interface CustomerPayment {
   id: string;
   receiptNo: string;
   customerId: string;
-  amount: number;
+  totalAmount: number;
   createdAt: string;
   reference?: string;
   notes?: string;
+  paidAt:string;
+  status:string;
   customer: {
     code: string;
     name: string;
@@ -35,20 +40,30 @@ interface CustomerPayment {
   };
 }
 
+
+
 const CustomerPayments = () => {
   const [page, setPage] = useState(1);
   const [customerId, setCustomerID] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedCustomerPayment, setselectedCustomerPayment] = useState<CustomerPayment | null>(null);
+  const { user } = useAuthStore();
+
+    const canPerformActions = user?.roles.includes('Accountant') || user?.roles.includes('General Manager');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['customer-payments', { page, customerId: customerId }],
-    queryFn: () => cashApi.getSalesReceipts({ 
+    queryFn: () => cashApi.getCustomerPayments({ 
       page, 
       limit: 10,
       //transactionType: 'RECEIPT',
        ...(customerId && { customerId: customerId })
     })
   });
+
+  console.log(data)
   // const { data:trn } = useQuery({
   //   queryKey: ['customer-payments', { page, customerId: customerFilter }],
   //   queryFn: () => cashApi.getCashTransactions({ 
@@ -87,7 +102,7 @@ const CustomerPayments = () => {
           
           <div style="margin-bottom: 20px;">
             <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Payment Details:</h3>
-            <p><strong>Amount Received:</strong> ₦${payment.amount.toLocaleString()}</p>
+            <p><strong>Amount Received:</strong> ₦${payment.totalAmount.toLocaleString()}</p>
             <p><strong>Payment Date:</strong> ${new Date(payment.createdAt).toLocaleDateString()}</p>
             <p><strong>Cash Account:</strong> ${payment.cashAccount.name}</p>
             ${payment.reference ? `<p><strong>Reference:</strong> ${payment.reference}</p>` : ''}
@@ -118,7 +133,7 @@ const CustomerPayments = () => {
 
   const columns = [
     {
-      key: 'receiptNo',
+      key: 'paymentNo',
       header: 'Receipt No',
       width: 'w-32'
     },
@@ -129,9 +144,9 @@ const CustomerPayments = () => {
       width: 'w-48'
     },
     {
-      key: 'amountReceived',
+      key: 'totalAmount',
       header: 'Amount Received',
-      cell: (payment: CustomerPayment) => `₦${Number(payment.amountReceived).toLocaleString()}`,
+      cell: (payment: CustomerPayment) => `₦${Number(payment.totalAmount).toLocaleString()}`,
       width: 'w-32'
     },
     {
@@ -152,36 +167,178 @@ const CustomerPayments = () => {
       width: 'w-32'
     },
     {
-      key: 'receiptDate',
-      header: 'Receipt Date',
-      cell: (payment: CustomerPayment) => new Date(payment.createdAt).toLocaleDateString(),
+      key: 'paidAt',
+      header: 'Payment Date',
+      cell: (payment: CustomerPayment) => new Date(payment.paidAt).toLocaleDateString(),
       width: 'w-32'
     },
     {
-      key: 'user.name',
-      header: 'Received By',
+      key: 'preparer.name',
+      header: 'Prepapred By',
       width: 'w-32'
     },
     {
-      key: 'actions',
-      header: 'Actions',
-      cell: (payment: CustomerPayment) => (
-        <button
-          onClick={() => handlePrintPayment(payment)}
-          className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          title="Print Payment Receipt"
-        >
-          <Printer className="h-4 w-4" />
-        </button>
-      ),
-      width: 'w-24'
-    }
+      key: 'approver.name',
+      header: 'Approved By',
+      width: 'w-32'
+    },
+    {
+      key: 'authorizer.name',
+      header: 'Authorized By',
+      width: 'w-32'
+    },
+    {
+      key: 'payer.name',
+      header: 'Paid By',
+      width: 'w-32'
+    },
+   
+    // {
+    //   key: 'actions',
+    //   header: 'Actions',
+    //   cell: (payment: CustomerPayment) => (
+    //     <button
+    //       onClick={() => handlePrintPayment(payment)}
+    //       className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+    //       title="Print Payment Receipt"
+    //     >
+    //       <Printer className="h-4 w-4" />
+    //     </button>
+    //   ),
+    //   width: 'w-24'
+    // }
   ];
+
+
+  
 
   const handleCreatePayment = () => {
     refetch();
     setShowCreateModal(false);
   };
+
+  const handleEditCustomerPayment = () => {
+    refetch();
+    setShowEditModal(false);
+    setselectedCustomerPayment(null);
+  };
+const handleViewCustomerPayment = () => {
+    refetch();
+    setShowDetailsModal(false);
+    setselectedCustomerPayment(null);
+}    
+
+const handleApproveTransaction = async (customerPayment: CustomerPayment) => {
+      try {
+        await cashApi.approveCustomerPayment(customerPayment.id);
+        toast.success('Customer Payment approved successfully');
+        refetch();
+      } catch (error) {
+        console.error('Customer Payment approval:', error);
+      }
+    };
+  const handleAuthorizeTransaction = async (customerPayment: CustomerPayment) => {
+      try {
+        await cashApi.authorizeCustomerPayment(customerPayment.id);
+        toast.success('Customer Payment authorized successfully');
+        refetch();
+      } catch (error) {
+        console.error('Customer Payment authorize:', error);
+      }
+    };
+  const handlePayTransaction = async (customerPayment: CustomerPayment) => {
+      try {
+        await cashApi.payCustomerPayment(customerPayment.id);
+        toast.success('Customer Payment paid successfully');
+        refetch();
+      } catch (error) {
+        console.error('Customer Payment pay:', error);
+      }
+    };
+  const handleDeleteCustomerPayment = async (customerPayment: CustomerPayment) => {
+      try {
+        await cashApi.deleteCustomerPayment(customerPayment.id);
+        toast.success('Customer Payment deleted successfully');
+        refetch();
+      } catch (error) {
+        console.error('Customer Payment Delete:', error);
+      }
+    };  
+    
+    
+    const actions = (customerPayment: CustomerPayment) => (
+        <div className="flex space-x-2">
+          <button
+            onClick={() => {
+              setselectedCustomerPayment(customerPayment);
+              setShowDetailsModal(true);
+            }}
+            className="text-blue-600 hover:text-blue-900"
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          {['PREPARED', 'AUTHORIZED', 'APPROVED'].includes(customerPayment.status) && canPerformActions && (
+            <button
+              onClick={() => {
+               setselectedCustomerPayment(customerPayment);
+              setShowEditModal(true);
+              }}
+              className="text-blue-600 hover:text-blue-900"
+              title="Edit customerPayment"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+          )}
+          {['PREPARED'].includes(customerPayment.status) && canPerformActions && (
+            <button
+              onClick={() => handleDeleteCustomerPayment(customerPayment)}
+              className="text-red-600 hover:text-red-900"
+              title="Delete customerPayment"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+          {[ 'PAID'].includes(customerPayment.status) && (
+            <button
+              onClick={() => handlePrintInvoice(customerPayment)}
+              className="text-purple-600 hover:text-purple-900"
+              title="Print Invoice"
+            >
+              <Printer className="h-4 w-4" />
+            </button>
+          )}
+          {customerPayment.status === 'PREPARED' && canPerformActions && (
+            <button
+              onClick={() => {
+               handleApproveTransaction(customerPayment)
+              }}
+              className="text-green-600 hover:text-green-900"
+              title="Approve"
+            >
+              <DollarSign className="h-4 w-4" />
+            </button>
+          )}
+          {customerPayment.status === 'APPROVED' && canPerformActions && (
+            <button
+              onClick={() => handleAuthorizeTransaction(customerPayment)}
+              className="text-purple-600 hover:text-purple-900"
+              title="Authorize"
+            >
+              <DollarSign className="h-4 w-4" />
+            </button>
+          )}
+          {customerPayment.status === 'AUTHORIZED' && canPerformActions && (
+            <button
+              onClick={() => handlePayTransaction(customerPayment)}
+              className="text-purple-600 hover:text-purple-900"
+              title="Pay"
+            >
+              <DollarSign className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      );
 
   return (
     <div className="space-y-6">
@@ -219,7 +376,7 @@ const CustomerPayments = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+      {/* <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -252,7 +409,7 @@ const CustomerPayments = () => {
                     Total Amount
                   </dt>
                   <dd className="text-2xl font-semibold text-green-600">
-                    ₦{data?.receipts?.reduce((sum: number, p: any) => sum + Number(p.amountReceived), 0).toLocaleString() || '0'}
+                    ₦{data?.totalAmount?.reduce((sum: number, p: any) => sum + Number(p.totalAmount), 0).toLocaleString() || '0'}
                   </dd>
                 </dl>
               </div>
@@ -281,13 +438,47 @@ const CustomerPayments = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+              {['PREPARED',  'APPROVED','AUTHORIZED', 'PAID'].map(status => {
+                const count = data?.data.filter((p: data) => p.status === status).length || 0;
+                const total = data?.data.filter((p: data) => p.status === status)
+                  .reduce((sum: number, p: CustomerPayment) => sum + Number(p.totalAmount), 0) || 0;
+      
+                return (
+                  <div key={status} className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Package className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">
+                              {status}
+                            </dt>
+                            <dd className="text-lg font-semibold text-gray-900">
+                              {count} payments
+                            </dd>
+                            <dd className="text-sm text-gray-500">
+                              ₦{total.toLocaleString()}
+                            </dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
       {/* Data Table */}
       <DataTable
-        data={data?.receipts || []}
+        data={data?.data || []}
         columns={columns}
         loading={isLoading}
+        actions={actions}
         pagination={data?.pagination}
         onPageChange={setPage}
       />
@@ -298,8 +489,24 @@ const CustomerPayments = () => {
           onClose={() => setShowCreateModal(false)}
         />
       )}
+
+      {showEditModal && (
+        <EditCustomerPaymentModal
+          payment={selectedCustomerPayment}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditCustomerPayment}
+        />
+      )}
+      {showDetailsModal && (
+        <ViewCustomerPaymentModal
+          payment={selectedCustomerPayment}
+          onClose={() => setShowDetailsModal(false)}
+          onSuccess={handleViewCustomerPayment}
+        />
+      )}
     </div>
   );
-};
+}
+;
 
 export default CustomerPayments;

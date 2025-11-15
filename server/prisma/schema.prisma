@@ -52,6 +52,16 @@ model User {
   cashTransactionsPaid       CashTransaction[]        @relation("CashTransactionPayer")
   cashTransactionPostings    CashTransactionPosting[]
 
+  // CustomerPayment relations (matching relation names in CustomerPayment)
+  customerPaymentsUser       CustomerPayment[] @relation("CustomerPaymentUser")
+  customerPaymentsPrepared   CustomerPayment[] @relation("CustomerPaymentPreparer")
+  customerPaymentsApproved   CustomerPayment[] @relation("CustomerPaymentApprover")
+  customerPaymentsAuthorized CustomerPayment[] @relation("CustomerPaymentAuthorizer")
+  customerPaymentsPaid       CustomerPayment[] @relation("CustomerPaymentPayer")
+
+  // postings
+  customerPaymentPostings CustomerPaymentPosting[]
+
   @@map("users")
 }
 
@@ -192,22 +202,22 @@ enum CostingMethod {
 }
 
 model Item {
-  id                   String        @id @default(cuid())
-  sku                  String        @unique
+  id                   String          @id @default(cuid())
+  sku                  String          @unique
   name                 String
   description          String?
   type                 ItemType
-  uom                  String        @default("EA")
-  costingMethod        CostingMethod @default(GLOBAL)
-  standardCost         Decimal?      @db.Decimal(15, 4)
-  sellingPriceOrdinary Decimal?      @db.Decimal(15, 4)
-  sellingPriceBulk     Decimal?      @db.Decimal(15, 4)
-  sellingPriceWIC      Decimal?      @db.Decimal(15, 4)
+  uom                  String          @default("EA")
+  costingMethod        CostingMethod   @default(GLOBAL)
+  standardCost         Decimal?        @db.Decimal(15, 4)
+  sellingPriceOrdinary Decimal?        @db.Decimal(15, 4)
+  sellingPriceBulk     Decimal?        @db.Decimal(15, 4)
+  sellingPriceWIC      Decimal?        @db.Decimal(15, 4)
   taxCode              String?
-  isActive             Boolean       @default(true)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  priceList ItemPriceList[]
+  isActive             Boolean         @default(true)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  priceList            ItemPriceList[]
 
   // Relations
   boms             Bom[]
@@ -222,20 +232,18 @@ model Item {
   AdjustmentLines  AdjustmentLines[]
 
   @@map("items")
-
 }
 
 model ItemPriceList {
-  id              String       @id @default(cuid())
-  itemId          String
-  customerGroup   String       // E.g., 'Bulk', 'Ordinary', 'WIC', etc.
-  price           Decimal      @db.Decimal(15, 4)
+  id            String  @id @default(cuid())
+  itemId        String
+  customerGroup String // E.g., 'Bulk', 'Ordinary', 'WIC', etc.
+  price         Decimal @db.Decimal(15, 4)
 
-  item            Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([itemId, customerGroup])
 }
-
 
 model Bom {
   id        String   @id @default(cuid())
@@ -411,16 +419,15 @@ model Vendor {
 }
 
 model CustomerGroup {
-  id        String     @id @default(cuid())
-  code      String?
+  id          String   @id @default(cuid())
+  code        String?
   description String?
-  name      String     @unique
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
+  name        String   @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   customers Customer[]
 }
-
 
 model Customer {
   id              String         @id @default(cuid())
@@ -435,7 +442,6 @@ model Customer {
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
 
-
   // Relations
   sales         Sale[]
   salesReceipts SalesReceipt[]
@@ -444,9 +450,11 @@ model Customer {
   Memo          Memo[]
   SalesRefund   SalesRefund[]
 
+  // added: payments for this customer
+  customerPayments CustomerPayment[] // <-- added
+
   @@map("customers")
 }
-
 
 enum PurchaseStatus {
   DRAFT
@@ -500,26 +508,6 @@ enum SaleStatus {
   PAID
 }
 
-model Sale {
-  id          String     @id @default(cuid())
-  orderNo     String     @unique
-  customerId  String
-  orderDate   DateTime
-  status      SaleStatus @default(DRAFT)
-  totalAmount Decimal    @db.Decimal(15, 2)
-  notes       String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  // Relations
-  customer      Customer       @relation(fields: [customerId], references: [id])
-  saleLines     SaleLine[]
-  salesReceipts SalesReceipt[]
-  SalesRefunds  SalesRefund[]
-
-  @@map("sales")
-}
-
 model SaleLine {
   id        String  @id @default(cuid())
   saleId    String
@@ -549,8 +537,6 @@ model ChartOfAccount {
   parent                      ChartOfAccount?       @relation("AccountHierarchy", fields: [parentId], references: [id])
   children                    ChartOfAccount[]      @relation("AccountHierarchy")
   journalLines                JournalLine[]
-  // Old:cashTransactionsGL          CashTransaction[] @relation("CashTransactionGLAccount")
-  // old: cashTransactionsContra      CashTransaction[] @relation("CashTransactionContraAccount")
   cashAccounts                CashAccount[]         @relation("CashAccountGLAccount")
   assetCategoriesAsset        AssetCategory[]       @relation("AssetCategoryAssetAccount")
   assetCategoriesDepreciation AssetCategory[]       @relation("AssetCategoryDepreciationAccount")
@@ -558,9 +544,10 @@ model ChartOfAccount {
   cashTransactionLinesGL      CashTransactionLine[] @relation("CashTransactionLineGLAccount")
   cashTransactionLinesContra  CashTransactionLine[] @relation("CashTransactionLineContraAccount")
   Memo                        Memo[]
-  //SalesMemo                   SalesMemo[]
-  //PurchaseMemo                PurchaseMemo[]
   StockAdjustment             StockAdjustment[]
+
+  // added: customer payment lines that post to this GL account
+  customerPaymentLines CustomerPaymentLine[] // <-- added
 
   @@map("chart_of_accounts")
 }
@@ -579,6 +566,9 @@ model Journal {
   assetDepreciation       AssetDepreciation[]
   assetDisposals          AssetDisposal[]
   cashTransactionPostings CashTransactionPosting[]
+
+  // added: postings for customer payments
+  customerPaymentPostings CustomerPaymentPosting[] // <-- added
 
   @@map("journals")
 }
@@ -647,6 +637,9 @@ model CashAccount {
   posSessions      PosSession[]
   posSales         PosSale[]
 
+  // added: customer payments that use this cash account
+  customerPayments CustomerPayment[] // <-- added
+
   chartOfAccount ChartOfAccount?  @relation("CashAccountGLAccount", fields: [chartOfAccountId], references: [id])
   warehouse      Warehouse?       @relation(fields: [warehouseId], references: [id])
   SalesRefund    SalesRefund[]
@@ -708,7 +701,7 @@ model CashTransaction {
   reconciledAt DateTime?
   userId       String
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime @updatedAt 
+  updatedAt    DateTime  @updatedAt
 
   // Relations
   cashAccount      CashAccount              @relation(fields: [cashAccountId], references: [id])
@@ -758,12 +751,106 @@ model CashTransactionPosting {
   @@map("cash_transaction_postings")
 }
 
+model CustomerPayment {
+  id            String   @id @default(cuid())
+  paymentNo     String   @unique
+  customerId    String
+  cashAccountId String
+  paymentDate   DateTime
+  reference     String?
+  notes         String?
+  totalAmount   Decimal  @db.Decimal(15, 2)
+  status        String   @default("PREPARED") // PREPARED, APPROVED, AUTHORIZED, PAID
+
+  // Staged workflow
+  preparedBy   String
+  approvedBy   String?
+  approvedAt   DateTime?
+  authorizedBy String?
+  authorizedAt DateTime?
+  paidBy       String?
+  paidAt       DateTime?
+
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  cashAccount CashAccount @relation(fields: [cashAccountId], references: [id])
+  user        User        @relation("CustomerPaymentUser", fields: [userId], references: [id])
+  preparer    User        @relation("CustomerPaymentPreparer", fields: [preparedBy], references: [id])
+  approver    User?       @relation("CustomerPaymentApprover", fields: [approvedBy], references: [id])
+  authorizer  User?       @relation("CustomerPaymentAuthorizer", fields: [authorizedBy], references: [id])
+  payer       User?       @relation("CustomerPaymentPayer", fields: [paidBy], references: [id])
+
+  lines    CustomerPaymentLine[]
+  postings CustomerPaymentPosting[]
+
+  @@map("customer_payments")
+}
+
+model CustomerPaymentLine {
+  id                String   @id @default(cuid())
+  customerPaymentId String
+  saleId            String? // can pay invoice partially or fully
+  glAccountId       String // Usually TRADE_RECEIVABLES
+  lineAmount        Decimal  @db.Decimal(15, 2)
+  description       String?
+  createdAt         DateTime @default(now())
+
+  // Relations
+  payment   CustomerPayment @relation(fields: [customerPaymentId], references: [id], onDelete: Cascade)
+  sale      Sale?           @relation(fields: [saleId], references: [id])
+  glAccount ChartOfAccount  @relation(fields: [glAccountId], references: [id])
+
+  @@map("customer_payment_lines")
+}
+
+model CustomerPaymentPosting {
+  id                String   @id @default(cuid())
+  customerPaymentId String
+  journalId         String
+  postedAt          DateTime @default(now())
+  postedBy          String
+
+  payment CustomerPayment @relation(fields: [customerPaymentId], references: [id])
+  journal Journal         @relation(fields: [journalId], references: [id])
+  user    User            @relation(fields: [postedBy], references: [id])
+
+  @@unique([customerPaymentId, journalId])
+  @@map("customer_payment_postings")
+}
+
+//model SalesReceipt {
+//id             String   @id @default(cuid())
+//receiptNo      String   @unique
+//saleId         String?
+//customerId     String
+//cashAccountId  String
+//amountReceived Decimal  @db.Decimal(15, 2)
+//receiptDate    DateTime
+//reference      String?
+//notes          String?
+//userId         String
+//createdAt      DateTime @default(now())
+
+// Relations
+//sale        Sale?         @relation(fields: [saleId], references: [id])
+//customer    Customer      @relation(fields: [customerId], references: [id])
+//cashAccount CashAccount   @relation(fields: [cashAccountId], references: [id])
+//user        User          @relation(fields: [userId], references: [id])
+//refunds     SalesRefund[] @relation("RefundOriginalReceipt")
+
+//@@map("sales_receipts")
+//}
+
 model SalesReceipt {
   id             String   @id @default(cuid())
   receiptNo      String   @unique
-  saleId         String?
+  saleId         String? // <-- added
   customerId     String
-  cashAccountId  String
+  cashAccountId  String // <-- added
   amountReceived Decimal  @db.Decimal(15, 2)
   receiptDate    DateTime
   reference      String?
@@ -772,11 +859,13 @@ model SalesReceipt {
   createdAt      DateTime @default(now())
 
   // Relations
-  sale        Sale?         @relation(fields: [saleId], references: [id])
-  customer    Customer      @relation(fields: [customerId], references: [id])
-  cashAccount CashAccount   @relation(fields: [cashAccountId], references: [id])
-  user        User          @relation(fields: [userId], references: [id])
-  refunds     SalesRefund[] @relation("RefundOriginalReceipt")
+  sale        Sale?       @relation(fields: [saleId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  cashAccount CashAccount @relation(fields: [cashAccountId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+
+  // link refunds using the same relation name as SalesRefund.originalReceipt
+  refunds SalesRefund[] @relation("RefundOriginalReceipt")
 
   @@map("sales_receipts")
 }
@@ -794,7 +883,6 @@ model SalesRefund {
   userId         String
   createdAt      DateTime @default(now())
 
-  // Optional link to the original receipt being refunded
   originalReceiptId String?
   originalReceipt   SalesReceipt? @relation("RefundOriginalReceipt", fields: [originalReceiptId], references: [id])
 
@@ -805,6 +893,29 @@ model SalesRefund {
   user        User        @relation(fields: [userId], references: [id])
 
   @@map("sales_refunds")
+}
+
+model Sale {
+  id          String     @id @default(cuid())
+  orderNo     String     @unique
+  customerId  String
+  orderDate   DateTime
+  status      SaleStatus @default(DRAFT)
+  totalAmount Decimal    @db.Decimal(15, 2)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  saleLines     SaleLine[]
+  salesReceipts SalesReceipt[]
+  SalesRefunds  SalesRefund[]
+
+  // payments that reference this sale (customer payment lines)
+  customerPaymentLines CustomerPaymentLine[] // <-- added
+
+  @@map("sales")
 }
 
 model PurchasePayment {

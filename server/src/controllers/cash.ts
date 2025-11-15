@@ -173,7 +173,7 @@ export class CashController {
             cashAccountId: validatedData.cashAccountId,
             transactionType: validatedData.transactionType,
             amount: new Decimal(totalAmount),
-            description: validatedData.description,
+            // description: validatedData.description,
             transactionDate: new Date(validatedData.transactionDate),
             reference: validatedData.reference,
             refType: validatedData.refType || 'OTHER',
@@ -923,167 +923,620 @@ export class CashController {
 //   }
 
   // Create customer payment (Sales Receipt)
-  async createCustomerPayment(req: AuthRequest, res: Response) {
+//   async createCustomerPayment(req: AuthRequest, res: Response) {
+//   try {
+//     const {
+//       customerId,
+//       cashAccountId,
+//       amount,
+//       paymentDate,
+//       reference,
+//       notes,
+//       saleId // optional
+//     } = req.body;
+
+//     const result = await prisma.$transaction(async (tx) => {
+//       // Generate receipt number
+//       const count = await tx.salesReceipt.count();
+//       const receiptNo = `SR${String(count + 1).padStart(6, '0')}`;
+
+//       // Fetch sale only if saleId is provided
+//       let sale: { id: string; totalAmount: any; orderNo: string | null; salesReceipts: { amountReceived: any }[] } | null = null;
+//       if (saleId) {
+//         sale = await tx.sale.findUnique({
+//           where: { id: saleId },
+//           include: { salesReceipts: true }
+//         });
+//       }
+
+//       // Create sales receipt
+//       const receipt = await tx.salesReceipt.create({
+//         data: {
+//           receiptNo,
+//           saleId: saleId? saleId: null,
+//           customerId,
+//           cashAccountId,
+//           amountReceived: new Decimal(amount),
+//           receiptDate: new Date(paymentDate),
+//           notes,
+//           reference,
+//           userId: req.user!.id
+//         }
+//       });
+
+//       // Update sale status if fully paid
+//       if (sale) {
+//         const totalReceived =
+//           sale.salesReceipts.reduce(
+//             (sum, r) => sum + Number(r.amountReceived),
+//             0
+//           ) + Number(amount);
+
+//         if (totalReceived >= Number(sale.totalAmount)) {
+//           await tx.sale.update({
+//             where: { id: sale.id },
+//             data: { status: 'PAID' }
+//           });
+//         }
+//       }
+
+//       // Create corresponding cash transaction
+//       const cashTransactionCount = await tx.cashTransaction.count();
+//       const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
+
+//       // Get Trade Receivables account
+//       const tradeReceivablesAccount = await tx.chartOfAccount.findFirst({
+//         where: { accountType: 'TRADE_RECEIVABLES' }
+//       });
+//       if (!tradeReceivablesAccount) {
+//         throw new Error('Trade Receivables account not found. Please create one first.');
+//       }
+
+//       // Build transaction description
+//       const customer = await tx.customer.findUnique({
+//         where: { id: customerId },
+//         select: { name: true }
+//       });
+
+//       let description = `Customer payment from ${customer?.name ?? ''}`;
+//       if (sale?.orderNo) {
+//         description += ` - ${sale.orderNo}`;
+//       }
+
+//       await tx.cashTransaction.create({
+//         data: {
+//           transactionNo,
+//           cashAccountId,
+//           glAccountId: tradeReceivablesAccount.id,
+//           transactionType: 'RECEIPT',
+//           amount: (new Decimal(amount)),
+//           description,
+//           transactionDate: new Date(paymentDate),
+//           reference,
+//           refType: 'SALES_RECEIPT',
+//           refId: receipt.id,
+//           userId: req.user!.id
+//         }
+//       });
+
+//       // Update cash account balance
+//       await tx.cashAccount.update({
+//         where: { id: cashAccountId },
+//         data: { balance: { increment: amount } }
+//       });
+
+//       // Create journal entries
+//       const journalCount = await tx.journal.count();
+//       const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+
+//       const journal = await tx.journal.create({
+//         data: {
+//           journalNo,
+//           date: new Date(paymentDate),
+//           memo: `Customer payment: ${reference || receiptNo}`,
+//           postedBy: req.user!.id
+//         }
+//       });
+
+//       // Get cash account's GL account
+//       const cashAccount = await tx.cashAccount.findUnique({
+//         where: { id: cashAccountId },
+//         select: { glAccountId: true }
+//       });
+//       if (!cashAccount) throw new Error('Cash account not found');
+//       if (!cashAccount.glAccountId) throw new Error('Cash account does not have a linked GL account');
+
+//       // Debit Cash, Credit Trade Receivables
+//       await tx.journalLine.createMany({
+//         data: [
+//           {
+//             journalId: journal.id,
+//             accountId: cashAccount.glAccountId,
+//             debit: new Decimal(amount),
+//             credit: new Decimal(0),
+//             refType: 'CUSTOMER_PAYMENT',
+//             refId: receipt.id
+//           },
+//           {
+//             journalId: journal.id,
+//             accountId: tradeReceivablesAccount.id,
+//             debit: new Decimal(0),
+//             credit: new Decimal(amount),
+//             refType: 'CUSTOMER_PAYMENT',
+//             refId: receipt.id
+//           }
+//         ]
+//       });
+
+//       return receipt;
+//     }
+//     ,
+//     {
+//   maxWait: 5000,  // 5s wait for connection
+//   timeout: 20000  // 20s max runtime
+// }
+  
+//   );
+
+//     res.status(201).json(result);
+//   } catch (error) {
+//     console.error('Create customer payment error:', error);
+//     res.status(400).json({ error: 'Failed to create customer payment' });
+//   }
+// }
+
+
+async createCustomerPayment(req, res) {
   try {
-    const {
-      customerId,
-      cashAccountId,
-      amount,
-      paymentDate,
-      reference,
-      notes,
-      saleId // optional
-    } = req.body;
+    const data = req.body;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Generate receipt number
-      const count = await tx.salesReceipt.count();
-      const receiptNo = `SR${String(count + 1).padStart(6, '0')}`;
+    const payment = await prisma.$transaction(async (tx) => {
+      // Generate number
+      const count = await tx.customerPayment.count();
+      const paymentNo = `CP${String(count + 1).padStart(6, "0")}`;
 
-      // Fetch sale only if saleId is provided
-      let sale: { id: string; totalAmount: any; orderNo: string | null; salesReceipts: { amountReceived: any }[] } | null = null;
-      if (saleId) {
-        sale = await tx.sale.findUnique({
-          where: { id: saleId },
-          include: { salesReceipts: true }
+      const totalAmount = data.lines.reduce(
+        (sum, l) => sum + Number(l.lineAmount),
+        0
+      );
+
+      // Staged - create PREPARED
+      const newPayment = await tx.customerPayment.create({
+        data: {
+          paymentNo,
+          customerId: data.customerId,
+          cashAccountId: data.cashAccountId,
+          paymentDate: new Date(data.paymentDate),
+          reference: data.reference,
+          notes: data.notes,
+          totalAmount,
+          status: "PREPARED",
+          preparedBy: req.user.id,
+          userId: req.user.id,
+        },
+      });
+
+      // Lines
+      for (const line of data.lines) {
+        await tx.customerPaymentLine.create({
+          data: {
+            customerPaymentId: newPayment.id,
+            saleId: line.saleId ?line.saleId: null,
+            glAccountId: line.glAccountId,
+            lineAmount: line.lineAmount,
+            description: line.description,
+          },
         });
       }
 
-      // Create sales receipt
-      const receipt = await tx.salesReceipt.create({
+      return newPayment;
+    });
+
+    res.status(201).json(payment);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create customer payment" });
+  }
+}
+
+async approveCustomerPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.customerPayment.findUnique({ where: { id } });
+
+      if (!payment) throw new Error("Payment not found");
+      if (payment.status !== "PREPARED")
+        throw new Error("Only PREPARED payments can be approved");
+
+      await tx.customerPayment.update({
+        where: { id },
         data: {
-          receiptNo,
-          saleId: saleId? saleId: null,
-          customerId,
-          cashAccountId,
-          amountReceived: new Decimal(amount),
-          receiptDate: new Date(paymentDate),
-          notes,
-          reference,
-          userId: req.user!.id
-        }
+          status: "APPROVED",
+          approvedBy: req.user.id,
+          approvedAt: new Date(),
+        },
       });
+    });
 
-      // Update sale status if fully paid
-      if (sale) {
-        const totalReceived =
-          sale.salesReceipts.reduce(
-            (sum, r) => sum + Number(r.amountReceived),
-            0
-          ) + Number(amount);
+    res.json({ message: "Customer payment approved" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
 
-        if (totalReceived >= Number(sale.totalAmount)) {
-          await tx.sale.update({
-            where: { id: sale.id },
-            data: { status: 'PAID' }
-          });
-        }
-      }
+async authorizeCustomerPayment(req, res) {
+  try {
+    const { id } = req.params;
 
-      // Create corresponding cash transaction
-      const cashTransactionCount = await tx.cashTransaction.count();
-      const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.customerPayment.findUnique({ where: { id } });
 
-      // Get Trade Receivables account
-      const tradeReceivablesAccount = await tx.chartOfAccount.findFirst({
-        where: { accountType: 'TRADE_RECEIVABLES' }
-      });
-      if (!tradeReceivablesAccount) {
-        throw new Error('Trade Receivables account not found. Please create one first.');
-      }
+      if (!payment) throw new Error("Payment not found");
+      if (payment.status !== "APPROVED")
+        throw new Error("Only APPROVED payments can be authorized");
 
-      // Build transaction description
-      const customer = await tx.customer.findUnique({
-        where: { id: customerId },
-        select: { name: true }
-      });
-
-      let description = `Customer payment from ${customer?.name ?? ''}`;
-      if (sale?.orderNo) {
-        description += ` - ${sale.orderNo}`;
-      }
-
-      await tx.cashTransaction.create({
+      await tx.customerPayment.update({
+        where: { id },
         data: {
-          transactionNo,
-          cashAccountId,
-          glAccountId: tradeReceivablesAccount.id,
-          transactionType: 'RECEIPT',
-          amount: (new Decimal(amount)),
-          description,
-          transactionDate: new Date(paymentDate),
-          reference,
-          refType: 'SALES_RECEIPT',
-          refId: receipt.id,
-          userId: req.user!.id
-        }
+          status: "AUTHORIZED",
+          authorizedBy: req.user.id,
+          authorizedAt: new Date(),
+        },
+      });
+    });
+
+    res.json({ message: "Customer payment authorized" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+
+async payCustomerPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.customerPayment.findUnique({
+        where: { id },
+        include: {
+          lines: true,
+          cashAccount: true,
+        },
       });
 
-      // Update cash account balance
+      if (!payment) throw new Error("Payment not found");
+      if (payment.status !== "AUTHORIZED")
+        throw new Error("Only AUTHORIZED payments can be paid");
+
+      const cashGLAccountId = payment.cashAccount.glAccountId;
+      if (!cashGLAccountId)
+        throw new Error("Cash account missing GL account");
+
+      // Mark as paid
+      await tx.customerPayment.update({
+        where: { id },
+        data: {
+          status: "PAID",
+          paidBy: req.user.id,
+          paidAt: new Date(),
+        },
+      });
+
+      // Update cash balance
       await tx.cashAccount.update({
-        where: { id: cashAccountId },
-        data: { balance: { increment: amount } }
+        where: { id: payment.cashAccountId },
+        data: {
+          balance: {
+            increment: payment.totalAmount,
+          },
+        },
       });
 
-      // Create journal entries
+      // Create journal
       const journalCount = await tx.journal.count();
-      const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+      const journalNo = `J${String(journalCount + 1).padStart(6, "0")}`;
 
       const journal = await tx.journal.create({
         data: {
           journalNo,
-          date: new Date(paymentDate),
-          memo: `Customer payment: ${reference || receiptNo}`,
-          postedBy: req.user!.id
-        }
+          date: payment.paymentDate,
+          memo: `Customer Payment: ${payment.reference ?? payment.paymentNo}`,
+          postedBy: req.user.id,
+        },
       });
 
-      // Get cash account's GL account
-      const cashAccount = await tx.cashAccount.findUnique({
-        where: { id: cashAccountId },
-        select: { glAccountId: true }
-      });
-      if (!cashAccount) throw new Error('Cash account not found');
-      if (!cashAccount.glAccountId) throw new Error('Cash account does not have a linked GL account');
+      // Journal lines for each payment line
+      for (const line of payment.lines) {
+        await tx.journalLine.createMany({
+          data: [
+            // Debit Cash account
+            {
+              journalId: journal.id,
+              accountId: cashGLAccountId,
+              debit: line.lineAmount,
+              credit: new Decimal(0),
+              refType: "CUSTOMER_PAYMENT",
+              refId: payment.id,
+            },
+            // Credit Receivable or mapped GL
+            {
+              journalId: journal.id,
+              accountId: line.glAccountId,
+              debit: new Decimal(0),
+              credit: line.lineAmount,
+              refType: "CUSTOMER_PAYMENT",
+              refId: payment.id,
+            },
+          ],
+        });
 
-      // Debit Cash, Credit Trade Receivables
-      await tx.journalLine.createMany({
-        data: [
-          {
-            journalId: journal.id,
-            accountId: cashAccount.glAccountId,
-            debit: new Decimal(amount),
-            credit: new Decimal(0),
-            refType: 'CUSTOMER_PAYMENT',
-            refId: receipt.id
-          },
-          {
-            journalId: journal.id,
-            accountId: tradeReceivablesAccount.id,
-            debit: new Decimal(0),
-            credit: new Decimal(amount),
-            refType: 'CUSTOMER_PAYMENT',
-            refId: receipt.id
+        // If sale exists → update amount received
+        if (line.saleId) {
+          const sale = await tx.sale.findUnique({
+            where: { id: line.saleId },
+            include: { salesReceipts: true },
+          });
+
+          const previouslyPaid = sale.salesReceipts.reduce(
+            (s, r) => s + Number(r.amountReceived),
+            0
+          );
+
+          if (previouslyPaid + Number(line.lineAmount) >= Number(sale.totalAmount)) {
+            await tx.sale.update({
+              where: { id: sale.id },
+              data: { status: "PAID" },
+            });
           }
-        ]
+        }
+      }
+
+      await tx.customerPaymentPosting.create({
+        data: {
+          customerPaymentId: payment.id,
+          journalId: journal.id,
+          postedBy: req.user.id,
+        },
       });
+    });
 
-      return receipt;
-    }
-    ,
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-  
-  );
-
-    res.status(201).json(result);
-  } catch (error) {
-    console.error('Create customer payment error:', error);
-    res.status(400).json({ error: 'Failed to create customer payment' });
+    res.json({ message: "Customer payment paid successfully" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 }
+
+async getCustomerPayments(req, res) {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      customerId,
+      cashAccountId,
+      status,
+      startDate,
+      endDate,
+      search
+    } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    // Build filters
+    const filters: any = {};
+
+    if (customerId) filters.customerId = customerId;
+    if (cashAccountId) filters.cashAccountId = cashAccountId;
+    if (status) filters.status = status;
+
+    // Date range
+    if (startDate || endDate) {
+      filters.paymentDate = {};
+      if (startDate) filters.paymentDate.gte = new Date(startDate);
+      if (endDate) filters.paymentDate.lte = new Date(endDate);
+    }
+
+    // Search filter
+    if (search) {
+      filters.OR = [
+        { paymentNo: { contains: search, mode: "insensitive" } },
+        { reference: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Query with relations
+    const [payments, total] = await Promise.all([
+      prisma.customerPayment.findMany({
+        where: filters,
+        skip,
+        take,
+        orderBy: { paymentDate: "desc" },
+        include: {
+          customer: true,
+          cashAccount: true,
+          user: true,        // created by
+          preparer: true,    // preparedBy
+          approver: true,    // approvedBy
+          authorizer: true,  // authorizedBy
+          payer: true,       // paidBy
+          lines: {
+            include: {
+              sale: {
+                select: {
+                  id: true,
+                  saleLines: true,
+                  totalAmount: true,
+                },
+              },
+              glAccount: true,
+            }
+          },
+          postings: true,
+        },
+      }),
+
+      prisma.customerPayment.count({ where: filters })
+    ]);
+
+    res.json({
+      data: payments,
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages: Math.ceil(total / Number(limit)),
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch customer payments" });
+  }
+}
+
+
+async getCustomerPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    const payment = await prisma.customerPayment.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        cashAccount: true,
+        user: true,        // created by
+        preparer: true,    // preparedBy
+        approver: true,    // approvedBy
+        authorizer: true,  // authorizedBy
+        payer: true,       // paidBy
+        postings: true,
+        lines: {
+          include: {
+            glAccount: true,
+            sale: {
+              select: {
+                id: true,
+                saleLines: true,
+                totalAmount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Customer payment not found" });
+    }
+
+    res.json(payment);
+
+  } catch (err) {
+    console.error("getCustomerPayment error:", err);
+    res.status(500).json({ error: "Failed to fetch customer payment" });
+  }
+}
+
+
+
+async  updateCustomerPayment(req, res) {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+
+    const updatedPayment = await prisma.$transaction(async (tx) => {
+      const payment = await tx.customerPayment.findUnique({
+        where: { id },
+        include: { lines: true },
+      });
+
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      if (payment.status !== "PREPARED") {
+        return res.status(400).json({
+          error: "Only PREPARED payments can be updated",
+        });
+      }
+
+      // Calculate new total
+      const totalAmount = data.lines.reduce(
+        (sum, l) => sum + Number(l.lineAmount),
+        0
+      );
+
+      // Update header
+      const header = await tx.customerPayment.update({
+        where: { id },
+        data: {
+          customerId: data.customerId,
+          cashAccountId: data.cashAccountId,
+          paymentDate: new Date(data.paymentDate),
+          reference: data.reference,
+          notes: data.notes,
+          totalAmount,
+          userId: req.user.id,
+        },
+      });
+
+      // Remove old lines
+      await tx.customerPaymentLine.deleteMany({
+        where: { customerPaymentId: id },
+      });
+
+      // Insert new lines
+      for (const line of data.lines) {
+        await tx.customerPaymentLine.create({
+          data: {
+            customerPaymentId: id,
+            saleId: line.saleId ?? null,
+            glAccountId: line.glAccountId,
+            lineAmount: line.lineAmount,
+            description: line.description,
+          },
+        });
+      }
+
+      return header;
+    });
+
+    res.json(updatedPayment);
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({ error: "Failed to update payment" });
+  }
+}
+
+async deleteCustomerPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    const payment = await prisma.customerPayment.findUnique({
+      where: { id },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Payment not found" });
+    }
+
+    if (payment.status !== "PREPARED") {
+      return res.status(400).json({
+        error: "Only PREPARED payments can be deleted",
+      });
+    }
+
+    await prisma.customerPayment.delete({
+      where: { id },
+    });
+
+    res.json({ message: "Payment deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete payment" });
+  }
+}
+
 
 async createCustomerRefund(req: AuthRequest, res: Response) {
   try {

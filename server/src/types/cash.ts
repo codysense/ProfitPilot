@@ -53,7 +53,7 @@ export const updateCashAccountSchema = z.object({
 
 
 export const updateCashTransactionSchema = z.object({
-  description: z.string(),
+  description: z.string().optional(),
   transactionDate: z.string(),
   reference: z.string().optional(),
   transactionLines: z.array(z.object({
@@ -66,6 +66,24 @@ export const updateCashTransactionSchema = z.object({
 
 export const reconcileCashTransactionSchema = z.object({
   reconciledDate: z.string().optional()
+});
+
+export const customerPaymentLineSchema = z.object({
+  saleId: z.string().uuid().optional().nullable(),
+  glAccountId: z.string().uuid({ message: "GL account is required" }),
+  lineAmount: z.number().positive("Amount must be greater than zero"),
+  description: z.string().optional(),
+});
+
+export const customerPaymentSchema = z.object({
+  customerId: z.string().uuid(),
+  cashAccountId: z.string().uuid(),
+  paymentDate: z.string(),
+  reference: z.string().optional(),
+  notes: z.string().optional(),
+  lines: z
+    .array(customerPaymentLineSchema)
+    .min(1, "At least one payment line is required"),
 });
 
 
