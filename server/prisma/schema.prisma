@@ -681,12 +681,14 @@ model CashTransaction {
   cashAccountId   String
   transactionType String // RECEIPT, PAYMENT
   amount          Decimal  @db.Decimal(15, 2)
-  //description     String?
+  description     String?
+  glAccountId     String?
   refType         String? // SALES_RECEIPT, PURCHASE_PAYMENT, CUSTOMER_PAYMENT, VENDOR_PAYMENT, OTHER
   refId           String?
   transactionDate DateTime
   reference       String?
   status          String   @default("PREPARED") // PREPARED, APPROVED, AUTHORIZED, PAID
+  
 
   // Approval tracking
   preparedBy   String

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient,Prisma } from '@prisma/client';
 import { createCustomerSchema, createSaleSchema, deliverSaleSchema } from '../types/sales';
 import { AuthRequest } from '../middleware/auth';
 import { CostingService } from '../services/costing';
@@ -314,29 +314,58 @@ export class SalesController {
     const limit = parseInt(req.query.limit as string) || 10;
     const search = (req.query.search as string) || '';
 
-    const where = search
-      ? { name: { contains: search, mode: 'insensitive' } }
-      : {};
+    let where: Prisma.CustomerGroupWhereInput = {};
 
-    const [groups, total] = await Promise.all([
-      prisma.customerGroup.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          _count: {
-            select: { customers: true }, // ✅ only count, not full customer list
-          },
-        },
-      }),
-      prisma.customerGroup.count({ where }),
-    ]);
+if (search) {
+  where = {
+    name: {
+      contains: search,
+      mode: Prisma.QueryMode.insensitive
+    }
+  };
+}
 
-    const groupsWithCount = groups.map((group) => ({
-      ...group,
-      customerCount: group._count.customers, // ✅ extract count into its own property
-    }));
+const [groups, total] = await Promise.all([
+  prisma.customerGroup.findMany({
+    where,
+    skip: (page - 1) * limit,
+    take: limit,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      _count: { select: { customers: true } }
+    }
+  }),
+  prisma.customerGroup.count({ where }),
+]);
+
+const groupsWithCount = groups.map((group) => ({
+  ...group,
+  customerCount: group._count.customers,
+}));
+
+    // const where = search
+    //   ? { name: { contains: search, mode: 'insensitive' } }
+    //   : {};
+
+    // const [groups, total] = await Promise.all([
+    //   prisma.customerGroup.findMany({
+    //     where,
+    //     skip: (page - 1) * limit,
+    //     take: limit,
+    //     orderBy: { createdAt: 'desc' },
+    //     include: {
+    //       _count: {
+    //         select: { customers: true }, 
+    //       },
+    //     },
+    //   }),
+    //   prisma.customerGroup.count({ where }),
+    // ]);
+
+    // const groupsWithCount = groups.map((group) => ({
+    //   ...group,
+    //   customerCount: group._count.customers, 
+    // }));
 
     res.json({
       groups: groupsWithCount,

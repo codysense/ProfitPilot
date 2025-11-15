@@ -207,7 +207,8 @@ export class PosController {
             reference: saleNo,
             refType: 'POS_SALE',
             refId: newSale.id,
-            userId: req.user!.id
+            userId: req.user!.id,
+             preparedBy: req.user!.id,
           }
         });
 
@@ -469,7 +470,8 @@ async getReturns(req:AuthRequest, res:Response ) {
             reference: returnNo,
             refType: 'POS_RETURN',
             refId: newReturn.id,
-            userId: req.user!.id
+            userId: req.user!.id,
+             preparedBy: req.user!.id,
           }
         });
 

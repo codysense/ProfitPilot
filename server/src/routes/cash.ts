@@ -68,7 +68,7 @@ router.post('/purchase-payments', requireRole(['Accountant']), auditLogger('CREA
 // Cashbook
 // router.get('/cashbook', authorize('inventory.item.read'), cashController.getCashbook);
 router.get('/cashbook', requireRole(['Accountant']), cashController.getCashbook);
-router.get('/cashbook/export', requireRole(['Accountant']), cashController.exportCashbook);
+// router.get('/cashbook/export', requireRole(['Accountant']), cashController.exportCashbook);
 // router.get('/cashbook/export', authorize('inventory.item.read'), cashController.exportCashbook);
 
 // Bank Reconciliation

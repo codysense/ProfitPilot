@@ -514,7 +514,7 @@ export class CashController {
           where: { id },
           data: {
             amount: new Decimal(totalAmount),
-            description: validatedData.description,
+            //description: validatedData.description,
             transactionDate: new Date(validatedData.transactionDate),
             reference: validatedData.reference
           }
@@ -1629,21 +1629,44 @@ async createCustomerRefund(req: AuthRequest, res: Response) {
       let description = `Customer refund to ${customer?.name ?? ""}`;
       if (sale?.orderNo) description += ` - ${sale.orderNo}`;
 
+
       await tx.cashTransaction.create({
-        data: {
-          transactionNo,
-          cashAccountId,
-          glAccountId: tradeReceivablesAccount.id,
-          transactionType: "PAYMENT", // cash going out
-          amount: new Decimal(amount),
-          description,
-          transactionDate: new Date(refundDate),
-          reference,
-          refType: "CUSTOMER_REFUND",
-          refId: refund.id,
-          userId: req.user!.id,
-        },
-      });
+  data: {
+    transactionNo,
+    cashAccountId,
+    transactionType: "PAYMENT",
+    amount: new Decimal(amount),
+    description,
+    transactionDate: new Date(refundDate),
+    reference,
+    refType: "CUSTOMER_REFUND",
+    refId: refund.id,
+    glAccountId: tradeReceivablesAccount.id,
+
+    // REQUIRED fields
+    userId: req.user!.id,
+    preparedBy: req.user!.id,   // REQUIRED by your model
+
+    // Status defaults handled by Prisma
+  },
+});
+
+
+      // await tx.cashTransaction.create({
+      //   data: {
+      //     transactionNo,
+      //     cashAccountId,
+      //     glAccountId: tradeReceivablesAccount.id,
+      //     transactionType: "PAYMENT", // cash going out
+      //     amount: new Decimal(amount),
+      //     description,
+      //     transactionDate: new Date(refundDate),
+      //     reference,
+      //     refType: "CUSTOMER_REFUND",
+      //     refId: refund.id,
+      //     userId: req.user!.id,
+      //   },
+      // });
 
       // Decrease cash account balance
       await tx.cashAccount.update({
@@ -1809,7 +1832,8 @@ async createCustomerRefund(req: AuthRequest, res: Response) {
           reference,
           refType: 'PURCHASE_PAYMENT',
           refId: payment.id,
-          userId: req.user!.id
+          userId: req.user!.id,
+           preparedBy: req.user!.id,
         }
       });
 
@@ -1982,7 +2006,8 @@ async createVendorRefund(req: AuthRequest, res: Response) {
           reference,
           refType: "PURCHASE_REFUND",
           refId: refund.id,
-          userId: req.user!.id
+          userId: req.user!.id,
+           preparedBy: req.user!.id,
         }
       });
 
@@ -2273,8 +2298,8 @@ async getCustomerRefunds(req: AuthRequest, res: Response) {
         where,
         include: {
           cashAccount: true,
-          glAccount: true,
-          contraAccount: true,
+         // glAccount: true,
+          //contraAccount: true,
           user: {
             select: { name: true }
           }
@@ -2463,76 +2488,76 @@ async getCustomerRefunds(req: AuthRequest, res: Response) {
   // }
 
   // Export cashbook to CSV
-  async exportCashbook(req: AuthRequest, res: Response) {
-    try {
-      const { cashAccountId, dateFrom, dateTo } = req.query;
+  // async exportCashbook(req: AuthRequest, res: Response) {
+  //   try {
+  //     const { cashAccountId, dateFrom, dateTo } = req.query;
 
-      const where: any = {};
-      if (cashAccountId) where.cashAccountId = cashAccountId;
-      if (dateFrom || dateTo) {
-        where.transactionDate = {};
-        if (dateFrom) where.transactionDate.gte = new Date(dateFrom as string);
-        if (dateTo) where.transactionDate.lte = new Date(dateTo as string);
-      }
+  //     const where: any = {};
+  //     if (cashAccountId) where.cashAccountId = cashAccountId;
+  //     if (dateFrom || dateTo) {
+  //       where.transactionDate = {};
+  //       if (dateFrom) where.transactionDate.gte = new Date(dateFrom as string);
+  //       if (dateTo) where.transactionDate.lte = new Date(dateTo as string);
+  //     }
 
-      const transactions = await prisma.cashTransaction.findMany({
-        where,
-        include: {
-          cashAccount: true,
-          glAccount: true,
-          contraAccount: true,
-          user: {
-            select: { name: true }
-          }
-        },
-        orderBy: { transactionDate: 'asc' }
-      });
+  //     const transactions = await prisma.cashTransaction.findMany({
+  //       where,
+  //       include: {
+  //         cashAccount: true,
+  //         glAccount: true,
+  //         contraAccount: true,
+  //         user: {
+  //           select: { name: true }
+  //         }
+  //       },
+  //       orderBy: { transactionDate: 'asc' }
+  //     });
 
-      // Generate CSV
-      const headers = [
-        'Date',
-        'Transaction No',
-        'Description',
-        'Reference',
-        'GL Account',
-        'Contra Account',
-        'Receipt',
-        'Payment',
-        'Running Balance',
-        'User'
-      ];
+  //     // Generate CSV
+  //     const headers = [
+  //       'Date',
+  //       'Transaction No',
+  //       'Description',
+  //       'Reference',
+  //       'GL Account',
+  //       'Contra Account',
+  //       'Receipt',
+  //       'Payment',
+  //       'Running Balance',
+  //       'User'
+  //     ];
 
-      let runningBalance = 0;
-      const csvRows = transactions.map(transaction => {
-        const amount = Number(transaction.amount);
-        runningBalance += transaction.transactionType === 'RECEIPT' ? amount : -amount;
+  //     let runningBalance = 0;
+  //     const csvRows = transactions.map(transaction => {
+  //       const amount = Number(transaction.amount);
+  //       runningBalance += transaction.transactionType === 'RECEIPT' ? amount : -amount;
         
-        return [
-          new Date(transaction.transactionDate).toLocaleDateString(),
-          transaction.transactionNo,
-          transaction.description,
-          transaction.reference || '',
-          transaction.glAccount ? `${transaction.glAccount.code} - ${transaction.glAccount.name}` : '',
-          transaction.contraAccount ? `${transaction.contraAccount.code} - ${transaction.contraAccount.name}` : '',
-          transaction.transactionType === 'RECEIPT' ? amount.toString() : '',
-          transaction.transactionType === 'PAYMENT' ? amount.toString() : '',
-          runningBalance.toString(),
-          transaction.user.name
-        ];
-      });
+  //       return [
+  //         new Date(transaction.transactionDate).toLocaleDateString(),
+  //         transaction.transactionNo,
+  //         transaction.description,
+  //         transaction.reference || '',
+  //         transaction.glAccount ? `${transaction.glAccount.code} - ${transaction.glAccount.name}` : '',
+  //         transaction.contraAccount ? `${transaction.contraAccount.code} - ${transaction.contraAccount.name}` : '',
+  //         transaction.transactionType === 'RECEIPT' ? amount.toString() : '',
+  //         transaction.transactionType === 'PAYMENT' ? amount.toString() : '',
+  //         runningBalance.toString(),
+  //         transaction.user.name
+  //       ];
+  //     });
 
-      const csvContent = [headers, ...csvRows]
-        .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\n');
+  //     const csvContent = [headers, ...csvRows]
+  //       .map(row => row.map(field => `"${field}"`).join(','))
+  //       .join('\n');
 
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="cashbook-${new Date().toISOString().split('T')[0]}.csv"`);
-      res.send(csvContent);
-    } catch (error) {
-      console.error('Export cashbook error:', error);
-      res.status(500).json({ error: 'Failed to export cashbook' });
-    }
-  }
+  //     res.setHeader('Content-Type', 'text/csv');
+  //     res.setHeader('Content-Disposition', `attachment; filename="cashbook-${new Date().toISOString().split('T')[0]}.csv"`);
+  //     res.send(csvContent);
+  //   } catch (error) {
+  //     console.error('Export cashbook error:', error);
+  //     res.status(500).json({ error: 'Failed to export cashbook' });
+  //   }
+  // }
 
   // Create sales receipt (wrapper for createCustomerPayment)
   async createSalesReceipt(req: AuthRequest, res: Response) {
