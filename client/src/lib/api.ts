@@ -319,6 +319,14 @@ export const cashApi = {
 
   createCustomerRefund: (data: any) => api.post('/cash/customer-refunds', data),
   createVendorPayment: (data: any) => api.post('/cash/vendor-payments', data),
+  //  createCustomerPayment: (data: any) => api.post('/cash/customer-payments', data),
+  getVendorPayments: (params?: any) => api.get(`/cash/vendor-payments${params ? '?' + new URLSearchParams(params).toString() : ''}`),
+  getVendorPayment: (id?: string) => api.get(`/cash/vendor-payments${id}`),
+  approveVendorPayment: (id: string) => api.post(`/cash/vendor-payments/${id}/approve`),
+  authorizeVendorPayment: (id: string) => api.post(`/cash/vendor-payments/${id}/authorize`),
+  payVendorPayment: (id: string) => api.post(`/cash/vendor-payments/${id}/pay`),
+  deleteVendorPayment:(id: string) => api.delete(`/cash/vendor-payments/${id}`),
+  updateVendorPayment:(id:string, data:any)=>api.put(`/cash/vendor-payments/${id}/update`, data),
   createVendorRefund: (data: any) => api.post('/cash/vendor-refunds', data),
   getVendorRefunds: (params?: any) => api.get(`/cash/vendor-refunds${params ? '?' + new URLSearchParams(params).toString() : ''}`),
   createSalesReceipt: (data: any) => api.post('/cash/sales-receipts', data),
@@ -607,5 +615,5 @@ export const adjustmentApi ={
 
   adjustStock: (data: any) => api.post('/adjustment', data),
   getStockAdjustment: (params?: { page?: number; limit?: number; search?: string }) =>
-     api.get(`/adjustment${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
+     api.get(`/adjustment`),
 }

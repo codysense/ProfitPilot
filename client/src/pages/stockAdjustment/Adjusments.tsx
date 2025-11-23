@@ -29,8 +29,8 @@ export const Adjustments = () => {
 //  console.log(data)
 
 const { data: adjustments } = useQuery({
-    queryKey: ['-Adjustments'],
-    queryFn: () => adjustmentApi.getStockAdjustment({  limit: 100 })
+    queryKey: ['adjustments'],
+    queryFn: () => adjustmentApi.getStockAdjustment()
   });
   console.log(adjustments)
 

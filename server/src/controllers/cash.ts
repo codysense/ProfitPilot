@@ -1734,168 +1734,564 @@ async createCustomerRefund(req: AuthRequest, res: Response) {
 
 
   // Create vendor payment (Purchase Payment)
-  async createVendorPayment(req: AuthRequest, res: Response) {
+//   async createVendorPayment(req: AuthRequest, res: Response) {
+//   try {
+//     const {
+//       vendorId,
+//       cashAccountId,
+//       amount,
+//       paymentDate,
+//       reference,
+//       notes,
+//       purchaseId // optional now
+//     } = req.body;
+
+//     const result = await prisma.$transaction(async (tx) => {
+//       // Generate payment number
+//       const count = await tx.purchasePayment.count();
+//       const paymentNo = `PP${String(count + 1).padStart(6, '0')}`;
+
+//       // Fetch purchase if purchaseId exists
+//       let purchase: { id: string; totalAmount: any; orderNo: string | null; purchasePayments: { amountPaid: any }[] } | null = null;
+//       if (purchaseId) {
+//         purchase = await tx.purchase.findUnique({
+//           where: { id: purchaseId },
+//           include: { purchasePayments: true }
+//         });
+//       }
+
+//       // Create purchase payment
+//       const payment = await tx.purchasePayment.create({
+//         data: {
+//           paymentNo,
+//           purchaseId:purchaseId?purchaseId: null, // only include if provided
+//           vendorId,
+//           cashAccountId,
+//           amountPaid: new Decimal(amount),
+//           paymentDate: new Date(paymentDate),
+//           notes,
+//           reference,
+//           userId: req.user!.id
+//         }
+//       });
+
+//       // Update purchase status if fully paid
+//       if (purchase) {
+//         const totalPaid =
+//           purchase.purchasePayments.reduce(
+//             (sum, p) => sum + Number(p.amountPaid),
+//             0
+//           ) + Number(amount);
+
+//         if (totalPaid >= Number(purchase.totalAmount)) {
+//           await tx.purchase.update({
+//             where: { id: purchase.id },
+//             data: { status: 'PAID' }
+//           });
+//         }
+//       }
+
+//       // Create corresponding cash transaction
+//       const cashTransactionCount = await tx.cashTransaction.count();
+//       const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
+
+//       // Get Trade Payables account
+//       const tradePayablesAccount = await tx.chartOfAccount.findFirst({
+//         where: {
+//           OR: [
+//             { accountType: 'TRADE_PAYABLES' },
+//             { code: '2000' },
+//             // { name: { contains: 'Payable', mode: 'insensitive' } }
+//           ]
+//         }
+//       });
+//       if (!tradePayablesAccount) {
+//         throw new Error('No payables account found. Please create a Trade Payables or Accounts Payable account in Chart of Accounts first.');
+//       }
+
+//       // Build description
+//       const vendor = await tx.vendor.findUnique({
+//         where: { id: vendorId },
+//         select: { name: true }
+//       });
+
+//       let description = `Vendor payment to ${vendor?.name ?? ''}`;
+//       if (purchase?.orderNo) {
+//         description += ` - ${purchase.orderNo}`;
+//       }
+
+//       await tx.cashTransaction.create({
+//         data: {
+//           transactionNo,
+//           cashAccountId,
+//           glAccountId: tradePayablesAccount.id,
+//           transactionType: 'PAYMENT',
+//           amount: new Decimal(amount),
+//           description,
+//           transactionDate: new Date(paymentDate),
+//           reference,
+//           refType: 'PURCHASE_PAYMENT',
+//           refId: payment.id,
+//           userId: req.user!.id,
+//            preparedBy: req.user!.id,
+//         }
+//       });
+
+//       // Update cash account balance
+//       await tx.cashAccount.update({
+//         where: { id: cashAccountId },
+//         data: { balance: { decrement: amount } }
+//       });
+
+//       // Create journal entries
+//       const journalCount = await tx.journal.count();
+//       const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+
+//       const journal = await tx.journal.create({
+//         data: {
+//           journalNo,
+//           date: new Date(paymentDate),
+//           memo: `Vendor payment: ${reference || paymentNo}`,
+//           postedBy: req.user!.id
+//         }
+//       });
+
+//       // Get cash account's GL account
+//       const cashAccount = await tx.cashAccount.findUnique({
+//         where: { id: cashAccountId },
+//         select: { glAccountId: true }
+//       });
+//       if (!cashAccount) throw new Error('Cash account not found');
+//       if (!cashAccount.glAccountId) throw new Error('Cash account does not have a linked GL account');
+
+//       // Debit Trade Payables, Credit Cash
+//       await tx.journalLine.createMany({
+//         data: [
+//           {
+//             journalId: journal.id,
+//             accountId: tradePayablesAccount.id,
+//             debit: new Decimal(amount),
+//             credit: new Decimal(0),
+//             refType: 'VENDOR_PAYMENT',
+//             refId: payment.id
+//           },
+//           {
+//             journalId: journal.id,
+//             accountId: cashAccount.glAccountId,
+//             debit: new Decimal(0),
+//             credit: new Decimal(amount),
+//             refType: 'VENDOR_PAYMENT',
+//             refId: payment.id
+//           }
+//         ]
+//       });
+
+//       return payment;
+//     }, {
+//       maxWait: 5000, // 5s wait
+//       timeout: 20000 // 20s max runtime
+//     });
+
+//     res.status(201).json(result);
+//   } catch (error) {
+//     console.error('Create vendor payment error:', error);
+//     res.status(400).json({ error: 'Failed to create vendor payment' });
+//   }
+// }
+
+
+async createVendorPayment(req, res) {
   try {
-    const {
-      vendorId,
-      cashAccountId,
-      amount,
-      paymentDate,
-      reference,
-      notes,
-      purchaseId // optional now
-    } = req.body;
+    const data = req.body;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Generate payment number
-      const count = await tx.purchasePayment.count();
-      const paymentNo = `PP${String(count + 1).padStart(6, '0')}`;
+    const payment = await prisma.$transaction(async (tx) => {
+      const count = await tx.vendorPayment.count();
+      const paymentNo = `VP${String(count + 1).padStart(6, "0")}`;
 
-      // Fetch purchase if purchaseId exists
-      let purchase: { id: string; totalAmount: any; orderNo: string | null; purchasePayments: { amountPaid: any }[] } | null = null;
-      if (purchaseId) {
-        purchase = await tx.purchase.findUnique({
-          where: { id: purchaseId },
-          include: { purchasePayments: true }
+      const totalAmount = data.lines.reduce(
+        (s, l) => s + Number(l.lineAmount),
+        0
+      );
+
+      // Create PREPARED payment
+      const newPayment = await tx.vendorPayment.create({
+        data: {
+          paymentNo,
+          vendorId: data.vendorId,
+          cashAccountId: data.cashAccountId,
+          paymentDate: new Date(data.paymentDate),
+          reference: data.reference,
+          notes: data.notes,
+          totalAmount,
+          status: "PREPARED",
+          preparedBy: req.user.id,
+          userId: req.user.id,
+        },
+      });
+
+      // Create lines
+      for (const line of data.lines) {
+        await tx.vendorPaymentLine.create({
+          data: {
+            vendorPaymentId: newPayment.id,
+            purchaseId: line.purchaseId ?? null,
+            glAccountId: line.glAccountId,
+            lineAmount: line.lineAmount,
+            description: line.description,
+          },
         });
       }
 
-      // Create purchase payment
-      const payment = await tx.purchasePayment.create({
+      return newPayment;
+    });
+
+    res.status(201).json(payment);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create vendor payment" });
+  }
+}
+
+
+async approveVendorPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    await prisma.vendorPayment.update({
+      where: { id },
+      data: {
+        status: "APPROVED",
+        approvedBy: req.user.id,
+        approvedAt: new Date(),
+      },
+    });
+
+    res.json({ message: "Vendor payment approved" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to approve vendor payment" });
+  }
+}
+
+
+async authorizeVendorPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    await prisma.vendorPayment.update({
+      where: { id },
+      data: {
+        status: "AUTHORIZED",
+        authorizedBy: req.user.id,
+        authorizedAt: new Date(),
+      },
+    });
+
+    res.json({ message: "Vendor payment authorized" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to authorize vendor payment" });
+  }
+}
+
+async payVendorPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.vendorPayment.findUnique({
+        where: { id },
+        include: { lines: true, cashAccount: true },
+      });
+
+      if (!payment) throw new Error("Payment not found");
+      if (payment.status !== "AUTHORIZED")
+        throw new Error("Only AUTHORIZED payments can be paid");
+
+      const cashGL = payment.cashAccount.glAccountId;
+      if (!cashGL) throw new Error("Cash account missing GL");
+
+      // Mark as paid
+      await tx.vendorPayment.update({
+        where: { id },
         data: {
-          paymentNo,
-          purchaseId:purchaseId?purchaseId: null, // only include if provided
-          vendorId,
-          cashAccountId,
-          amountPaid: new Decimal(amount),
-          paymentDate: new Date(paymentDate),
-          notes,
-          reference,
-          userId: req.user!.id
-        }
+          status: "PAID",
+          paidBy: req.user.id,
+          paidAt: new Date(),
+        },
       });
 
-      // Update purchase status if fully paid
-      if (purchase) {
-        const totalPaid =
-          purchase.purchasePayments.reduce(
-            (sum, p) => sum + Number(p.amountPaid),
-            0
-          ) + Number(amount);
-
-        if (totalPaid >= Number(purchase.totalAmount)) {
-          await tx.purchase.update({
-            where: { id: purchase.id },
-            data: { status: 'PAID' }
-          });
-        }
-      }
-
-      // Create corresponding cash transaction
-      const cashTransactionCount = await tx.cashTransaction.count();
-      const transactionNo = `CT${String(cashTransactionCount + 1).padStart(6, '0')}`;
-
-      // Get Trade Payables account
-      const tradePayablesAccount = await tx.chartOfAccount.findFirst({
-        where: {
-          OR: [
-            { accountType: 'TRADE_PAYABLES' },
-            { code: '2000' },
-            // { name: { contains: 'Payable', mode: 'insensitive' } }
-          ]
-        }
-      });
-      if (!tradePayablesAccount) {
-        throw new Error('No payables account found. Please create a Trade Payables or Accounts Payable account in Chart of Accounts first.');
-      }
-
-      // Build description
-      const vendor = await tx.vendor.findUnique({
-        where: { id: vendorId },
-        select: { name: true }
-      });
-
-      let description = `Vendor payment to ${vendor?.name ?? ''}`;
-      if (purchase?.orderNo) {
-        description += ` - ${purchase.orderNo}`;
-      }
-
-      await tx.cashTransaction.create({
-        data: {
-          transactionNo,
-          cashAccountId,
-          glAccountId: tradePayablesAccount.id,
-          transactionType: 'PAYMENT',
-          amount: new Decimal(amount),
-          description,
-          transactionDate: new Date(paymentDate),
-          reference,
-          refType: 'PURCHASE_PAYMENT',
-          refId: payment.id,
-          userId: req.user!.id,
-           preparedBy: req.user!.id,
-        }
-      });
-
-      // Update cash account balance
+      // Cash balance decreases
       await tx.cashAccount.update({
-        where: { id: cashAccountId },
-        data: { balance: { decrement: amount } }
+        where: { id: payment.cashAccountId },
+        data: { balance: { decrement: payment.totalAmount } },
       });
 
-      // Create journal entries
-      const journalCount = await tx.journal.count();
-      const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
+      // Journal
+      const count = await tx.journal.count();
+      const journalNo = `J${String(count + 1).padStart(6, "0")}`;
 
       const journal = await tx.journal.create({
         data: {
           journalNo,
-          date: new Date(paymentDate),
-          memo: `Vendor payment: ${reference || paymentNo}`,
-          postedBy: req.user!.id
-        }
+          date: payment.paymentDate,
+          memo: `Vendor payment: ${payment.reference ?? payment.paymentNo}`,
+          postedBy: req.user.id,
+        },
       });
 
-      // Get cash account's GL account
-      const cashAccount = await tx.cashAccount.findUnique({
-        where: { id: cashAccountId },
-        select: { glAccountId: true }
-      });
-      if (!cashAccount) throw new Error('Cash account not found');
-      if (!cashAccount.glAccountId) throw new Error('Cash account does not have a linked GL account');
+      // Each line
+      for (const line of payment.lines) {
+        await tx.journalLine.createMany({
+          data: [
+            // Debit GL expense/payable
+            {
+              journalId: journal.id,
+              accountId: line.glAccountId,
+              debit: line.lineAmount,
+              credit: 0,
+              refType: "VENDOR_PAYMENT",
+              refId: payment.id,
+            },
+            // Credit Cash
+            {
+              journalId: journal.id,
+              accountId: cashGL,
+              debit: 0,
+              credit: line.lineAmount,
+              refType: "VENDOR_PAYMENT",
+              refId: payment.id,
+            },
+          ],
+        });
 
-      // Debit Trade Payables, Credit Cash
-      await tx.journalLine.createMany({
-        data: [
-          {
-            journalId: journal.id,
-            accountId: tradePayablesAccount.id,
-            debit: new Decimal(amount),
-            credit: new Decimal(0),
-            refType: 'VENDOR_PAYMENT',
-            refId: payment.id
-          },
-          {
-            journalId: journal.id,
-            accountId: cashAccount.glAccountId,
-            debit: new Decimal(0),
-            credit: new Decimal(amount),
-            refType: 'VENDOR_PAYMENT',
-            refId: payment.id
+        // If purchase exists, update purchase status
+        if (line.purchaseId) {
+          const p = await tx.purchase.findUnique({
+            where: { id: line.purchaseId },
+            include: { purchasePayments: true },
+          });
+
+          const paid = p.purchasePayments.reduce(
+            (s, r) => s + Number(r.amountPaid),
+            0
+          );
+
+          if (paid >= Number(p.totalAmount)) {
+            await tx.purchase.update({
+              where: { id: p.id },
+              data: { status: "PAID" },
+            });
           }
-        ]
-      });
+        }
+      }
 
-      return payment;
-    }, {
-      maxWait: 5000, // 5s wait
-      timeout: 20000 // 20s max runtime
+      await tx.vendorPaymentPosting.create({
+        data: {
+          vendorPaymentId: payment.id,
+          journalId: journal.id,
+          postedBy: req.user.id,
+        },
+      });
     });
 
-    res.status(201).json(result);
-  } catch (error) {
-    console.error('Create vendor payment error:', error);
-    res.status(400).json({ error: 'Failed to create vendor payment' });
+    res.json({ message: "Vendor payment posted" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+
+async updateVendorPayment(req, res) {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Ensure payment exists
+      const existing = await tx.vendorPayment.findUnique({
+        where: { id },
+      });
+
+      if (!existing) {
+        return res.status(404).json({ error: "Vendor payment not found" });
+      }
+
+      // Calculate total amount again
+      const totalAmount = data.lines.reduce(
+        (sum, l) => sum + Number(l.lineAmount),
+        0
+      );
+
+      // Update main record
+      const payment = await tx.vendorPayment.update({
+        where: { id },
+        data: {
+          vendorId: data.vendorId,
+          cashAccountId: data.cashAccountId,
+          paymentDate: new Date(data.paymentDate),
+          reference: data.reference,
+          notes: data.notes,
+          totalAmount,
+          // Do NOT reset preparedBy or userId
+        },
+      });
+
+      // Delete old lines
+      await tx.vendorPaymentLine.deleteMany({
+        where: { vendorPaymentId: id },
+      });
+
+      // Insert new lines
+      for (const line of data.lines) {
+        await tx.vendorPaymentLine.create({
+          data: {
+            vendorPaymentId: id,
+            purchaseId: line.purchaseId ?? null,
+            glAccountId: line.glAccountId,
+            lineAmount: line.lineAmount,
+            description: line.description,
+          },
+        });
+      }
+
+      return payment;
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({ error: "Failed to update vendor payment" });
+  }
+}
+
+async getVendorPayments(req, res) {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      vendorId,
+      status,
+      dateFrom,
+      dateTo,
+    } = req.query;
+
+    const where: any = {};
+
+    if (vendorId) where.vendorId = vendorId;
+    if (status) where.status = status;
+    if (dateFrom || dateTo) {
+      where.paymentDate = {};
+      if (dateFrom) where.paymentDate.gte = new Date(dateFrom);
+      if (dateTo) where.paymentDate.lte = new Date(dateTo);
+    }
+
+    const payments = await prisma.vendorPayment.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: Number(limit),
+      orderBy: { paymentDate: "desc" },
+
+      include: {
+        vendor: true,
+        cashAccount: true,
+        preparer: true,
+        authorizer:true,
+        approver:true,
+        payer:true,
+        lines: {
+            include: {
+              purchase: {
+                select: {
+                  id: true,
+                  purchaseLines: true,
+                  totalAmount: true,
+                },
+              },
+              glAccount: true,
+            }
+          },
+      },
+    });
+
+    const count = await prisma.vendorPayment.count({ where });
+
+    res.json({
+      data: payments,
+      page: Number(page),
+      totalPages: Math.ceil(count / limit),
+      totalItems: count,
+    });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to fetch vendor payments" });
+  }
+}
+
+async getVendorPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    const payment = await prisma.vendorPayment.findUnique({
+      where: { id },
+      include: {
+        vendor: true,
+        cashAccount: true,
+        preparer: true,
+        approver: true,
+        authorizer: true,
+        payer: true,
+        lines: {
+          include: {
+            purchase: true,
+            glAccount: true,
+          },
+        },
+        postings: {
+          include: {
+            journal: true,
+            postedByUser: true,
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Vendor payment not found" });
+    }
+
+    res.json(payment);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to fetch vendor payment" });
+  }
+}
+
+
+async deleteVendorPayment(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Check if posted
+    const posted = await prisma.vendorPaymentPosting.findFirst({
+      where: { vendorPaymentId: id },
+    });
+
+    if (posted) {
+      return res.status(400).json({
+        error: "Cannot delete a payment that has already been posted",
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.vendorPaymentLine.deleteMany({
+        where: { vendorPaymentId: id },
+      });
+
+      await tx.vendorPayment.delete({
+        where: { id },
+      });
+    });
+
+    res.json({ message: "Vendor payment deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete vendor payment" });
   }
 }
 

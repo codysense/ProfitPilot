@@ -53,6 +53,13 @@ router.post('/sales-receipts', requireRole(['Accountant']), auditLogger('CREATE'
 
 // Vendor Payments
 router.post('/vendor-payments', requireRole(['Accountant']), auditLogger('CREATE', 'VENDOR_PAYMENT'), cashController.createVendorPayment);
+router.put('/vendor-payments/:id/update', requireRole(['Accountant']), auditLogger('UPDATE', 'VENDOR_PAYMENT'), cashController.updateVendorPayment);
+router.get('/vendor-payments/:id/', requireRole(['Accountant']), cashController.getVendorPayment);
+router.get('/vendor-payments', requireRole(['Accountant']),  cashController.getVendorPayments);
+router.post('/vendor-payments/:id/authorize', requireRole(['Accountant']), auditLogger('AUTHORIZE', 'VENDOR_PAYMENT'), cashController.authorizeVendorPayment);
+router.post('/vendor-payments/:id/approve', requireRole(['Accountant']), auditLogger('APPROVE', 'VENDOR_PAYMENT'), cashController.approveVendorPayment);
+router.post('/vendor-payments/:id/pay', requireRole(['Accountant']), auditLogger('PAY', 'VENDOR_PAYMENT'), cashController.payVendorPayment);
+router.delete('/vendor-payments', requireRole(['Accountant']), auditLogger('DELETE', 'VENDOR_PAYMENT'), cashController.deleteVendorPayment);
 router.post('/vendor-refunds', requireRole(['Accountant']), auditLogger('CREATE', 'VENDOR_REFUND'), cashController.createVendorRefund);
 router.get('/vendor-refunds', requireRole(['Accountant']),  cashController.getVendorRefunds);
 

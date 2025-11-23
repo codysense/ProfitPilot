@@ -16,7 +16,7 @@ model User {
   email       String    @unique
   name        String
   password    String
-  status      String    @default("ACTIVE") // ACTIVE, INACTIVE, LOCKED
+  status      String    @default("ACTIVE")
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -27,7 +27,6 @@ model User {
   auditLogs        AuditLog[]
   journals         Journal[]
   inventoryLedger  InventoryLedger[]
-  //cashTransactions CashTransaction[]
   salesReceipts    SalesReceipt[]
   purchasePayments PurchasePayment[]
   SystemSetting    SystemSetting[]
@@ -52,7 +51,7 @@ model User {
   cashTransactionsPaid       CashTransaction[]        @relation("CashTransactionPayer")
   cashTransactionPostings    CashTransactionPosting[]
 
-  // CustomerPayment relations (matching relation names in CustomerPayment)
+  // CustomerPayment relations
   customerPaymentsUser       CustomerPayment[] @relation("CustomerPaymentUser")
   customerPaymentsPrepared   CustomerPayment[] @relation("CustomerPaymentPreparer")
   customerPaymentsApproved   CustomerPayment[] @relation("CustomerPaymentApprover")
@@ -61,6 +60,19 @@ model User {
 
   // postings
   customerPaymentPostings CustomerPaymentPosting[]
+
+  // Main relations
+  vendorPayments VendorPayment[] @relation("VendorPaymentCreatedBy")
+
+  // Workflow relations
+  preparedVendorPayments   VendorPayment[] @relation("VendorPaymentPreparedBy")
+  approvedVendorPayments   VendorPayment[] @relation("VendorPaymentApprovedBy")
+  authorizedVendorPayments VendorPayment[] @relation("VendorPaymentAuthorizedBy")
+  paidVendorPayments       VendorPayment[] @relation("VendorPaymentPaidBy")
+
+  // Posting relations (VendorPaymentPosting)
+  postedVendorPaymentPostings VendorPaymentPosting[] @relation("VendorPaymentPostedBy")
+  vendorPaymentPostingUsers   VendorPaymentPosting[] @relation("VendorPaymentPostedUser")
 
   @@map("users")
 }
@@ -415,6 +427,9 @@ model Vendor {
   // PurchaseMemo     PurchaseMemo[]
   PurchaseRefund   PurchaseRefund[]
 
+  vendorPayments     VendorPayment[]
+  vendorPaymentLines VendorPaymentLine[]
+
   @@map("vendors")
 }
 
@@ -482,6 +497,8 @@ model Purchase {
   assets           Asset[]
   PurchaseRefunds  PurchaseRefund[]
 
+  vendorPaymentLines VendorPaymentLine[]
+
   @@map("purchases")
 }
 
@@ -547,7 +564,9 @@ model ChartOfAccount {
   StockAdjustment             StockAdjustment[]
 
   // added: customer payment lines that post to this GL account
-  customerPaymentLines CustomerPaymentLine[] // <-- added
+  customerPaymentLines CustomerPaymentLine[]
+
+  vendorPaymentLines VendorPaymentLine[]
 
   @@map("chart_of_accounts")
 }
@@ -568,7 +587,9 @@ model Journal {
   cashTransactionPostings CashTransactionPosting[]
 
   // added: postings for customer payments
-  customerPaymentPostings CustomerPaymentPosting[] // <-- added
+  customerPaymentPostings CustomerPaymentPosting[]
+
+  vendorPaymentPostings VendorPaymentPosting[]
 
   @@map("journals")
 }
@@ -645,6 +666,8 @@ model CashAccount {
   SalesRefund    SalesRefund[]
   PurchaseRefund PurchaseRefund[]
 
+  vendorPayments VendorPayment[]
+
   @@map("cash_accounts")
 }
 
@@ -688,7 +711,6 @@ model CashTransaction {
   transactionDate DateTime
   reference       String?
   status          String   @default("PREPARED") // PREPARED, APPROVED, AUTHORIZED, PAID
-  
 
   // Approval tracking
   preparedBy   String
@@ -940,6 +962,82 @@ model PurchasePayment {
   user        User        @relation(fields: [userId], references: [id])
 
   @@map("purchase_payments")
+}
+
+model VendorPayment {
+  id            String   @id @default(cuid())
+  paymentNo     String   @unique
+  vendorId      String
+  cashAccountId String
+  paymentDate   DateTime
+  reference     String?
+  notes         String?
+  totalAmount   Decimal  @db.Decimal(15, 2)
+  status        String   @default("PREPARED")
+
+  preparedBy   String
+  approvedBy   String?
+  authorizedBy String?
+  paidBy       String?
+
+  preparedAt   DateTime  @default(now())
+  approvedAt   DateTime?
+  authorizedAt DateTime?
+  paidAt       DateTime?
+
+  userId    String
+  createdAt DateTime @default(now())
+
+  vendor      Vendor      @relation(fields: [vendorId], references: [id])
+  cashAccount CashAccount @relation(fields: [cashAccountId], references: [id])
+  user        User        @relation("VendorPaymentCreatedBy", fields: [userId], references: [id])
+
+  preparer   User  @relation("VendorPaymentPreparedBy", fields: [preparedBy], references: [id])
+  approver   User? @relation("VendorPaymentApprovedBy", fields: [approvedBy], references: [id])
+  authorizer User? @relation("VendorPaymentAuthorizedBy", fields: [authorizedBy], references: [id])
+  payer      User? @relation("VendorPaymentPaidBy", fields: [paidBy], references: [id])
+
+  lines    VendorPaymentLine[]
+  postings VendorPaymentPosting[]
+
+  @@map("vendor_payments")
+}
+
+model VendorPaymentLine {
+  id              String  @id @default(cuid())
+  vendorPaymentId String
+  purchaseId      String?
+  glAccountId     String
+  lineAmount      Decimal @db.Decimal(15, 2)
+  description     String?
+
+  vendorPayment VendorPayment  @relation(fields: [vendorPaymentId], references: [id])
+  purchase      Purchase?      @relation(fields: [purchaseId], references: [id])
+  glAccount     ChartOfAccount @relation(fields: [glAccountId], references: [id])
+  Vendor        Vendor?        @relation(fields: [vendorId], references: [id])
+  vendorId      String?
+
+  @@map("vendor_payment_lines")
+}
+
+model VendorPaymentPosting {
+  id              String   @id @default(cuid())
+  vendorPaymentId String
+  journalId       String
+  postedBy        String
+  userId          String?
+  postedAt        DateTime @default(now())
+
+  vendorPayment VendorPayment @relation(fields: [vendorPaymentId], references: [id])
+  journal       Journal       @relation(fields: [journalId], references: [id])
+
+  // Name this relation
+  postedByUser User @relation("VendorPaymentPostedBy", fields: [postedBy], references: [id])
+
+  // Name the other relation differently
+  user User? @relation("VendorPaymentPostedUser", fields: [userId], references: [id])
+
+  @@map("vendor_payment_postings")
 }
 
 model PurchaseRefund {

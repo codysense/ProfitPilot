@@ -63,7 +63,7 @@ const CustomerPayments = () => {
     })
   });
 
-  console.log(data)
+  //console.log(data)
   // const { data:trn } = useQuery({
   //   queryKey: ['customer-payments', { page, customerId: customerFilter }],
   //   queryFn: () => cashApi.getCashTransactions({ 
