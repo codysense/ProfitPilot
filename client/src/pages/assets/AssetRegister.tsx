@@ -43,6 +43,8 @@ const AssetRegister = () => {
     })
   });
 
+ 
+
   const { data: categories } = useQuery({
     queryKey: ['asset-categories'],
     queryFn: () => assetsApi.getAssetCategories()
@@ -98,7 +100,7 @@ const AssetRegister = () => {
       header: 'Net Book Value',
       cell: (asset: Asset) => (
         <span className="font-semibold text-blue-600">
-          ₦{(Number(asset.netBookValue).toLocaleString() || Number(asset.acquisitionCost)).toLocaleString()}
+          ₦{(Number(asset.netBookValue).toLocaleString()|| Number(asset.acquisitionCost)).toLocaleString()}
         </span>
       ),
       width: 'w-32'

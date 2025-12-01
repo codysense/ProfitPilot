@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Eye, DollarSign, Users, Calendar, Printer, Edit, Trash2, Package } from 'lucide-react';
-import { cashApi, salesApi } from '../../lib/api';
+import { cashApi, managementApi, salesApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import CreateCustomerPaymentModal from './CreateCustomerPaymentModal';
@@ -11,6 +11,8 @@ import { CustomerSelect } from '../../components/CustomerSelect';
 import { useAuthStore } from '../../store/authStore';
 import EditCustomerPaymentModal from './EditCustomerPaymentModal';
 import ViewCustomerPaymentModal from './ViewCustomerPaymenModal';
+import QRCode from 'qrcode'
+
 
 interface CustomerPayment {
   id: string;
@@ -63,73 +65,276 @@ const CustomerPayments = () => {
     })
   });
 
-  //console.log(data)
-  // const { data:trn } = useQuery({
-  //   queryKey: ['customer-payments', { page, customerId: customerFilter }],
-  //   queryFn: () => cashApi.getCashTransactions({ 
-  //     page, 
-  //     limit: 10,
-  //     transactionType: 'RECEIPT',
-  //   ...(customerFilter && { customerId: customerFilter })
-  //   })
-  // });
 
-  // console.log(trn)
+  const {data:companyInformations} = useQuery({
+    queryKey:['company-information'],
+    queryFn:()=> managementApi.getCompanySettings()
+  });
+
+ 
   
 
-  // const { data: customers } = useQuery({
-  //   queryKey: ['customers-for-payments'],
-  //   queryFn: () => salesApi.getCustomers({ limit: 100 })
-  // });
+  
+  const handlePrintPayment = async (customerPayment: CustomerPayment) => {
+            try {
+              const printData = await cashApi.printCustomerPayment(customerPayment.id);
+          
+              const company = companyInformations;
+              const receipt = printData.printData;
+              console.log(printData)
+          
+              // Generate QR Code using receipt document number
+              const qrData = await QRCode.toDataURL(`Receipt:${receipt.documentNo}`);
+          
+              // Logo from backend or fallback
+              //const logoUrl = company.logoUrl || "/logo.png";
+          
+              // Open browser print window
+              const printWindow = window.open("", "_blank", "width=900,height=1000");
+          
+              if (!printWindow) {
+                toast.error("Unable to open print window");
+                return;
+              }
+          
+              printWindow.document.write(`
+                <html>
+                <head>
+                  <title>Receipt - ${receipt.documentNo}</title>
+          
+                  <style>
+                    body {
+                      font-family: Arial, sans-serif;
+                      padding: 20px;
+                      width: 210mm;
+                      margin: auto;
+                      color: #111827;
+                    }
+          
+                    .header {
+                      text-align: center;
+                      margin-bottom: 20px;
+                    }
+          
+                    .logo {
+                      width: 120px;
+                      margin-bottom: 10px;
+                    }
+          
+                    h1, h2, h3 {
+                      margin: 5px 0;
+                    }
+          
+                    table {
+                      width: 100%;
+                      border-collapse: collapse;
+                      margin-top: 15px;
+                    }
+          
+                    th, td {
+                      border: 1px solid #e5e7eb;
+                      padding: 12px;
+                    }
+          
+                    th {
+                      background: #f3f4f6;
+                    }
+          
+                    .grid {
+                      display: flex;
+                      // grid-template-columns: 1fr 1fr;
+                      // gap: 30px;
+                      justify-content:space-between;
+                      margin-top: 20px;
+                    }
+          
+                    .qr-section {
+                      margin-top: 30px;
+                      text-align: right;
+                    }
+          
+                    .signature-section {
+                      margin-top: 50px;
+                      display: flex;
+                      justify-content: space-between;
+                      font-size: 14px;
+                    }
+          
+                    .signature-box {
+                      width: 45%;
+                    }
+          
+                    .signature-line {
+                      border-bottom: 1px solid #000;
+                      margin-top: 45px;
+                    }
+          
+                    @media print {
+                      body {
+                        width: 210mm;
+                        height: 297mm;
+                      }
+                    }
+                  </style>
+                </head>
+          
+                <body>
+          
+                  <!-- HEADER -->
+                  <div class="header">
+                  
+                    <h1>${company.name}</h1>
+                    <h2>${company.address}</h2>
+                    <h2>${company.phone}</h2>
+          
+                    <h1 style="margin-top:20px;">CUSTOMER PAYMENT</h1>
+                    <h2>${receipt.documentNo}</h2>
+                  </div>
+          
+                  <!-- RECEIPT INFO -->
+                  <div class="grid">
+                    <div>
+                      <h3>Customer</h3>
+                      <p><strong>${printData.payment.customer.name}</strong></p>
+                      <p>${printData.payment.customer.code}</p>   
+                      <p>${printData.payment.customer.phone}</p>   
+                    </div>
 
-  const handlePrintPayment = async (payment: CustomerPayment) => {
-    try {
-      // Create payment receipt content
-      const receiptContent = document.createElement('div');
-      receiptContent.id = 'customer-payment-print';
-      receiptContent.innerHTML = `
-        <div style="padding: 20px; font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1f2937; margin-bottom: 10px;">PAYMENT RECEIPT</h1>
-            <h2 style="color: #6b7280;">${payment.receiptNo}</h2>
-          </div>
+                    <div>
+                <h3>Cash Account</h3>
+                <p><strong>${printData.payment.cashAccount.name}</strong></p>
+                <p>${printData.payment.cashAccount.accountNumber}</p>   
+              </div>
           
-          <div style="margin-bottom: 20px;">
-            <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Customer Details:</h3>
-            <p><strong>Name:</strong> ${payment.customer.name}</p>
-            <p><strong>Code:</strong> ${payment.customer.code}</p>
-          </div>
+                <div>
+                  <h3>Payment Details</h3>
+                  <p><strong>Date:</strong> ${new Date(receipt.date).toLocaleDateString()}</p>
+                  <p><strong>Status:</strong> ${receipt.status}</p>
+                </div>
+                  </div>
           
-          <div style="margin-bottom: 20px;">
-            <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Payment Details:</h3>
-            <p><strong>Amount Received:</strong> ₦${payment.totalAmount.toLocaleString()}</p>
-            <p><strong>Payment Date:</strong> ${new Date(payment.createdAt).toLocaleDateString()}</p>
-            <p><strong>Cash Account:</strong> ${payment.cashAccount.name}</p>
-            ${payment.reference ? `<p><strong>Reference:</strong> ${payment.reference}</p>` : ''}
-          </div>
+                  <!-- RECEIPT TABLE -->
+                  <table style="margin-top: 30px;">
+                    <thead>
+                      <tr>
+                        <th>GL Account</th>
+                        <th style="text-align:right;">Amount</th>
+                        <th style="text-align:right;">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${receipt.lines
+                        .map(
+                          (line: any) => `
+                        <tr>
+                          <td>
+                            <strong>${line.glAccount.code}</strong><br>
+                            ${line.glAccount.name}
+                          </td>
+                          <td style="text-align:right;">₦${Number(line.lineAmount).toLocaleString()}</td>
+                          <td style="text-align:right;">${line.description}</td>
+                        </tr>
+                      `
+                        )
+                        .join("")}
+                    </tbody>
           
-          <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
-            Received by: ${payment.user.name}<br>
-            Generated on ${new Date().toLocaleString()}<br>
-            ProfitPilot ERP System
-          </div>
-        </div>
-      `;
+                    <tfoot>
+                      <tr style="background-color:#f3f4f6;">
+                        <td colspan="2" style="text-align:right; font-weight:bold;">Total Amount:</td>
+                        <td style="text-align:right; font-weight:bold;">₦${Number(receipt.total).toLocaleString()}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+          
+                  <!-- QR CODE -->
+                  <div class="qr-section">
+                    <img src="${qrData}" width="120"/>
+                    <p style="font-size:12px; color:#6b7280;">Scan for verification</p>
+                  </div>
+          
+                  <!-- SIGNATURE SECTION -->
+                  <div class="signature-section">
+                    <div class="signature-box">
+                      <strong>Prepared By:</strong>
+                      <div class="signature-line"></div>
+                    </div>
+          
+                    <div class="signature-box">
+                      <strong>Approved By:</strong>
+                      <div class="signature-line"></div>
+                    </div>
+                  </div>
+          
+                  <!-- FOOTER -->
+                  <p style="text-align:center; color:#6b7280; margin-top:40px; font-size:12px;">
+                    Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
+                  </p>
+          
+                </body>
+                </html>
+              `);
+          
+              printWindow.document.close();
+          
+              // Auto-print when window loads
+              printWindow.onload = () => {
+                printWindow.focus();
+                printWindow.print();
+              };
+            } catch (error) {
+              console.error("Print receipt error:", error);
+            }
+          };
+
+  // const handlePrintPayment = async (payment: CustomerPayment) => {
+  //   try {
+  //     // Create payment receipt content
+  //     const receiptContent = document.createElement('div');
+  //     receiptContent.id = 'customer-payment-print';
+  //     receiptContent.innerHTML = `
+  //       <div style="padding: 20px; font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto;">
+  //         <div style="text-align: center; margin-bottom: 30px;">
+  //           <h1 style="color: #1f2937; margin-bottom: 10px;">PAYMENT RECEIPT</h1>
+  //           <h2 style="color: #6b7280;">${payment.receiptNo}</h2>
+  //         </div>
+          
+  //         <div style="margin-bottom: 20px;">
+  //           <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Customer Details:</h3>
+  //           <p><strong>Name:</strong> ${payment.customer.name}</p>
+  //           <p><strong>Code:</strong> ${payment.customer.code}</p>
+  //         </div>
+          
+  //         <div style="margin-bottom: 20px;">
+  //           <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Payment Details:</h3>
+  //           <p><strong>Amount Received:</strong> ₦${payment.totalAmount.toLocaleString()}</p>
+  //           <p><strong>Payment Date:</strong> ${new Date(payment.createdAt).toLocaleDateString()}</p>
+  //           <p><strong>Cash Account:</strong> ${payment.cashAccount.name}</p>
+  //           ${payment.reference ? `<p><strong>Reference:</strong> ${payment.reference}</p>` : ''}
+  //         </div>
+          
+  //         <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
+  //           Received by: ${payment.user.name}<br>
+  //           Generated on ${new Date().toLocaleString()}<br>
+  //           ProfitPilot ERP System
+  //         </div>
+  //       </div>
+  //     `;
       
-      document.body.appendChild(receiptContent);
+  //     document.body.appendChild(receiptContent);
       
-      await ReportExporter.exportToPDF(
-        'customer-payment-print',
-        `customer-payment-${payment.receiptNo}.pdf`,
-        `Customer Payment Receipt - ${payment.receiptNo}`
-      );
+  //     await ReportExporter.exportToPDF(
+  //       'customer-payment-print',
+  //       `customer-payment-${payment.receiptNo}.pdf`,
+  //       `Customer Payment Receipt - ${payment.receiptNo}`
+  //     );
       
-      document.body.removeChild(receiptContent);
-      toast.success('Payment receipt printed successfully');
-    } catch (error) {
-      console.error('Print payment receipt error:', error);
-    }
-  };
+  //     document.body.removeChild(receiptContent);
+  //     toast.success('Payment receipt printed successfully');
+  //   } catch (error) {
+  //     console.error('Print payment receipt error:', error);
+  //   }
+  // };
 
   const columns = [
     {
@@ -301,7 +506,7 @@ const handleApproveTransaction = async (customerPayment: CustomerPayment) => {
           )}
           {[ 'PAID'].includes(customerPayment.status) && (
             <button
-              onClick={() => handlePrintInvoice(customerPayment)}
+              onClick={() => handlePrintPayment(customerPayment)}
               className="text-purple-600 hover:text-purple-900"
               title="Print Invoice"
             >
@@ -339,6 +544,9 @@ const handleApproveTransaction = async (customerPayment: CustomerPayment) => {
           )}
         </div>
       );
+
+
+      
 
   return (
     <div className="space-y-6">

@@ -29,7 +29,7 @@ router.post('/transactions/:id/authorize', requireRole(['Accountant', 'POS User'
 router.post('/transactions/:id/pay', requireRole(['Accountant', 'POS User']), auditLogger('PAY', 'CASH_TRANSACTION'), cashController.payCashTransaction)
 router.put('/transactions/:id/update', requireRole(['Accountant', 'POS User']), auditLogger('UPDATE', 'CASH_TRANSACTION'), cashController.updateCashTransaction)
 router.delete('/transactions/:id/', requireRole(['Accountant', 'POS User']), auditLogger('DELETE', 'CASH_TRANSACTION'), cashController.deleteCashTransaction)
-
+router.get('/transactions/:id/print', requireRole(['Accountant', 'POS User']),cashController.printCashReceipt);
 // router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
 
 // Customer Payments
@@ -45,6 +45,9 @@ router.put('/customer-payments/:id/update', requireRole(['Accountant']), auditLo
 router.delete('/customer-payments/:id/', requireRole(['Accountant']), auditLogger('DELETE', 'CASH_TRANSACTION'), cashController.deleteCustomerPayment)
 router.post('/customer-refunds', requireRole(['Accountant']), auditLogger('CREATE', 'CUSTOMER_REFUND'), cashController.createCustomerRefund);
 router.get('/customer-refunds', requireRole(['Accountant']), cashController.getCustomerRefunds);
+router.get('/customer-payments/:id/print', requireRole(['Accountant', 'POS User']),cashController.printCustomerPayment);
+
+
 // Sales Receipts (alias for customer payments)
 // router.get('/sales-receipts', authorize('inventory.item.read'), cashController.getSalesReceipts);
 router.get('/sales-receipts', requireRole(['Accountant']), cashController.getSalesReceipts);
@@ -62,7 +65,7 @@ router.post('/vendor-payments/:id/pay', requireRole(['Accountant']), auditLogger
 router.delete('/vendor-payments', requireRole(['Accountant']), auditLogger('DELETE', 'VENDOR_PAYMENT'), cashController.deleteVendorPayment);
 router.post('/vendor-refunds', requireRole(['Accountant']), auditLogger('CREATE', 'VENDOR_REFUND'), cashController.createVendorRefund);
 router.get('/vendor-refunds', requireRole(['Accountant']),  cashController.getVendorRefunds);
-
+router.get('/vendor-payments/:id/print', requireRole(['Accountant', 'POS User']),cashController.printVendorPayment);
 
 // router.post('/vendor-payments', authorize('purchase.order.create'), auditLogger('CREATE', 'VENDOR_PAYMENT'), cashController.createVendorPayment);
 

@@ -791,7 +791,97 @@ export class CashController {
     }
   }
 
+  async printCashReceipt(req: AuthRequest, res: Response) {
+      try {
+        const { id } = req.params;
+  
+        const cashTransaction = await prisma.cashTransaction.findUnique({
+        where: { id },
+        include: {
+          transactionLines: {
+            include: {
+              glAccount: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true
+                }
+              },
+              contraAccount: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true
+                }
+              }
+            }
+          },
+          cashAccount: {
+            select: {
+              id: true,
+              name: true,
+              accountNumber: true,
+              balance: true
+            }
+          },
+          preparer: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          authorizer: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          payer: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        }
+      });
 
+  
+        if (!cashTransaction) {
+          return res.status(404).json({ error: 'CashTransaction not found' });
+        }
+  
+        if (!['INVOICED', 'PAID'].includes(cashTransaction.status)) {
+          return res.status(400).json({ error: 'CashTransaction must be invoiced to print' });
+        }
+  
+        res.json({
+          cashTransaction,
+          printData: {
+            title: 'CashTransaction Receipt',
+            documentNo: cashTransaction.transactionNo,
+            date: cashTransaction.transactionDate,
+            status: cashTransaction.status,
+            lines: cashTransaction.transactionLines,
+            total: cashTransaction.amount
+          }
+        });
+      } catch (error) {
+        console.error('Print Cash Receipt error:', error);
+        res.status(500).json({ error: 'Failed to generate receipt' });
+      }
+    }
+  
+  
 
   //   async createCashTransaction(req: AuthRequest, res: Response) {
 //     try {
@@ -1537,6 +1627,60 @@ async deleteCustomerPayment(req, res) {
   }
 }
 
+async printCustomerPayment(req: AuthRequest, res: Response) {
+      try {
+        const { id } = req.params;
+  
+        const payment = await prisma.customerPayment.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        cashAccount: true,
+        user: true,        // created by
+        preparer: true,    // preparedBy
+        approver: true,    // approvedBy
+        authorizer: true,  // authorizedBy
+        payer: true,       // paidBy
+        postings: true,
+        lines: {
+          include: {
+            glAccount: true,
+            sale: {
+              select: {
+                id: true,
+                saleLines: true,
+                totalAmount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Customer payment not found" });
+    }
+
+        if (!['INVOICED', 'PAID'].includes(payment.status)) {
+          return res.status(400).json({ error: 'Customer Payment must be invoiced to print' });
+        }
+  
+        res.json({
+          payment,
+          printData: {
+            title: 'Customer Payment',
+            documentNo: payment.paymentNo,
+            date: payment.paymentDate,
+            status: payment.status,
+            lines: payment.lines,
+            total: payment.totalAmount
+          }
+        });
+      } catch (error) {
+        console.error('Print Customer Payment error:', error);
+        res.status(500).json({ error: 'Failed to generate Customer Payment' });
+      }
+    }
 
 async createCustomerRefund(req: AuthRequest, res: Response) {
   try {
@@ -2262,6 +2406,61 @@ async getVendorPayment(req, res) {
     res.status(400).json({ error: "Failed to fetch vendor payment" });
   }
 }
+
+async printVendorPayment(req: AuthRequest, res: Response) {
+      try {
+        const { id } = req.params;
+  
+        const payment = await prisma.vendorPayment.findUnique({
+      where: { id },
+      include: {
+        vendor: true,
+        cashAccount: true,
+        preparer: true,
+        approver: true,
+        authorizer: true,
+        payer: true,
+        lines: {
+          include: {
+            purchase: true,
+            glAccount: true,
+          },
+        },
+        postings: {
+          include: {
+            journal: true,
+            postedByUser: true,
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Vendor payment not found" });
+    }
+
+        if (!['INVOICED', 'PAID'].includes(payment.status)) {
+          return res.status(400).json({ error: 'Vendor Payment must be invoiced to print' });
+        }
+  
+        res.json({
+          payment,
+          printData: {
+            title: 'Vendor Payment',
+            documentNo: payment.paymentNo,
+            date: payment.paymentDate,
+            status: payment.status,
+            lines: payment.lines,
+            total: payment.totalAmount
+          }
+        });
+      } catch (error) {
+        console.error('Print Vendor Payment error:', error);
+        res.status(500).json({ error: 'Failed to generate Vendor Payment' });
+      }
+    }
+
 
 
 async deleteVendorPayment(req, res) {

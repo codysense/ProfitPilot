@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, DollarSign, Building, Calendar, Printer, Package, Trash2, Eye, Edit } from 'lucide-react';
-import { cashApi, purchaseApi } from '../../lib/api';
+import { cashApi, managementApi, purchaseApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import CreateVendorPaymentModal from './CreateVendorPaymentModal';
 import StatusBadge from '../../components/StatusBadge';
@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import EditVendorPaymentModal from './EditVendorPaymentModal';
 import ViewVendorPaymentModal from './ViewVendorPaymentModal';
+import QRCode from 'qrcode'
 
 interface VendorPayment {
   id: string;
@@ -69,54 +70,227 @@ const VendorPayments = () => {
       }),
   });
 
-  console.log(data)
+const {data:companyInformations} = useQuery({
+  queryKey:['company-informatio'],
+  queryFn:()=>managementApi.getCompanySettings()
+});
 
   const { data: vendors } = useQuery({
     queryKey: ['vendors-for-payments'],
     queryFn: () => purchaseApi.getVendors({ limit: 100 }),
   });
 
-  const handlePrintPayment = async (payment: VendorPayment) => {
-    try {
-      const container = document.createElement('div');
-      container.id = 'vendor-payment-print';
-      container.innerHTML = `
-        <div style="padding:20px;font-family:Arial;max-width:400px;">
-          <h1 style="text-align:center;">PAYMENT VOUCHER</h1>
-          <h2 style="text-align:center;">${payment.paymentNo}</h2>
-
-          <h3>Vendor Details</h3>
-          <p><b>Name:</b> ${payment.vendor.name}</p>
-          <p><b>Code:</b> ${payment.vendor.code}</p>
-
-          <h3>Payment Details</h3>
-          <p><b>Amount Paid:</b> ₦${payment.totalAmount.toLocaleString()}</p>
-          <p><b>Date:</b> ${new Date(payment.paymentDate).toLocaleDateString()}</p>
-          <p><b>Cash Account:</b> ${payment.cashAccount.name}</p>
-          ${payment.reference ? `<p><b>Reference:</b> ${payment.reference}</p>` : ''}
-
-          <div style="margin-top:40px;text-align:center;">
-            Generated on ${new Date().toLocaleString()}<br>
-            ProfitPilot ERP System
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(container);
-
-      await ReportExporter.exportToPDF(
-        'vendor-payment-print',
-        `vendor-payment-${payment.paymentNo}.pdf`,
-        `Vendor Payment - ${payment.paymentNo}`
-      );
-
-      document.body.removeChild(container);
-
-      toast.success('Payment voucher printed');
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const handlePrintPayment = async (vendorPayment: VendorPayment) => {
+              try {
+                const printData = await cashApi.printVendorPayment(vendorPayment.id);
+            
+                const company = companyInformations;
+                const receipt = printData.printData;
+                console.log(printData)
+            
+                // Generate QR Code using receipt document number
+                const qrData = await QRCode.toDataURL(`Receipt:${receipt.documentNo}`);
+            
+                // Logo from backend or fallback
+                //const logoUrl = company.logoUrl || "/logo.png";
+            
+                // Open browser print window
+                const printWindow = window.open("", "_blank", "width=900,height=1000");
+            
+                if (!printWindow) {
+                  toast.error("Unable to open print window");
+                  return;
+                }
+            
+                printWindow.document.write(`
+                  <html>
+                  <head>
+                    <title>Receipt - ${receipt.documentNo}</title>
+            
+                    <style>
+                      body {
+                        font-family: Arial, sans-serif;
+                        padding: 20px;
+                        width: 210mm;
+                        margin: auto;
+                        color: #111827;
+                      }
+            
+                      .header {
+                        text-align: center;
+                        margin-bottom: 20px;
+                      }
+            
+                      .logo {
+                        width: 120px;
+                        margin-bottom: 10px;
+                      }
+            
+                      h1, h2, h3 {
+                        margin: 5px 0;
+                      }
+            
+                      table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 15px;
+                      }
+            
+                      th, td {
+                        border: 1px solid #e5e7eb;
+                        padding: 12px;
+                      }
+            
+                      th {
+                        background: #f3f4f6;
+                      }
+            
+                      .grid {
+                        display: flex;
+                        // grid-template-columns: 1fr 1fr;
+                        // gap: 30px;
+                        justify-content:space-between;
+                        margin-top: 20px;
+                      }
+            
+                      .qr-section {
+                        margin-top: 30px;
+                        text-align: right;
+                      }
+            
+                      .signature-section {
+                        margin-top: 50px;
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 14px;
+                      }
+            
+                      .signature-box {
+                        width: 45%;
+                      }
+            
+                      .signature-line {
+                        border-bottom: 1px solid #000;
+                        margin-top: 45px;
+                      }
+            
+                      @media print {
+                        body {
+                          width: 210mm;
+                          height: 297mm;
+                        }
+                      }
+                    </style>
+                  </head>
+            
+                  <body>
+            
+                    <!-- HEADER -->
+                    <div class="header">
+                    
+                      <h1>${company.name}</h1>
+                      <h2>${company.address}</h2>
+                      <h2>${company.phone}</h2>
+            
+                      <h1 style="margin-top:20px;">VENDOR PAYMENT</h1>
+                      <h2>${receipt.documentNo}</h2>
+                    </div>
+            
+                    <!-- RECEIPT INFO -->
+                    <div class="grid">
+                      <div>
+                        <h3>Customer</h3>
+                        <p><strong>${printData.payment.vendor.name}</strong></p>
+                        <p>${printData.payment.vendor.code}</p>   
+                        <p>${printData.payment.vendor.phone}</p>   
+                      </div>
+  
+                      <div>
+                  <h3>Cash Account</h3>
+                  <p><strong>${printData.payment.cashAccount.name}</strong></p>
+                  <p>${printData.payment.cashAccount.accountNumber}</p>   
+                </div>
+            
+                  <div>
+                    <h3>Payment Details</h3>
+                    <p><strong>Date:</strong> ${new Date(receipt.date).toLocaleDateString()}</p>
+                    <p><strong>Status:</strong> ${receipt.status}</p>
+                  </div>
+                    </div>
+            
+                    <!-- RECEIPT TABLE -->
+                    <table style="margin-top: 30px;">
+                      <thead>
+                        <tr>
+                          <th>GL Account</th>
+                          <th style="text-align:right;">Amount</th>
+                          <th style="text-align:right;">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${receipt.lines
+                          .map(
+                            (line: any) => `
+                          <tr>
+                            <td>
+                              <strong>${line.glAccount.code}</strong><br>
+                              ${line.glAccount.name}
+                            </td>
+                            <td style="text-align:right;">₦${Number(line.lineAmount).toLocaleString()}</td>
+                            <td style="text-align:right;">${line.description}</td>
+                          </tr>
+                        `
+                          )
+                          .join("")}
+                      </tbody>
+            
+                      <tfoot>
+                        <tr style="background-color:#f3f4f6;">
+                          <td colspan="2" style="text-align:right; font-weight:bold;">Total Amount:</td>
+                          <td style="text-align:right; font-weight:bold;">₦${Number(receipt.total).toLocaleString()}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+            
+                    <!-- QR CODE -->
+                    <div class="qr-section">
+                      <img src="${qrData}" width="120"/>
+                      <p style="font-size:12px; color:#6b7280;">Scan for verification</p>
+                    </div>
+            
+                    <!-- SIGNATURE SECTION -->
+                    <div class="signature-section">
+                      <div class="signature-box">
+                        <strong>Prepared By:</strong>
+                        <div class="signature-line"></div>
+                      </div>
+            
+                      <div class="signature-box">
+                        <strong>Approved By:</strong>
+                        <div class="signature-line"></div>
+                      </div>
+                    </div>
+            
+                    <!-- FOOTER -->
+                    <p style="text-align:center; color:#6b7280; margin-top:40px; font-size:12px;">
+                      Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
+                    </p>
+            
+                  </body>
+                  </html>
+                `);
+            
+                printWindow.document.close();
+            
+                // Auto-print when window loads
+                printWindow.onload = () => {
+                  printWindow.focus();
+                  printWindow.print();
+                };
+              } catch (error) {
+                console.error("Print receipt error:", error);
+              }
+            };
 
   const columns = [
     {
@@ -278,7 +452,7 @@ const VendorPayments = () => {
             )}
             {[ 'PAID'].includes(vendorPayment.status) && (
               <button
-                onClick={() => handlePrintInvoice(vendorPayment)}
+                onClick={() => handlePrintPayment(vendorPayment)}
                 className="text-purple-600 hover:text-purple-900"
                 title="Print Invoice"
               >

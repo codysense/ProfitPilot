@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Play, Package, Eye, Edit, Trash2, Printer } from 'lucide-react';
 import { Clock, DollarSign, CheckCircle, X } from 'lucide-react';
-import { productionApi } from '../../lib/api';
+import { managementApi, productionApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { ProductionOrder } from '../../types/api';
@@ -16,6 +16,7 @@ import ReceiveFinishedGoodsModal from './ReceiveFinishedGoodsModal';
 import { useAuthStore } from '../../store/authStore';
 import { ReportExporter } from '../../utils/reportExport';
 import toast from 'react-hot-toast';
+import QRCode from 'qrcode';
 
 const ProductionOrders = () => {
   const [page, setPage] = useState(1);
@@ -41,6 +42,13 @@ const ProductionOrders = () => {
       ...(statusFilter && { status: statusFilter })
     })
   });
+
+  const{data:companyInformations} = useQuery({
+      queryKey: ['company-info-for-receipt'],
+      queryFn:  () => managementApi.getCompanySettings()
+    });
+    
+  
 
   const columns = [
     {
@@ -136,84 +144,291 @@ const ProductionOrders = () => {
     }
   };
 
-  const handlePrintOrder = async (order: ProductionOrder) => {
-    try {
-      const printData = await productionApi.printProductionOrder(order.id);
-      
-      // Create a temporary div for PDF generation
-      const printContent = document.createElement('div');
-      printContent.id = 'production-order-print';
-      printContent.innerHTML = `
-        <div style="padding: 20px; font-family: Arial, sans-serif;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1f2937; margin-bottom: 10px;">PRODUCTION ORDER</h1>
-            <h2 style="color: #6b7280;">${printData.printData.documentNo}</h2>
+
+  
+
+const handlePrintOrder = async (order: ProductionOrder) => {
+  try {
+    const printData = await productionApi.printProductionOrder(order.id);
+
+    const company = companyInformations;
+    const orderInfo = printData.printData;
+
+    // Generate QR Code (base64 image)
+    const qrData = await QRCode.toDataURL(`ProductionOrder:${orderInfo.documentNo}`);
+
+    // If you have a logo URL from backend
+    //const logoUrl = company.logoUrl || "/logo.png";
+
+    // Create print window
+    const printWindow = window.open("", "_blank", "width=900,height=1000");
+
+    if (!printWindow) {
+      toast.error("Unable to open print window");
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Production Order - ${orderInfo.documentNo}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            width: 210mm;
+            margin: auto;
+            color: #111827;
+          }
+
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+          }
+
+          .logo {
+            width: 120px;
+            margin-bottom: 10px;
+          }
+
+          h1, h2, h3 {
+            margin: 5px 0;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+          }
+
+          th, td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+          }
+
+          th {
+            background: #f3f4f6;
+          }
+
+          .grid {
+            display: flex;
+            // grid-template-columns: 1fr 1fr;
+            // gap: 50px;
+            justify-content:space-between;
+            margin-top: 20px;
+          }
+
+          .qr-section {
+            margin-top: 20px;
+            text-align: right;
+          }
+
+          .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+          }
+
+          .signature-box {
+            width: 45%;
+          }
+
+          .signature-line {
+            border-bottom: 1px solid #000;
+            margin-top: 40px;
+          }
+
+          @media print {
+            body {
+              width: 210mm;
+              height: 297mm;
+            }
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <!-- HEADER -->
+        <div class="header">
+          
+          <h1>${company.name}</h1>
+          <h2>${company.address}</h2>
+          <h2>${company.phone}</h2>
+
+          <h1 style="margin-top:20px;">PRODUCTION ORDER</h1>
+          <h2>${orderInfo.documentNo}</h2>
+        </div>
+
+        <!-- DETAILS -->
+        <div class="grid">
+          <div>
+            <h3>Item Details</h3>
+            <p><strong>SKU:</strong> ${orderInfo.item.sku}</p>
+            <p><strong>Name:</strong> ${orderInfo.item.name}</p>
+            <p><strong>Type:</strong> ${orderInfo.item.type}</p>
           </div>
-          
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
-            <div>
-              <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Item Details:</h3>
-              <p><strong>SKU:</strong> ${printData.printData.item.sku}</p>
-              <p><strong>Name:</strong> ${printData.printData.item.name}</p>
-              <p><strong>Type:</strong> ${printData.printData.item.type}</p>
-            </div>
-            <div>
-              <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Production Details:</h3>
-              <p><strong>Target Qty:</strong> ${printData.printData.qtyTarget}</p>
-              <p><strong>Warehouse:</strong> ${printData.printData.warehouse.name}</p>
-              <p><strong>Status:</strong> ${printData.printData.status}</p>
-            </div>
-          </div>
-          
-          ${printData.printData.bom ? `
-            <div style="margin-bottom: 30px;">
-              <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 15px;">Bill of Materials (Version ${printData.printData.bom.version}):</h3>
-              <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                  <tr style="background-color: #f9fafb;">
-                    <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: left;">Component</th>
-                    <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">Qty Per Unit</th>
-                    <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">Total Required</th>
-                    <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">Scrap %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${printData.printData.bom.bomLines.map((line: any) => `
-                    <tr>
-                      <td style="border: 1px solid #e5e7eb; padding: 12px;">
-                        <strong>${line.componentItem.sku}</strong><br>
-                        ${line.componentItem.name}
-                      </td>
-                      <td style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">${line.qtyPer} ${line.componentItem.uom}</td>
-                      <td style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">${(Number(line.qtyPer) * Number(printData.printData.qtyTarget)).toFixed(3)} ${line.componentItem.uom}</td>
-                      <td style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">${line.scrapPercent}%</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          ` : ''}
-          
-          <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
-            Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
+          <div>
+            <h3>Production Details</h3>
+            <p><strong>Target Qty:</strong> ${orderInfo.qtyTarget}</p>
+            <p><strong>Warehouse:</strong> ${orderInfo.warehouse.name}</p>
+            <p><strong>Status:</strong> ${orderInfo.status}</p>
           </div>
         </div>
-      `;
+
+        <!-- BOM -->
+        ${orderInfo.bom ? `
+          <h3 style="margin-top:30px;">Bill of Materials (Version ${orderInfo.bom.version})</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Qty Per Unit</th>
+                <th>Total Required</th>
+                <th>Scrap %</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderInfo.bom.bomLines.map((line: any) => `
+                <tr>
+                  <td>
+                    <strong>${line.componentItem.sku}</strong><br/>
+                    ${line.componentItem.name}
+                  </td>
+                  <td style="text-align:right">${line.qtyPer} ${line.componentItem.uom}</td>
+                  <td style="text-align:right">
+                    ${(Number(line.qtyPer) * Number(orderInfo.qtyTarget)).toFixed(3)} 
+                    ${line.componentItem.uom}
+                  </td>
+                  <td style="text-align:right">${line.scrapPercent}%</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        ` : ""}
+
+        <!-- QR CODE -->
+        <div class="qr-section">
+          <img src="${qrData}" width="120"/>
+          <p style="font-size:12px; color:#6b7280;">Scan for verification</p>
+        </div>
+
+        <!-- SIGNATURE -->
+        <div class="signature-section">
+          <div class="signature-box">
+            <strong>Prepared By:</strong>
+            <div class="signature-line"></div>
+          </div>
+
+          <div class="signature-box">
+            <strong>Approved By:</strong>
+            <div class="signature-line"></div>
+          </div>
+        </div>
+
+        <p style="text-align:center; color:#6b7280; margin-top:40px; font-size:12px;">
+          Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
+        </p>
+
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+
+    // Auto print when ready
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+
+  } catch (error) {
+    console.error("Print production order error:", error);
+  }
+};
+
+
+  // const handlePrintOrder = async (order: ProductionOrder) => {
+  //   try {
+  //     const printData = await productionApi.printProductionOrder(order.id);
       
-      document.body.appendChild(printContent);
+  //     // Create a temporary div for PDF generation
+  //     const printContent = document.createElement('div');
+  //     printContent.id = 'production-order-print';
+  //     printContent.innerHTML = `
+         
+  //       <div style="padding: 20px; font-family: Arial, sans-serif;">
+  //         <div style="text-align: center; margin-bottom: 30px;">
+           
+  //           <h1 style="color: #1f2937; margin-bottom: 10px;">PRODUCTION ORDER</h1>
+  //           <h2 style="color: #6b7280;">${printData.printData.documentNo}</h2>
+  //         </div>
+          
+  //         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+  //           <div>
+  //             <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Item Details:</h3>
+  //             <p><strong>SKU:</strong> ${printData.printData.item.sku}</p>
+  //             <p><strong>Name:</strong> ${printData.printData.item.name}</p>
+  //             <p><strong>Type:</strong> ${printData.printData.item.type}</p>
+  //           </div>
+  //           <div>
+  //             <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Production Details:</h3>
+  //             <p><strong>Target Qty:</strong> ${printData.printData.qtyTarget}</p>
+  //             <p><strong>Warehouse:</strong> ${printData.printData.warehouse.name}</p>
+  //             <p><strong>Status:</strong> ${printData.printData.status}</p>
+  //           </div>
+  //         </div>
+          
+  //         ${printData.printData.bom ? `
+  //           <div style="margin-bottom: 30px;">
+  //             <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 15px;">Bill of Materials (Version ${printData.printData.bom.version}):</h3>
+  //             <table style="width: 100%; border-collapse: collapse;">
+  //               <thead>
+  //                 <tr style="background-color: #f9fafb;">
+  //                   <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: left;">Component</th>
+  //                   <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">Qty Per Unit</th>
+  //                   <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">Total Required</th>
+  //                   <th style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">Scrap %</th>
+  //                 </tr>
+  //               </thead>
+  //               <tbody>
+  //                 ${printData.printData.bom.bomLines.map((line: any) => `
+  //                   <tr>
+  //                     <td style="border: 1px solid #e5e7eb; padding: 12px;">
+  //                       <strong>${line.componentItem.sku}</strong><br>
+  //                       ${line.componentItem.name}
+  //                     </td>
+  //                     <td style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">${line.qtyPer} ${line.componentItem.uom}</td>
+  //                     <td style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">${(Number(line.qtyPer) * Number(printData.printData.qtyTarget)).toFixed(3)} ${line.componentItem.uom}</td>
+  //                     <td style="border: 1px solid #e5e7eb; padding: 12px; text-align: right;">${line.scrapPercent}%</td>
+  //                   </tr>
+  //                 `).join('')}
+  //               </tbody>
+  //             </table>
+  //           </div>
+  //         ` : ''}
+          
+  //         <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
+  //           Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
+  //         </div>
+  //       </div>
+  //     `;
       
-      await ReportExporter.exportToPDF(
-        'production-order-print',
-        `production-order-${order.orderNo}.pdf`,
-        `Production Order - ${order.orderNo}`
-      );
+  //     document.body.appendChild(printContent);
       
-      document.body.removeChild(printContent);
-      toast.success('Production order exported successfully');
-    } catch (error) {
-      console.error('Print production order error:', error);
-    }
-  };
+  //     await ReportExporter.exportToPDF(
+  //       'production-order-print',
+  //       `production-order-${order.orderNo}.pdf`,
+  //       `Production Order - ${order.orderNo}`
+  //     );
+      
+  //     document.body.removeChild(printContent);
+  //     toast.success('Production order exported successfully');
+  //   } catch (error) {
+  //     console.error('Print production order error:', error);
+  //   }
+  // };
 
   const actions = (order: ProductionOrder) => (
     <div className="flex space-x-2">

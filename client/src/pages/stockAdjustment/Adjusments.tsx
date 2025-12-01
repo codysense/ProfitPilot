@@ -28,7 +28,7 @@ export const Adjustments = () => {
   };
 //  console.log(data)
 
-const { data: adjustments } = useQuery({
+const { data: adjustments } = useQuery<{ data: any[] }>({
     queryKey: ['adjustments'],
     queryFn: () => adjustmentApi.getStockAdjustment()
   });

@@ -275,6 +275,9 @@ export class ProductionController {
     }
   }
 
+
+  
+
   async receiveFinishedGoods(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;

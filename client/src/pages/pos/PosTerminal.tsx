@@ -190,6 +190,8 @@ React.useEffect(() => {
       console.error('Create POS sale error:', error);
     }
   };
+
+  
   const handlePrintReceipt = async (saleId: string) => {
   try {
     const printData = await posApi.printReceipt(saleId);
@@ -348,100 +350,7 @@ React.useEffect(() => {
 
 
 
-  // const handlePrintReceipt = async (saleId: string) => {
-  //   try {
-  //     const printData = await posApi.printReceipt(saleId);
-      
-  //     // Create receipt content
-  //     const receiptContent = document.createElement('div');
-  //     receiptContent.id = 'pos-receipt-print';
-  //     receiptContent.innerHTML = `
-  //       <div style="padding: 20px; font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto;">
-  //         <div style="text-align: center; margin-bottom: 20px;">
-  //           <h1 style="margin: 0; font-size: 18px;"> ${companyInformations.name}</h1>
-  //           <h2 style="margin: 5px 0; font-size: 14px;">${companyInformations.address}</h2>
-  //           <h2 style="margin: 5px 0; font-size: 14px;">${companyInformations.phone}</h2>
-  //         </div>
-  //       <div style="text-align: center; margin-bottom: 20px;">
-  //           <h1 style="margin: 0; font-size: 18px;">SALES RECEIPT</h1>
-  //           <h2 style="margin: 5px 0; font-size: 14px;">${printData.printData.documentNo}</h2>
-  //           <p style="margin: 0; font-size: 12px;">${new Date(printData.printData.date).toLocaleString()}</p>
-  //         </div>
-          
-  //         ${printData.printData.customer ? `
-  //           <div style="margin-bottom: 15px; font-size: 12px;">
-  //             <strong>Customer:</strong> ${printData.printData.customer.name}<br>
-  //             <strong>Outstanding Balance:</strong> ₦${printData.outstandingBalance.toLocaleString()}
-  //           </div>
-  //         ` : ''}
-          
-  //         <table style="width: 100%; font-size: 11px; margin-bottom: 15px;">
-  //           <thead>
-  //             <tr style="border-bottom: 1px solid #000;">
-  //               <th style="text-align: left; padding: 2px;">Item</th>
-  //               <th style="text-align: right; padding: 2px;">Qty</th>
-  //               <th style="text-align: right; padding: 2px;">Price</th>
-  //               <th style="text-align: right; padding: 2px;">Total</th>
-  //             </tr>
-  //           </thead>
-  //           <tbody>
-  //             ${printData.printData.lines.map((line: any) => `
-  //               <tr>
-  //                 <td style="padding: 2px;">${line.item.name}</td>
-  //                 <td style="text-align: right; padding: 2px;">${line.qty}</td>
-  //                 <td style="text-align: right; padding: 2px;">₦${line.unitPrice.toLocaleString()}</td>
-  //                 <td style="text-align: right; padding: 2px;">₦${line.lineTotal.toLocaleString()}</td>
-  //               </tr>
-  //             `).join('')}
-  //           </tbody>
-  //         </table>
-          
-  //         <div style="border-top: 1px solid #000; padding-top: 10px; font-size: 12px;">
-  //           <div style="display: flex; justify-content: space-between;">
-  //             <span>Subtotal:</span>
-  //             <span>₦${printData.printData.subtotal.toLocaleString()}</span>
-  //           </div>
-  //           ${printData.printData.discountAmount > 0 ? `
-  //             <div style="display: flex; justify-content: space-between;">
-  //               <span>Discount:</span>
-  //               <span>-₦${printData.printData.discountAmount.toLocaleString()}</span>
-  //             </div>
-  //           ` : ''}
-  //           <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #000; padding-top: 5px;">
-  //             <span>Total:</span>
-  //             <span>₦${printData.printData.total.toLocaleString()}</span>
-  //           </div>
-  //           <div style="display: flex; justify-content: space-between;">
-  //             <span>Paid (${printData.printData.paymentMethod}):</span>
-  //             <span>₦${printData.printData.amountPaid.toLocaleString()}</span>
-  //           </div>
-  //           <div style="display: flex; justify-content: space-between;">
-  //             <span>Change:</span>
-  //             <span>₦${printData.printData.changeAmount.toLocaleString()}</span>
-  //           </div>
-  //         </div>
-          
-  //         <div style="text-align: center; margin-top: 20px; font-size: 10px; color: #666;">
-  //           Cashier: ${printData.printData.cashier}<br>
-  //           Thank you for your business!<br>
-  //           ProfitPilot ERP System
-  //         </div>
-  //       </div>
-  //     `;
-      
-  //     document.body.appendChild(receiptContent);
-      
-  //     await ReportExporter.exportToPDF(
-  //       'pos-receipt-print',
-  //       `receipt-${printData.printData.documentNo}.pdf`,
-  //       // `Receipt - ${printData.printData.documentNo}`
-  //     );
-      
-  //     document.body.removeChild(receiptContent);
-  //   } catch (error) {
-  //     console.error('Print receipt error:', error);
-  //   }
-  // };
+  
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
