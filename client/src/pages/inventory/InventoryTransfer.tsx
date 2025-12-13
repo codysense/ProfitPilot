@@ -43,6 +43,12 @@ const InventoryTransfer = () => {
       page, 
       limit: 10,
     })})
+
+    const { data: printInventoryTransfer } = useQuery({
+    queryKey: ['print-inventory-transfer'],
+    queryFn: () => inventoryApi.printInventoryTransfer(),
+    enabled: false, // Disable automatic query execution
+  });
     
     console.log(data)
  

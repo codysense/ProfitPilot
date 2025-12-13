@@ -1,176 +1,209 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Filter, Download, Calendar, User, Package, FileText, X } from 'lucide-react';
-import { inventoryApi, userApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { InventoryLedgerEntry } from '../../types/api';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Search,
+  Filter,
+  Download,
+  Calendar,
+  User,
+  Package,
+  FileText,
+  X,
+} from "lucide-react";
+import { inventoryApi, userApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { InventoryLedgerEntry } from "../../types/api";
+import toast from "react-hot-toast";
+import { ItemSelect } from "../../components/ItemSelect";
 
 const InventoryLedger = () => {
   const [page, setPage] = useState(1);
-  const [itemFilter, setItemFilter] = useState('');
-  const [warehouseFilter, setWarehouseFilter] = useState('');
-  const [userFilter, setUserFilter] = useState('');
-  const [itemTypeFilter, setItemTypeFilter] = useState('');
-  const [refTypeFilter, setRefTypeFilter] = useState('');
-  const [directionFilter, setDirectionFilter] = useState('');
-  const [dateFromFilter, setDateFromFilter] = useState('');
-  const [dateToFilter, setDateToFilter] = useState('');
+  const [itemFilter, setItemFilter] = useState("");
+  const [warehouseFilter, setWarehouseFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
+  const [itemTypeFilter, setItemTypeFilter] = useState("");
+  const [refTypeFilter, setRefTypeFilter] = useState("");
+  const [directionFilter, setDirectionFilter] = useState("");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: ledgerData, isLoading } = useQuery({
-    queryKey: ['inventory-ledger', { 
-      page, 
-      itemId: itemFilter, 
-      warehouseId: warehouseFilter,
-      userId: userFilter,
-      itemType: itemTypeFilter,
-      refType: refTypeFilter,
-      direction: directionFilter,
-      dateFrom: dateFromFilter,
-      dateTo: dateToFilter
-    }],
-    queryFn: () => inventoryApi.getInventoryLedger({ 
-      page, 
-      limit: 20,
-      ...(itemFilter && { itemId: itemFilter }),
-      ...(warehouseFilter && { warehouseId: warehouseFilter }),
-      ...(userFilter && { userId: userFilter }),
-      ...(itemTypeFilter && { itemType: itemTypeFilter }),
-      ...(refTypeFilter && { refType: refTypeFilter }),
-      ...(directionFilter && { direction: directionFilter }),
-      ...(dateFromFilter && { dateFrom: dateFromFilter }),
-      ...(dateToFilter && { dateTo: dateToFilter })
-    })
+    queryKey: [
+      "inventory-ledger",
+      {
+        page,
+        itemId: itemFilter,
+        warehouseId: warehouseFilter,
+        userId: userFilter,
+        itemType: itemTypeFilter,
+        refType: refTypeFilter,
+        direction: directionFilter,
+        dateFrom: dateFromFilter,
+        dateTo: dateToFilter,
+      },
+    ],
+    queryFn: () =>
+      inventoryApi.getInventoryLedger({
+        page,
+        limit: 20,
+        ...(itemFilter && { itemId: itemFilter }),
+        ...(warehouseFilter && { warehouseId: warehouseFilter }),
+        ...(userFilter && { userId: userFilter }),
+        ...(itemTypeFilter && { itemType: itemTypeFilter }),
+        ...(refTypeFilter && { refType: refTypeFilter }),
+        ...(directionFilter && { direction: directionFilter }),
+        ...(dateFromFilter && { dateFrom: dateFromFilter }),
+        ...(dateToFilter && { dateTo: dateToFilter }),
+      }),
   });
 
   const { data: items } = useQuery({
-    queryKey: ['items-for-filter'],
-    queryFn: () => inventoryApi.getItems({ limit: 100 })
+    queryKey: ["items-for-filter"],
+    queryFn: () => inventoryApi.getItems({ limit: 100 }),
   });
 
   const { data: warehouses } = useQuery({
-    queryKey: ['warehouses-for-filter'],
-    queryFn: () => inventoryApi.getWarehouses()
+    queryKey: ["warehouses-for-filter"],
+    queryFn: () => inventoryApi.getWarehouses(),
   });
 
   const { data: users } = useQuery({
-    queryKey: ['users-for-filter'],
-    queryFn: () => userApi.getUsers({ limit: 100 })
+    queryKey: ["users-for-filter"],
+    queryFn: () => userApi.getUsers({ limit: 100 }),
   });
 
- 
-  
   const columns = [
     {
-      key: 'postedAt',
-      header: 'Date',
-      cell: (entry: InventoryLedgerEntry) => new Date(entry.postedAt).toLocaleDateString(),
-      width: 'w-24'
+      key: "postedAt",
+      header: "Date",
+      cell: (entry: InventoryLedgerEntry) =>
+        new Date(entry.postedAt).toLocaleDateString(),
+      width: "w-24",
     },
     {
-      key: 'item.sku',
-      header: 'Item SKU',
-      width: 'w-32'
+      key: "item.sku",
+      header: "Item SKU",
+      width: "w-32",
     },
     {
-      key: 'item.name',
-      header: 'Item Name',
-      width: 'w-48'
+      key: "item.name",
+      header: "Item Name",
+      width: "w-48",
     },
     {
-      key: 'item.type',
-      header: 'Item Type',
+      key: "item.type",
+      header: "Item Type",
       cell: (entry: InventoryLedgerEntry) => (
-        <StatusBadge status={entry.item.type.replace('_', ' ')} variant="info" />
-      ),
-      width: 'w-32'
-    },
-    {
-      key: 'warehouse.name',
-      header: 'Warehouse',
-      width: 'w-32'
-    },
-    {
-      key: 'refType',
-      header: 'Reference Type',
-      cell: (entry: InventoryLedgerEntry) => <StatusBadge status={entry.refType} variant="info" />,
-      width: 'w-32'
-    },
-    {
-      key: 'direction',
-      header: 'Direction',
-      cell: (entry: InventoryLedgerEntry) => (
-        <StatusBadge 
-          status={entry.direction} 
-          variant={entry.direction === 'IN' ? 'success' : 'warning'} 
+        <StatusBadge
+          status={entry.item.type.replace("_", " ")}
+          variant="info"
         />
       ),
-      width: 'w-24'
+      width: "w-32",
     },
     {
-      key: 'qty',
-      header: 'Quantity',
-      cell: (entry: InventoryLedgerEntry) => `${entry.qty.toLocaleString()} ${entry.item.uom}`,
-      width: 'w-32'
+      key: "warehouse.name",
+      header: "Warehouse",
+      width: "w-32",
     },
     {
-      key: 'unitCost',
-      header: 'Unit Cost',
-      cell: (entry: InventoryLedgerEntry) => `₦${entry.unitCost.toLocaleString()}`,
-      width: 'w-32'
-    },
-    {
-      key: 'value',
-      header: 'Value',
+      key: "refType",
+      header: "Reference Type",
       cell: (entry: InventoryLedgerEntry) => (
-        <span className={entry.direction === 'IN' ? 'text-green-600' : 'text-red-600'}>
-          {entry.direction === 'IN' ? '+' : '-'}₦{Math.abs(entry.value).toLocaleString()}
+        <StatusBadge status={entry.refType} variant="info" />
+      ),
+      width: "w-32",
+    },
+    {
+      key: "direction",
+      header: "Direction",
+      cell: (entry: InventoryLedgerEntry) => (
+        <StatusBadge
+          status={entry.direction}
+          variant={entry.direction === "IN" ? "success" : "warning"}
+        />
+      ),
+      width: "w-24",
+    },
+    {
+      key: "qty",
+      header: "Quantity",
+      cell: (entry: InventoryLedgerEntry) =>
+        `${entry.qty.toLocaleString()} ${entry.item.uom}`,
+      width: "w-32",
+    },
+    {
+      key: "unitCost",
+      header: "Unit Cost",
+      cell: (entry: InventoryLedgerEntry) =>
+        `₦${entry.unitCost.toLocaleString()}`,
+      width: "w-32",
+    },
+    {
+      key: "value",
+      header: "Value",
+      cell: (entry: InventoryLedgerEntry) => (
+        <span
+          className={
+            entry.direction === "IN" ? "text-green-600" : "text-red-600"
+          }
+        >
+          {entry.direction === "IN" ? "+" : "-"}₦
+          {Math.abs(entry.value).toLocaleString()}
         </span>
       ),
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'runningQty',
-      header: 'Running Qty',
+      key: "runningQty",
+      header: "Running Qty",
       cell: (entry: InventoryLedgerEntry) => entry.runningQty.toLocaleString(),
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'runningAvgCost',
-      header: 'Avg Cost',
-      cell: (entry: InventoryLedgerEntry) => `₦${entry.runningAvgCost.toLocaleString()}`,
-      width: 'w-32'
+      key: "runningAvgCost",
+      header: "Avg Cost",
+      cell: (entry: InventoryLedgerEntry) =>
+        `₦${entry.runningAvgCost.toLocaleString()}`,
+      width: "w-32",
     },
     {
-      key: 'user',
-      header: 'User',
+      key: "user",
+      header: "User",
       cell: (entry: InventoryLedgerEntry) => (
         <div className="flex items-center">
           <User className="h-4 w-4 text-gray-400 mr-1" />
-          <span className="text-sm">{entry.user?.name || 'System'}</span>
+          <span className="text-sm">{entry.user?.name || "System"}</span>
         </div>
       ),
-      width: 'w-32'
-    }
+      width: "w-32",
+    },
   ];
 
   const clearAllFilters = () => {
-    setItemFilter('');
-    setWarehouseFilter('');
-    setUserFilter('');
-    setItemTypeFilter('');
-    setRefTypeFilter('');
-    setDirectionFilter('');
-    setDateFromFilter('');
-    setDateToFilter('');
+    setItemFilter("");
+    setWarehouseFilter("");
+    setUserFilter("");
+    setItemTypeFilter("");
+    setRefTypeFilter("");
+    setDirectionFilter("");
+    setDateFromFilter("");
+    setDateToFilter("");
   };
 
-  const hasActiveFilters = itemFilter || warehouseFilter || userFilter || itemTypeFilter || 
-    refTypeFilter || directionFilter || dateFromFilter || dateToFilter;
+  const hasActiveFilters =
+    itemFilter ||
+    warehouseFilter ||
+    userFilter ||
+    itemTypeFilter ||
+    refTypeFilter ||
+    directionFilter ||
+    dateFromFilter ||
+    dateToFilter;
 
-  const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
+  const handleExport = async (format: "csv" | "excel" | "pdf") => {
     try {
       const filters = {
         ...(itemFilter && { itemId: itemFilter }),
@@ -180,13 +213,13 @@ const InventoryLedger = () => {
         ...(refTypeFilter && { refType: refTypeFilter }),
         ...(directionFilter && { direction: directionFilter }),
         ...(dateFromFilter && { dateFrom: dateFromFilter }),
-        ...(dateToFilter && { dateTo: dateToFilter })
+        ...(dateToFilter && { dateTo: dateToFilter }),
       };
 
       await inventoryApi.exportInventoryLedger(format, filters);
       toast.success(`Inventory ledger exported as ${format.toUpperCase()}`);
     } catch (error) {
-      console.error('Export error:', error);
+      console.error("Export error:", error);
       toast.error(`Failed to export as ${format.toUpperCase()}`);
     }
   };
@@ -197,15 +230,17 @@ const InventoryLedger = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory Ledger</h1>
-          <p className="text-gray-600">Track all inventory movements and transactions</p>
+          <p className="text-gray-600">
+            Track all inventory movements and transactions
+          </p>
         </div>
         <div className="flex space-x-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              showFilters 
-                ? 'border-blue-500 text-blue-700 bg-blue-50' 
-                : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+              showFilters
+                ? "border-blue-500 text-blue-700 bg-blue-50"
+                : "border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
             }`}
           >
             <Filter className="h-4 w-4 mr-2" />
@@ -223,7 +258,9 @@ const InventoryLedger = () => {
       {showFilters && (
         <div className="bg-white p-6 rounded-lg shadow border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Filter Options</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              Filter Options
+            </h3>
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
@@ -234,7 +271,7 @@ const InventoryLedger = () => {
               </button>
             )}
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Date Range */}
             <div>
@@ -248,7 +285,7 @@ const InventoryLedger = () => {
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date To
@@ -266,7 +303,12 @@ const InventoryLedger = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Item
               </label>
-              <select
+              <ItemSelect
+                value={itemFilter}
+                onChange={(value) => setItemFilter(value)}
+                // placeholder="Select an item"
+              />
+              {/* <select
                 value={itemFilter}
                 onChange={(e) => setItemFilter(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -277,7 +319,7 @@ const InventoryLedger = () => {
                     {item.sku} - {item.name}
                   </option>
                 ))}
-              </select>
+              </select> */}
             </div>
 
             {/* Item Type Filter */}
@@ -376,24 +418,26 @@ const InventoryLedger = () => {
           {/* Export Options */}
           <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between">
-              <h4 className="text-md font-medium text-gray-900">Export Options</h4>
+              <h4 className="text-md font-medium text-gray-900">
+                Export Options
+              </h4>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => handleExport('csv')}
+                  onClick={() => handleExport("csv")}
                   className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
                 </button>
                 <button
-                  onClick={() => handleExport('excel')}
+                  onClick={() => handleExport("excel")}
                   className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Export Excel
                 </button>
                 <button
-                  onClick={() => handleExport('pdf')}
+                  onClick={() => handleExport("pdf")}
                   className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <FileText className="h-4 w-4 mr-2" />
@@ -442,7 +486,9 @@ const InventoryLedger = () => {
                     Inbound Transactions
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {ledgerData?.entries?.filter((e: InventoryLedgerEntry) => e.direction === 'IN').length || 0}
+                    {ledgerData?.entries?.filter(
+                      (e: InventoryLedgerEntry) => e.direction === "IN"
+                    ).length || 0}
                   </dd>
                 </dl>
               </div>
@@ -462,7 +508,9 @@ const InventoryLedger = () => {
                     Outbound Transactions
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {ledgerData?.entries?.filter((e: InventoryLedgerEntry) => e.direction === 'OUT').length || 0}
+                    {ledgerData?.entries?.filter(
+                      (e: InventoryLedgerEntry) => e.direction === "OUT"
+                    ).length || 0}
                   </dd>
                 </dl>
               </div>
@@ -482,8 +530,12 @@ const InventoryLedger = () => {
                     Active Users
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {ledgerData?.entries ? 
-                      new Set(ledgerData.entries.filter((e: InventoryLedgerEntry) => e.user).map((e: InventoryLedgerEntry) => e.user?.name)).size 
+                    {ledgerData?.entries
+                      ? new Set(
+                          ledgerData.entries
+                            .filter((e: InventoryLedgerEntry) => e.user)
+                            .map((e: InventoryLedgerEntry) => e.user?.name)
+                        ).size
                       : 0}
                   </dd>
                 </dl>
@@ -499,7 +551,9 @@ const InventoryLedger = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Filter className="h-5 w-5 text-blue-500 mr-2" />
-              <span className="text-sm font-medium text-blue-900">Active Filters:</span>
+              <span className="text-sm font-medium text-blue-900">
+                Active Filters:
+              </span>
             </div>
             <button
               onClick={clearAllFilters}
@@ -521,7 +575,7 @@ const InventoryLedger = () => {
             )}
             {itemTypeFilter && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Type: {itemTypeFilter.replace('_', ' ')}
+                Type: {itemTypeFilter.replace("_", " ")}
               </span>
             )}
             {refTypeFilter && (
@@ -536,7 +590,8 @@ const InventoryLedger = () => {
             )}
             {userFilter && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                User: {users?.users?.find((u: any) => u.id === userFilter)?.name}
+                User:{" "}
+                {users?.users?.find((u: any) => u.id === userFilter)?.name}
               </span>
             )}
           </div>

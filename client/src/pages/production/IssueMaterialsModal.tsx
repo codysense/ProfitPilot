@@ -1,19 +1,23 @@
-import React from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { useEffect } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { X, Plus, Trash2, Calculator, AlertTriangle } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { productionApi, inventoryApi } from '../../lib/api';
-import { ProductionOrder } from '../../types/api';
-import toast from 'react-hot-toast';
+import React from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { X, Plus, Trash2, Calculator, AlertTriangle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { productionApi, inventoryApi } from "../../lib/api";
+import { ProductionOrder } from "../../types/api";
+import toast from "react-hot-toast";
 
 const issueMaterialsSchema = z.object({
-  materials: z.array(z.object({
-    itemId: z.string().min(1, 'Item is required'),
-    qty: z.number().positive('Quantity must be positive'),
-  })).min(1, 'At least one material is required'),
+  materials: z
+    .array(
+      z.object({
+        itemId: z.string().min(1, "Item is required"),
+        qty: z.number().positive("Quantity must be positive"),
+      })
+    )
+    .min(1, "At least one material is required"),
 });
 
 type IssueMaterialsFormData = z.infer<typeof issueMaterialsSchema>;
@@ -24,7 +28,11 @@ interface IssueMaterialsModalProps {
   onSuccess: () => void;
 }
 
-const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalProps) => {
+const IssueMaterialsModal = ({
+  order,
+  onClose,
+  onSuccess,
+}: IssueMaterialsModalProps) => {
   const {
     register,
     control,
@@ -32,63 +40,66 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
     watch,
     setValue,
     reset,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
   } = useForm<IssueMaterialsFormData>({
     resolver: zodResolver(issueMaterialsSchema),
     defaultValues: {
-      materials: [{ itemId: '', qty: 1 }]
-    }
+      materials: [{ itemId: "", qty: 1 }],
+    },
   });
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'materials'
+    name: "materials",
   });
 
   const { data: rawMaterials } = useQuery({
-    queryKey: ['raw-materials-for-issue'],
-    queryFn: () => inventoryApi.getItems({ type: 'RAW_MATERIAL', limit: 100 })
+    queryKey: ["raw-materials-for-issue"],
+    queryFn: () => inventoryApi.getItems({ type: "RAW_MATERIAL", limit: 100 }),
   });
 
   // Get stock information for materials
   const { data: stockData } = useQuery({
-    queryKey: ['materials-stock', order.warehouseId],
+    queryKey: ["materials-stock", order.warehouseId],
     queryFn: async () => {
       if (!rawMaterials?.items) return {};
-      
+
       const stockPromises = rawMaterials.items.map(async (item: any) => {
         try {
-          const stock = await inventoryApi.getItemStock(item.id, order.warehouseId);
+          const stock = await inventoryApi.getItemStock(
+            item.id,
+            order.warehouseId
+          );
           return { itemId: item.id, stock: stock.qty };
         } catch {
           return { itemId: item.id, stock: 0 };
         }
       });
-      
+
       const stockResults = await Promise.all(stockPromises);
       return stockResults.reduce((acc, result) => {
         acc[result.itemId] = result.stock;
         return acc;
       }, {} as Record<string, number>);
     },
-    enabled: !!rawMaterials?.items
+    enabled: !!rawMaterials?.items,
   });
 
   // Auto-calculate materials from BOM
   const calculateFromBOM = () => {
     if (!order.bom?.bomLines) {
-      alert('No BOM available for this item');
+      alert("No BOM available for this item");
       return;
     }
 
-    const calculatedMaterials = order.bom.bomLines.map(line => {
+    const calculatedMaterials = order.bom.bomLines.map((line) => {
       const baseQty = Number(line.qtyPer) * Number(order.qtyTarget);
-      const scrapMultiplier = 1 + (Number(line.scrapPercent) / 100);
+      const scrapMultiplier = 1 + Number(line.scrapPercent) / 100;
       const totalQty = baseQty * scrapMultiplier;
-      
+
       return {
         itemId: line.componentItemId,
-        qty: Math.round(totalQty * 1000) / 1000 // Round to 3 decimal places
+        qty: Math.round(totalQty * 1000) / 1000, // Round to 3 decimal places
       };
     });
 
@@ -97,16 +108,24 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
 
   // Initialize with BOM data if available
   useEffect(() => {
-    if (order.bom?.bomLines && fields.length === 1 && !fields[0].itemId) {
+    if (
+      rawMaterials?.items?.length &&
+      order.bom?.bomLines &&
+      fields.length === 1 &&
+      !fields[0].itemId
+    ) {
       calculateFromBOM();
     }
-  }, [order.bom, fields]);
-  const watchedMaterials = watch('materials');
+  }, [rawMaterials, order.bom]);
+
+  const watchedMaterials = watch("materials");
 
   // Calculate total estimated cost
   const calculateTotalCost = () => {
     return watchedMaterials.reduce((total, material) => {
-      const item = rawMaterials?.items?.find((item: any) => item.id === material.itemId);
+      const item = rawMaterials?.items?.find(
+        (item: any) => item.id === material.itemId
+      );
       const cost = item?.standardCost || 0;
       return total + (material.qty || 0) * cost;
     }, 0);
@@ -115,18 +134,21 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
   const onSubmit = async (data: IssueMaterialsFormData) => {
     try {
       await productionApi.issueMaterials(order.id, data);
-      toast.success('Materials issued successfully');
+      toast.success("Materials issued successfully");
       onSuccess();
     } catch (error) {
-      console.error('Issue materials error:', error);
+      console.error("Issue materials error:", error);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-        
+        <div
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          onClick={onClose}
+        />
+
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
@@ -140,7 +162,7 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Order Info */}
               <div className="bg-blue-50 p-4 rounded-lg">
@@ -158,9 +180,13 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                     <div className="font-medium">{order.warehouse.name}</div>
                   </div>
                   <div>
-                    <span className="text-sm text-gray-500">BOM Available:</span>
+                    <span className="text-sm text-gray-500">
+                      BOM Available:
+                    </span>
                     <div className="font-medium">
-                      {order.bom ? `Yes (${order.bom.bomLines.length} components)` : 'No'}
+                      {order.bom
+                        ? `Yes (${order.bom.bomLines.length} components)`
+                        : "No"}
                     </div>
                   </div>
                 </div>
@@ -170,7 +196,9 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
               {order.bom && (
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-medium text-green-900">Bill of Materials (Version {order.bom.version || '1.0'})</h4>
+                    <h4 className="text-sm font-medium text-green-900">
+                      Bill of Materials (Version {order.bom.version || "1.0"})
+                    </h4>
                     <button
                       type="button"
                       onClick={calculateFromBOM}
@@ -182,17 +210,26 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {order.bom.bomLines.map((line, index) => {
-                      const baseQty = Number(line.qtyPer) * Number(order.qtyTarget);
-                      const scrapMultiplier = 1 + (Number(line.scrapPercent) / 100);
+                      const baseQty =
+                        Number(line.qtyPer) * Number(order.qtyTarget);
+                      const scrapMultiplier =
+                        1 + Number(line.scrapPercent) / 100;
                       const totalQty = baseQty * scrapMultiplier;
-                      
+
                       return (
                         <div key={index} className="text-sm">
-                          <div className="font-medium">{line.componentItem.sku}</div>
+                          <div className="font-medium">
+                            {line.componentItem.sku}
+                          </div>
                           <div className="text-green-700">
-                            {line.qtyPer} × {order.qtyTarget} = {baseQty} {line.componentItem.uom}
+                            {line.qtyPer} × {order.qtyTarget} = {baseQty}{" "}
+                            {line.componentItem.uom}
                             {line.scrapPercent > 0 && (
-                              <span className="text-orange-600"> (+{line.scrapPercent}% scrap = {totalQty.toFixed(3)})</span>
+                              <span className="text-orange-600">
+                                {" "}
+                                (+{line.scrapPercent}% scrap ={" "}
+                                {totalQty.toFixed(3)})
+                              </span>
                             )}
                           </div>
                         </div>
@@ -204,10 +241,12 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
               {/* Materials */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-md font-medium text-gray-900">Materials to Issue</h4>
+                  <h4 className="text-md font-medium text-gray-900">
+                    Materials to Issue
+                  </h4>
                   <button
                     type="button"
-                    onClick={() => append({ itemId: '', qty: 1 })}
+                    onClick={() => append({ itemId: "", qty: 1 })}
                     className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -216,7 +255,9 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                 </div>
 
                 {errors.materials && (
-                  <p className="mb-4 text-sm text-red-600">{errors.materials.message}</p>
+                  <p className="mb-4 text-sm text-red-600">
+                    {errors.materials.message}
+                  </p>
                 )}
 
                 <div className="space-y-4">
@@ -231,12 +272,19 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                             {...register(`materials.${index}.itemId`)}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           >
-                            <option value="">Select material</option>
+                            {rawMaterials
+                              ? "Select material"
+                              : "Loading materials..."}
                             {rawMaterials?.items?.map((item: any) => (
                               <option key={item.id} value={item.id}>
-                                {item.sku} - {item.name} 
-                                (Stock: {stockData?.[item.id] || item.stockQty || 0} {item.uom})
-                                {item.standardCost && ` - ₦${item.standardCost}`}
+                                {item.sku} - {item.name}
+                                (Stock:{" "}
+                                {stockData?.[item.id] ||
+                                  item.stockQty ||
+                                  0}{" "}
+                                {item.uom})
+                                {item.standardCost &&
+                                  ` - ₦${item.standardCost}`}
                               </option>
                             ))}
                           </select>
@@ -246,34 +294,52 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                             </p>
                           )}
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700">
                             Available Stock
                           </label>
                           <div className="mt-1 p-2 bg-white border border-gray-200 rounded-md text-sm">
                             {(() => {
-                              const selectedItem = rawMaterials?.items?.find((item: any) => item.id === watchedMaterials[index]?.itemId);
-                              const stock = stockData?.[watchedMaterials[index]?.itemId] || 0;
-                              const isInsufficient = stock < (watchedMaterials[index]?.qty || 0);
-                              
+                              const selectedItem = rawMaterials?.items?.find(
+                                (item: any) =>
+                                  item.id === watchedMaterials[index]?.itemId
+                              );
+                              const stock =
+                                stockData?.[watchedMaterials[index]?.itemId] ||
+                                0;
+                              const isInsufficient =
+                                stock < (watchedMaterials[index]?.qty || 0);
+
                               return (
-                                <div className={`flex items-center ${isInsufficient ? 'text-red-600' : 'text-green-600'}`}>
-                                  {isInsufficient && <AlertTriangle className="h-4 w-4 mr-1" />}
-                                  <span>{stock} {selectedItem?.uom || 'units'}</span>
+                                <div
+                                  className={`flex items-center ${
+                                    isInsufficient
+                                      ? "text-red-600"
+                                      : "text-green-600"
+                                  }`}
+                                >
+                                  {isInsufficient && (
+                                    <AlertTriangle className="h-4 w-4 mr-1" />
+                                  )}
+                                  <span>
+                                    {stock} {selectedItem?.uom || "units"}
+                                  </span>
                                 </div>
                               );
                             })()}
                           </div>
                         </div>
-                        
+
                         <div className="flex items-end">
                           <div className="flex-1">
                             <label className="block text-sm font-medium text-gray-700">
                               Quantity *
                             </label>
                             <input
-                              {...register(`materials.${index}.qty`, { valueAsNumber: true })}
+                              {...register(`materials.${index}.qty`, {
+                                valueAsNumber: true,
+                              })}
                               type="number"
                               step="0.001"
                               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -300,11 +366,13 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                   ))}
                 </div>
               </div>
-              
+
               {/* Cost Summary */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-medium text-gray-900">Estimated Total Cost:</span>
+                  <span className="text-lg font-medium text-gray-900">
+                    Estimated Total Cost:
+                  </span>
                   <span className="text-2xl font-bold text-blue-600">
                     ₦{calculateTotalCost().toLocaleString()}
                   </span>
@@ -313,7 +381,7 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                   Based on standard costs of selected materials
                 </div>
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4 border-t">
                 <button
                   type="button"
@@ -327,7 +395,7 @@ const IssueMaterialsModal = ({ order, onClose, onSuccess }: IssueMaterialsModalP
                   disabled={isSubmitting}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Issuing...' : 'Issue Materials'}
+                  {isSubmitting ? "Issuing..." : "Issue Materials"}
                 </button>
               </div>
             </form>

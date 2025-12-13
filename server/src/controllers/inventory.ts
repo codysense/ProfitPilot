@@ -1,16 +1,18 @@
-import { Request, Response } from 'express';
-import { ItemType, PrismaClient } from '@prisma/client';
-import { 
-  createItemSchema, 
-  createBomSchema, 
-  inventoryAdjustmentSchema, 
+import { Request, Response } from "express";
+import { ItemType, PrismaClient } from "@prisma/client";
+import {
+  createItemSchema,
+  createBomSchema,
+  inventoryAdjustmentSchema,
   inventoryTransferSchema,
   createLocationSchema,
-  createWarehouseSchema
-} from '../types/inventory';
-import { AuthRequest } from '../middleware/auth';
-import { CostingService } from '../services/costing';
-import { GeneralLedgerService } from '../services/gl';
+  createWarehouseSchema,
+  createUOMSchema,
+  updateUOMSchema,
+} from "../types/inventory";
+import { AuthRequest } from "../middleware/auth";
+import { CostingService } from "../services/costing";
+import { GeneralLedgerService } from "../services/gl";
 // import prisma from '@prisma/client';
 import { Prisma } from "@prisma/client";
 // import prisma from "../prisma"; //
@@ -20,127 +22,118 @@ const costingService = new CostingService();
 const glService = new GeneralLedgerService();
 
 export class InventoryController {
-  
+  //   async getItems(req: AuthRequest, res: Response) {
+  //   try {
+  //     const { page = 1, limit = 10, type, search, includeStock } = req.query;
+  //     const skip = (Number(page) - 1) * Number(limit);
 
+  //     const where: any = {};
 
-//   async getItems(req: AuthRequest, res: Response) {
-//   try {
-//     const { page = 1, limit = 10, type, search, includeStock } = req.query;
-//     const skip = (Number(page) - 1) * Number(limit);
+  //     if (type){
+  //        where.type = type;
+  //     }
 
-//     const where: any = {};
+  //     if (search) {
+  //       where.OR = [
+  //         { sku: { contains: search as string, mode: 'insensitive' } },
+  //         { name: { contains: search as string, mode: 'insensitive' } }
+  //       ];
+  //     }
 
-//     if (type){
-//        where.type = type;
-//     }
-  
+  //     // Apply warehouse filtering for non-admin users
+  //     let warehouseFilter = null;
+  //     if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+  //       const user = await prisma.user.findUnique({
+  //         where: { id: req.user!.id },
+  //         select: { warehouseId: true }
+  //       });
+  //       warehouseFilter = user?.warehouseId;
+  //     }
+  //     console.log('WHERE:', JSON.stringify(where, null, 2));
 
-//     if (search) {
-//       where.OR = [
-//         { sku: { contains: search as string, mode: 'insensitive' } },
-//         { name: { contains: search as string, mode: 'insensitive' } }
-//       ];
-//     }
+  //     const [items, total] = await Promise.all([
+  //       prisma.item.findMany({
+  //          //  apply search/type filters
+  //          where,
+  //         skip,
+  //         take: Number(limit),
+  //         orderBy: { createdAt: 'desc' }
+  //       }),
+  //       prisma.item.count({ where }) //count matches filters
+  //     ]);
 
+  //     //where,
+  // //{ where }
+  //     // Include stock quantities if requested
+  //     let itemsWithStock = items;
+  //     if (includeStock === 'true') {
+  //       itemsWithStock = await Promise.all(
+  //         items.map(async (item) => {
+  //           let stockQty ;
 
-//     // Apply warehouse filtering for non-admin users
-//     let warehouseFilter = null;
-//     if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
-//       const user = await prisma.user.findUnique({
-//         where: { id: req.user!.id },
-//         select: { warehouseId: true }
-//       });
-//       warehouseFilter = user?.warehouseId;
-//     }
-//     console.log('WHERE:', JSON.stringify(where, null, 2));
+  //       if (warehouseFilter) {
+  //   //  Non-admin user → latest stock in their warehouse
+  //           const latestEntry = await prisma.inventoryLedger.findFirst({
+  //           where: { itemId: item.id, warehouseId: warehouseFilter },
+  //             orderBy: { postedAt: 'desc' }
+  //            });
+  //         stockQty = latestEntry?.runningQty || 0;
+  // } else {
+  //   //  Admin user → sum of latest balances across all warehouses
+  //   const warehouses = await prisma.warehouse.findMany({ select: { id: true } });
 
+  //   const balances = await Promise.all(
+  //     warehouses.map(async (wh) => {
+  //       const latestEntry = await prisma.inventoryLedger.findFirst({
+  //         where: { itemId: item.id, warehouseId: wh.id },
+  //         orderBy: { postedAt: 'desc' }
+  //       });
+  //       return latestEntry?.runningQty || 0;
+  //     })
+  //   );
 
-//     const [items, total] = await Promise.all([
-//       prisma.item.findMany({
-//          //  apply search/type filters
-//          where,
-//         skip,
-//         take: Number(limit),
-//         orderBy: { createdAt: 'desc' }
-//       }),
-//       prisma.item.count({ where }) //count matches filters
-//     ]);
+  //   stockQty = balances
+  //   .map((qty) => Number(qty)) // ensure all are numbers
+  //   .reduce((sum, qty) => sum + qty, 0);
+  // }
 
-//     //where,
-// //{ where }
-//     // Include stock quantities if requested
-//     let itemsWithStock = items;
-//     if (includeStock === 'true') {
-//       itemsWithStock = await Promise.all(
-//         items.map(async (item) => {
-//           let stockQty ;
+  //           // const stockWhere: any = { itemId: item.id };
+  //           // if (warehouseFilter) {
+  //           //   stockWhere.warehouseId = warehouseFilter;
+  //           // }
 
-//       if (warehouseFilter) {
-//   //  Non-admin user → latest stock in their warehouse
-//           const latestEntry = await prisma.inventoryLedger.findFirst({
-//           where: { itemId: item.id, warehouseId: warehouseFilter },
-//             orderBy: { postedAt: 'desc' }
-//            });
-//         stockQty = latestEntry?.runningQty || 0;
-// } else {
-//   //  Admin user → sum of latest balances across all warehouses
-//   const warehouses = await prisma.warehouse.findMany({ select: { id: true } });
+  //           // const stockEntries = await prisma.inventoryLedger.findMany({
+  //           //   where: stockWhere,
+  //           //   orderBy: { postedAt: 'desc' },
+  //           //   take: warehouseFilter ? 1 : 10
+  //           // });
 
-//   const balances = await Promise.all(
-//     warehouses.map(async (wh) => {
-//       const latestEntry = await prisma.inventoryLedger.findFirst({
-//         where: { itemId: item.id, warehouseId: wh.id },
-//         orderBy: { postedAt: 'desc' }
-//       });
-//       return latestEntry?.runningQty || 0;
-//     })
-//   );
+  //           // // const stockQty = warehouseFilter
+  //           // //   ? (stockEntries[0]?.runningQty || 0)
+  //           // //   : stockEntries.reduce((sum, entry) => sum + Number(entry.runningQty), 0);
 
-//   stockQty = balances
-//   .map((qty) => Number(qty)) // ensure all are numbers
-//   .reduce((sum, qty) => sum + qty, 0);
-// }
+  //           // const stockQty = stockEntries[0]?.runningQty || 0
 
-//           // const stockWhere: any = { itemId: item.id };
-//           // if (warehouseFilter) {
-//           //   stockWhere.warehouseId = warehouseFilter;
-//           // }
+  //           return { ...item, stockQty: Number(stockQty) };
+  //         })
+  //       );
+  //     }
 
-//           // const stockEntries = await prisma.inventoryLedger.findMany({
-//           //   where: stockWhere,
-//           //   orderBy: { postedAt: 'desc' },
-//           //   take: warehouseFilter ? 1 : 10
-//           // });
+  //     res.json({
+  //       items: itemsWithStock,
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         total,
+  //         pages: Math.ceil(total / Number(limit))
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Get items error:', error);
+  //     res.status(500).json({ error: 'Failed to fetch items' });
+  //   }
+  // }
 
-//           // // const stockQty = warehouseFilter
-//           // //   ? (stockEntries[0]?.runningQty || 0)
-//           // //   : stockEntries.reduce((sum, entry) => sum + Number(entry.runningQty), 0);
-
-//           // const stockQty = stockEntries[0]?.runningQty || 0
-
-//           return { ...item, stockQty: Number(stockQty) };
-//         })
-//       );
-//     }
-
-//     res.json({
-//       items: itemsWithStock,
-//       pagination: {
-//         page: Number(page),
-//         limit: Number(limit),
-//         total,
-//         pages: Math.ceil(total / Number(limit))
-//       }
-//     });
-//   } catch (error) {
-//     console.error('Get items error:', error);
-//     res.status(500).json({ error: 'Failed to fetch items' });
-//   }
-// }
-
-
-
-  
   // async createItem(req: AuthRequest, res: Response) {
   //   try {
   //     const validatedData = createItemSchema.parse(req.body);
@@ -151,7 +144,6 @@ export class InventoryController {
   //     create: { ...validatedData },
   //     });
 
-      
   //     const item = await prisma.item.create({
   //       data: validatedData
   //     });
@@ -163,85 +155,83 @@ export class InventoryController {
   //   }
   // }
 
-
   async deleteItem(req: AuthRequest, res: Response) {
-      try {
-        const { sku } = req.params;
-  
-        // Check if item can be deleted
-        const item = await prisma.item.findUnique({
-          where: { sku },
-          select: { isActive: true}
-        });
-  
-        if (!item ) {
-          return res.status(400).json({ error: 'Cannot delete item in current status' });
-        }
-  
-        await prisma.item.delete({
-          where: { sku }
-        });
-  
-        res.json({ message: 'item deleted successfully' });
-      } catch (error) {
-        console.error('Delete item error:', error);
-        res.status(400).json({ error: 'Failed to delete purchase' });
-      }
-    }
-  
+    try {
+      const { sku } = req.params;
 
-//   async createItem(req: AuthRequest, res: Response) {
-//   try {
-//     const validatedData = createItemSchema.parse(req.body);
-
-//     // console.log(req.body)
-
-//     const item = await prisma.item.upsert({
-//       where: { sku: validatedData.sku },
-//       update: { ...validatedData },
-//       create: { ...validatedData },
-//     });
-
-//     res.status(201).json(item);
-//   } catch (error) {
-//     console.error('Create/Update item error:', error);
-//     res.status(400).json({ error: 'Failed to create or update item' });
-//   }
-// }
-
-
-async createItem(req: AuthRequest, res: Response) {
-  try {
-    const validatedData = createItemSchema.parse(req.body);
-    const { priceList, ...itemData } = validatedData;
-
-    const item = await prisma.item.upsert({
-      where: { sku: itemData.sku },
-      update: { ...itemData },
-      create: { ...itemData },
-    });
-
-    if (priceList && Array.isArray(priceList)) {
-      // Delete old price list entries
-      await prisma.itemPriceList.deleteMany({ where: { itemId: item.id } });
-
-      // Create new price list entries
-      await prisma.itemPriceList.createMany({
-        data: priceList.map((p: any) => ({
-          itemId: item.id,
-          customerGroup: p.customerGroup,
-          price: p.price,
-        })),
+      // Check if item can be deleted
+      const item = await prisma.item.findUnique({
+        where: { sku },
+        select: { isActive: true },
       });
+
+      if (!item) {
+        return res
+          .status(400)
+          .json({ error: "Cannot delete item in current status" });
+      }
+
+      await prisma.item.delete({
+        where: { sku },
+      });
+
+      res.json({ message: "item deleted successfully" });
+    } catch (error) {
+      console.error("Delete item error:", error);
+      res.status(400).json({ error: "Failed to delete purchase" });
     }
-
-    res.status(201).json(item);
-  } catch (error) {
-    console.error('Create/Update item error:', error);
-    res.status(400).json({ error: 'Failed to create or update item' });
   }
-}
 
+  //   async createItem(req: AuthRequest, res: Response) {
+  //   try {
+  //     const validatedData = createItemSchema.parse(req.body);
+
+  //     // console.log(req.body)
+
+  //     const item = await prisma.item.upsert({
+  //       where: { sku: validatedData.sku },
+  //       update: { ...validatedData },
+  //       create: { ...validatedData },
+  //     });
+
+  //     res.status(201).json(item);
+  //   } catch (error) {
+  //     console.error('Create/Update item error:', error);
+  //     res.status(400).json({ error: 'Failed to create or update item' });
+  //   }
+  // }
+
+  async createItem(req: AuthRequest, res: Response) {
+    try {
+      const validatedData = createItemSchema.parse(req.body);
+      const { priceList, ...itemData } = validatedData;
+
+      const item = await prisma.item.upsert({
+        where: { sku: itemData.sku },
+        update: { ...itemData },
+        create: { ...itemData },
+      });
+
+      if (priceList && Array.isArray(priceList)) {
+        // Delete old price list entries
+        await prisma.itemPriceList.deleteMany({ where: { itemId: item.id } });
+
+        // Create new price list entries
+        await prisma.itemPriceList.createMany({
+          data: priceList.map((p: any) => ({
+            itemId: item.id,
+            customerGroup: p.customerGroup,
+            price: p.price,
+          })),
+        });
+      }
+
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Create/Update item error:", error);
+      res.status(400).json({ error: "Failed to create or update item" });
+    }
+  }
 
   async getBoms(req: AuthRequest, res: Response) {
     try {
@@ -254,23 +244,23 @@ async createItem(req: AuthRequest, res: Response) {
         where,
         include: {
           item: {
-            select: { sku: true, name: true }
+            select: { sku: true, name: true },
           },
           bomLines: {
             include: {
               componentItem: {
-                select: { sku: true, name: true, uom: true }
-              }
-            }
-          }
+                select: { sku: true, name: true, uom: true },
+              },
+            },
+          },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
 
       res.json(boms);
     } catch (error) {
-      console.error('Get BOMs error:', error);
-      res.status(500).json({ error: 'Failed to fetch BOMs' });
+      console.error("Get BOMs error:", error);
+      res.status(500).json({ error: "Failed to fetch BOMs" });
     }
   }
 
@@ -278,35 +268,37 @@ async createItem(req: AuthRequest, res: Response) {
     try {
       const validatedData = createBomSchema.parse(req.body);
 
-      const bom = await prisma.$transaction(async (tx) => {
-        // Deactivate existing BOMs for this item
-        await tx.bom.updateMany({
-          where: { itemId: validatedData.itemId },
-          data: { isActive: false }
-        });
+      const bom = await prisma.$transaction(
+        async (tx) => {
+          // Deactivate existing BOMs for this item
+          await tx.bom.updateMany({
+            where: { itemId: validatedData.itemId },
+            data: { isActive: false },
+          });
 
-        // Create new BOM
-        const newBom = await tx.bom.create({
-          data: {
-            itemId: validatedData.itemId,
-            version: validatedData.version,
-            bomLines: {
-              create: validatedData.bomLines
-            }
-          }
-        });
+          // Create new BOM
+          const newBom = await tx.bom.create({
+            data: {
+              itemId: validatedData.itemId,
+              version: validatedData.version,
+              bomLines: {
+                create: validatedData.bomLines,
+              },
+            },
+          });
 
-        return newBom;
-      },
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-});
+          return newBom;
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
+        }
+      );
 
       res.status(201).json(bom);
     } catch (error) {
-      console.error('Create BOM error:', error);
-      res.status(400).json({ error: 'Failed to create BOM' });
+      console.error("Create BOM error:", error);
+      res.status(400).json({ error: "Failed to create BOM" });
     }
   }
 
@@ -314,115 +306,149 @@ async createItem(req: AuthRequest, res: Response) {
     try {
       const validatedData = inventoryAdjustmentSchema.parse(req.body);
 
-      await prisma.$transaction(async (tx) => {
-        if (validatedData.adjustmentType === 'IN') {
-          // Inventory increase
-          await costingService.receiveInventory(
-            validatedData.itemId,
-            validatedData.warehouseId,
-            validatedData.qty,
-            validatedData.unitCost || 0,
-            'ADJUSTMENT',
-            `ADJ-${Date.now()}`,
-            req.user!.id
-          );
+      await prisma.$transaction(
+        async (tx) => {
+          if (validatedData.adjustmentType === "IN") {
+            // Inventory increase
+            await costingService.receiveInventory(
+              validatedData.itemId,
+              validatedData.warehouseId,
+              validatedData.qty,
+              validatedData.unitCost || 0,
+              "ADJUSTMENT",
+              `ADJ-${Date.now()}`,
+              req.user!.id
+            );
 
-          // Post to general ledger
-          const value = validatedData.qty * (validatedData.unitCost || 0);
-          await glService.postJournal([
-            { accountCode: '1300', debit: value, credit: 0, refType: 'ADJUSTMENT', refId: `ADJ-${Date.now()}` },
-            { accountCode: '8100', debit: 0, credit: value, refType: 'ADJUSTMENT', refId: `ADJ-${Date.now()}` }
-          ], `Inventory adjustment: ${validatedData.reason}`, req.user!.id);
-        } else {
-          // Inventory decrease
-          const result = await costingService.issueInventory(
-            validatedData.itemId,
-            validatedData.warehouseId,
-            validatedData.qty,
-            'ADJUSTMENT',
-            `ADJ-${Date.now()}`,
-            req.user!.id
-          );
+            // Post to general ledger
+            const value = validatedData.qty * (validatedData.unitCost || 0);
+            await glService.postJournal(
+              [
+                {
+                  accountCode: "1300",
+                  debit: value,
+                  credit: 0,
+                  refType: "ADJUSTMENT",
+                  refId: `ADJ-${Date.now()}`,
+                },
+                {
+                  accountCode: "8100",
+                  debit: 0,
+                  credit: value,
+                  refType: "ADJUSTMENT",
+                  refId: `ADJ-${Date.now()}`,
+                },
+              ],
+              `Inventory adjustment: ${validatedData.reason}`,
+              req.user!.id
+            );
+          } else {
+            // Inventory decrease
+            const result = await costingService.issueInventory(
+              validatedData.itemId,
+              validatedData.warehouseId,
+              validatedData.qty,
+              "ADJUSTMENT",
+              `ADJ-${Date.now()}`,
+              req.user!.id
+            );
 
-          // Post to general ledger
-          await glService.postJournal([
-            { accountCode: '8100', debit: result.value, credit: 0, refType: 'ADJUSTMENT', refId: `ADJ-${Date.now()}` },
-            { accountCode: '1300', debit: 0, credit: result.value, refType: 'ADJUSTMENT', refId: `ADJ-${Date.now()}` }
-          ], `Inventory adjustment: ${validatedData.reason}`, req.user!.id);
+            // Post to general ledger
+            await glService.postJournal(
+              [
+                {
+                  accountCode: "8100",
+                  debit: result.value,
+                  credit: 0,
+                  refType: "ADJUSTMENT",
+                  refId: `ADJ-${Date.now()}`,
+                },
+                {
+                  accountCode: "1300",
+                  debit: 0,
+                  credit: result.value,
+                  refType: "ADJUSTMENT",
+                  refId: `ADJ-${Date.now()}`,
+                },
+              ],
+              `Inventory adjustment: ${validatedData.reason}`,
+              req.user!.id
+            );
+          }
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
         }
-      },
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-});
+      );
 
-      res.json({ message: 'Inventory adjusted successfully' });
+      res.json({ message: "Inventory adjusted successfully" });
     } catch (error) {
-      console.error('Adjust inventory error:', error);
-      res.status(400).json({ error: 'Failed to adjust inventory' });
+      console.error("Adjust inventory error:", error);
+      res.status(400).json({ error: "Failed to adjust inventory" });
     }
   }
 
   async transferInventory(req: AuthRequest, res: Response) {
-  try {
-    const validatedData = inventoryTransferSchema.parse(req.body);
+    try {
+      const validatedData = inventoryTransferSchema.parse(req.body);
 
-    // Generate ONE refId for both OUT and IN entries
-    const refId = `TRF-${Date.now()}`;
+      // Generate ONE refId for both OUT and IN entries
+      const refId = `TRF-${Date.now()}`;
 
-    await prisma.$transaction(async (tx) => {
-      // Issue from source warehouse (OUT)
-      const result = await costingService.issueInventory(
-        validatedData.itemId,
-        validatedData.fromWarehouseId,
-        validatedData.qty,
-        'TRANSFER',
-        refId,
-        req.user!.id,
-        // tx // pass the transaction client if service supports it
+      await prisma.$transaction(
+        async (tx) => {
+          // Issue from source warehouse (OUT)
+          const result = await costingService.issueInventory(
+            validatedData.itemId,
+            validatedData.fromWarehouseId,
+            validatedData.qty,
+            "TRANSFER",
+            refId,
+            req.user!.id
+            // tx // pass the transaction client if service supports it
+          );
+
+          // Receive into destination warehouse (IN)
+          await costingService.receiveInventory(
+            validatedData.itemId,
+            validatedData.toWarehouseId,
+            validatedData.qty,
+            result.unitCost,
+            "TRANSFER",
+            refId,
+            req.user!.id
+            // tx
+          );
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
+        }
       );
 
-      // Receive into destination warehouse (IN)
-      await costingService.receiveInventory(
-        validatedData.itemId,
-        validatedData.toWarehouseId,
-        validatedData.qty,
-        result.unitCost,
-        'TRANSFER',
-        refId,
-        req.user!.id,
-        // tx
-      );
-    },
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-  );
-
-    res.json({ message: 'Inventory transferred successfully', refId });
-  } catch (error) {
-    console.error('Transfer inventory error:', error);
-    res.status(400).json({ error: 'Failed to transfer inventory' });
+      res.json({ message: "Inventory transferred successfully", refId });
+    } catch (error) {
+      console.error("Transfer inventory error:", error);
+      res.status(400).json({ error: "Failed to transfer inventory" });
+    }
   }
-}
-
 
   async getInventoryLedger(req: AuthRequest, res: Response) {
     try {
-      const { 
-        page = 1, 
-        limit = 20, 
-        itemId, 
-        warehouseId, 
+      const {
+        page = 1,
+        limit = 20,
+        itemId,
+        warehouseId,
         userId,
         itemType,
         refType,
         direction,
         dateFrom,
-        dateTo
+        dateTo,
       } = req.query;
-      
+
       const skip = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
@@ -447,18 +473,18 @@ async createItem(req: AuthRequest, res: Response) {
           take: Number(limit),
           include: {
             item: {
-              select: { sku: true, name: true, type: true, uom: true }
+              select: { sku: true, name: true, type: true, uom: true },
             },
             warehouse: {
-              select: { code: true, name: true }
+              select: { code: true, name: true },
             },
             user: {
-              select: { name: true, email: true }
-            }
+              select: { name: true, email: true },
+            },
           },
-          orderBy: { postedAt: 'desc' }
+          orderBy: { postedAt: "desc" },
         }),
-        prisma.inventoryLedger.count({ where })
+        prisma.inventoryLedger.count({ where }),
       ]);
 
       res.json({
@@ -467,27 +493,27 @@ async createItem(req: AuthRequest, res: Response) {
           page: Number(page),
           limit: Number(limit),
           total,
-          pages: Math.ceil(total / Number(limit))
-        }
+          pages: Math.ceil(total / Number(limit)),
+        },
       });
     } catch (error) {
-      console.error('Get inventory ledger error:', error);
-      res.status(500).json({ error: 'Failed to fetch inventory ledger' });
+      console.error("Get inventory ledger error:", error);
+      res.status(500).json({ error: "Failed to fetch inventory ledger" });
     }
   }
 
   async exportInventoryLedger(req: AuthRequest, res: Response) {
     try {
-      const { 
-        format = 'csv',
-        itemId, 
-        warehouseId, 
+      const {
+        format = "csv",
+        itemId,
+        warehouseId,
         userId,
         itemType,
         refType,
         direction,
         dateFrom,
-        dateTo
+        dateTo,
       } = req.query;
 
       const where: any = {};
@@ -510,39 +536,39 @@ async createItem(req: AuthRequest, res: Response) {
         take: 10000, // Limit to prevent memory issues
         include: {
           item: {
-            select: { sku: true, name: true, type: true, uom: true }
+            select: { sku: true, name: true, type: true, uom: true },
           },
           warehouse: {
-            select: { code: true, name: true }
+            select: { code: true, name: true },
           },
           user: {
-            select: { name: true, email: true }
-          }
+            select: { name: true, email: true },
+          },
         },
-        orderBy: { postedAt: 'desc' }
+        orderBy: { postedAt: "desc" },
       });
 
-      if (format === 'csv') {
+      if (format === "csv") {
         // Generate CSV
         const headers = [
-          'Date',
-          'Item SKU',
-          'Item Name',
-          'Item Type',
-          'Warehouse',
-          'Reference Type',
-          'Direction',
-          'Quantity',
-          'UOM',
-          'Unit Cost',
-          'Value',
-          'Running Qty',
-          'Running Value',
-          'Running Avg Cost',
-          'User'
+          "Date",
+          "Item SKU",
+          "Item Name",
+          "Item Type",
+          "Warehouse",
+          "Reference Type",
+          "Direction",
+          "Quantity",
+          "UOM",
+          "Unit Cost",
+          "Value",
+          "Running Qty",
+          "Running Value",
+          "Running Avg Cost",
+          "User",
         ];
 
-        const csvRows = entries.map(entry => [
+        const csvRows = entries.map((entry) => [
           new Date(entry.postedAt).toLocaleDateString(),
           entry.item.sku,
           entry.item.name,
@@ -557,43 +583,46 @@ async createItem(req: AuthRequest, res: Response) {
           entry.runningQty.toString(),
           entry.runningValue.toString(),
           entry.runningAvgCost.toString(),
-          entry.user?.name || 'System'
+          entry.user?.name || "System",
         ]);
 
         const csvContent = [headers, ...csvRows]
-          .map(row => row.map(field => `"${field}"`).join(','))
-          .join('\n');
+          .map((row) => row.map((field) => `"${field}"`).join(","))
+          .join("\n");
 
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="inventory-ledger-${new Date().toISOString().split('T')[0]}.csv"`);
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="inventory-ledger-${
+            new Date().toISOString().split("T")[0]
+          }.csv"`
+        );
         res.send(csvContent);
       } else {
         // Return JSON for Excel/PDF processing
         res.json({ entries });
       }
     } catch (error) {
-      console.error('Export inventory ledger error:', error);
-      res.status(500).json({ error: 'Failed to export inventory ledger' });
+      console.error("Export inventory ledger error:", error);
+      res.status(500).json({ error: "Failed to export inventory ledger" });
     }
   }
 
   async getInventoryValuation(req: AuthRequest, res: Response) {
     try {
-      const { warehouseId, limit =10 } = req.query;
+      const { warehouseId, limit = 10 } = req.query;
 
       // Get all items with their latest inventory positions
       const items = await prisma.item.findMany({
-        where: { isActive: true, 
-        },
-        
+        where: { isActive: true },
+
         select: {
           id: true,
           sku: true,
           name: true,
           type: true,
-          costingMethod: true
-        }
-       
+          costingMethod: true,
+        },
       });
 
       const valuation = [];
@@ -601,14 +630,14 @@ async createItem(req: AuthRequest, res: Response) {
 
       for (const item of items) {
         // Get warehouses to check
-      const warehouseFilter: any = warehouseId
-  ? { id: String(warehouseId) } // force to string
-  : { isActive: true };
+        const warehouseFilter: any = warehouseId
+          ? { id: String(warehouseId) } // force to string
+          : { isActive: true };
 
-const warehouses = await prisma.warehouse.findMany({
-  where: warehouseFilter,
-  select: { id: true }
-});
+        const warehouses = await prisma.warehouse.findMany({
+          where: warehouseFilter,
+          select: { id: true },
+        });
 
         // });
 
@@ -617,9 +646,9 @@ const warehouses = await prisma.warehouse.findMany({
           const latestEntry = await prisma.inventoryLedger.findFirst({
             where: {
               itemId: item.id,
-              warehouseId: warehouse.id
+              warehouseId: warehouse.id,
             },
-            orderBy: { postedAt: 'desc' }
+            orderBy: { postedAt: "desc" },
           });
 
           if (latestEntry && Number(latestEntry.runningQty) > 0) {
@@ -631,9 +660,9 @@ const warehouses = await prisma.warehouse.findMany({
               costingMethod: item.costingMethod,
               qty: Number(latestEntry.runningQty),
               unitCost: Number(latestEntry.runningAvgCost),
-              totalValue: Number(latestEntry.runningValue)
+              totalValue: Number(latestEntry.runningValue),
             };
-            
+
             valuation.push(itemValuation);
             totalValue += itemValuation.totalValue;
           }
@@ -643,11 +672,11 @@ const warehouses = await prisma.warehouse.findMany({
       res.json({
         valuation,
         totalValue,
-        asOfDate: new Date().toISOString()
+        asOfDate: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Get inventory valuation error:', error);
-      res.status(500).json({ error: 'Failed to fetch inventory valuation' });
+      console.error("Get inventory valuation error:", error);
+      res.status(500).json({ error: "Failed to fetch inventory valuation" });
     }
   }
 
@@ -655,10 +684,13 @@ const warehouses = await prisma.warehouse.findMany({
     try {
       // Apply warehouse filtering for non-admin users
       let where: any = { isActive: true };
-      if (!req.user!.roles.includes('CFO') && !req.user!.roles.includes('General Manager')) {
+      if (
+        !req.user!.roles.includes("CFO") &&
+        !req.user!.roles.includes("General Manager")
+      ) {
         const user = await prisma.user.findUnique({
           where: { id: req.user!.id },
-          select: { warehouseId: true }
+          select: { warehouseId: true },
         });
         if (user?.warehouseId) {
           where.id = user.warehouseId;
@@ -670,15 +702,15 @@ const warehouses = await prisma.warehouse.findMany({
         select: {
           id: true,
           code: true,
-          name: true
+          name: true,
         },
-        orderBy: { name: 'asc' }
+        orderBy: { name: "asc" },
       });
 
       res.json({ warehouses });
     } catch (error) {
-      console.error('Get warehouses error:', error);
-      res.status(500).json({ error: 'Failed to fetch warehouses' });
+      console.error("Get warehouses error:", error);
+      res.status(500).json({ error: "Failed to fetch warehouses" });
     }
   }
 
@@ -690,8 +722,8 @@ const warehouses = await prisma.warehouse.findMany({
       const where: any = {};
       if (search) {
         where.OR = [
-          { code: { contains: search as string, mode: 'insensitive' } },
-          { name: { contains: search as string, mode: 'insensitive' } }
+          { code: { contains: search as string, mode: "insensitive" } },
+          { name: { contains: search as string, mode: "insensitive" } },
         ];
       }
 
@@ -702,12 +734,12 @@ const warehouses = await prisma.warehouse.findMany({
           take: Number(limit),
           include: {
             location: {
-              select: { code: true, name: true, city: true, state: true }
-            }
+              select: { code: true, name: true, city: true, state: true },
+            },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        prisma.warehouse.count({ where })
+        prisma.warehouse.count({ where }),
       ]);
 
       res.json({
@@ -716,53 +748,53 @@ const warehouses = await prisma.warehouse.findMany({
           page: Number(page),
           limit: Number(limit),
           total,
-          pages: Math.ceil(total / Number(limit))
-        }
+          pages: Math.ceil(total / Number(limit)),
+        },
       });
     } catch (error) {
-      console.error('Get warehouses list error:', error);
-      res.status(500).json({ error: 'Failed to fetch warehouses' });
+      console.error("Get warehouses list error:", error);
+      res.status(500).json({ error: "Failed to fetch warehouses" });
     }
   }
 
   async createWarehouse(req: AuthRequest, res: Response) {
     try {
       const validatedData = createWarehouseSchema.parse(req.body);
-      
+
       const warehouse = await prisma.warehouse.create({
         data: validatedData,
         include: {
           location: {
-            select: { code: true, name: true, city: true, state: true }
-          }
-        }
+            select: { code: true, name: true, city: true, state: true },
+          },
+        },
       });
 
       res.status(201).json(warehouse);
     } catch (error) {
-      console.error('Create warehouse error:', error);
-      res.status(400).json({ error: 'Failed to create warehouse' });
+      console.error("Create warehouse error:", error);
+      res.status(400).json({ error: "Failed to create warehouse" });
     }
   }
 
   async updateWarehouse(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      
+
       const warehouse = await prisma.warehouse.update({
         where: { id },
         data: req.body,
         include: {
           location: {
-            select: { code: true, name: true, city: true, state: true }
-          }
-        }
+            select: { code: true, name: true, city: true, state: true },
+          },
+        },
       });
 
       res.json(warehouse);
     } catch (error) {
-      console.error('Update warehouse error:', error);
-      res.status(400).json({ error: 'Failed to update warehouse' });
+      console.error("Update warehouse error:", error);
+      res.status(400).json({ error: "Failed to update warehouse" });
     }
   }
 
@@ -822,115 +854,219 @@ const warehouses = await prisma.warehouse.findMany({
   // }
 
   async getLocations(req: AuthRequest, res: Response) {
-  try {
-    const { page = 1, limit = 10, search } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    try {
+      const { page = 1, limit = 10, search } = req.query;
+      const skip = (Number(page) - 1) * Number(limit);
 
-    const where: any = {};
-    if (search) {
-      where.OR = [
-        { code: { contains: search as string, mode: 'insensitive' } },
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { city: { contains: search as string, mode: 'insensitive' } }
-      ];
-    }
-
-    // ✅ Apply warehouse filtering for non-admin users BEFORE queries
-    if (
-      !req.user!.roles.includes('CFO') &&
-      !req.user!.roles.includes('General Manager')
-    ) {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { warehouseId: true }
-      });
-      if (user?.warehouseId) {
-        where.warehouseId = user.warehouseId;
+      const where: any = {};
+      if (search) {
+        where.OR = [
+          { code: { contains: search as string, mode: "insensitive" } },
+          { name: { contains: search as string, mode: "insensitive" } },
+          { city: { contains: search as string, mode: "insensitive" } },
+        ];
       }
-    }
 
-    const [locations, total] = await Promise.all([
-      prisma.location.findMany({
-        where,
-        skip,
-        take: Number(limit),
-        include: {
-          _count: {
-            select: { warehouses: true }
-          }
+      // ✅ Apply warehouse filtering for non-admin users BEFORE queries
+      if (
+        !req.user!.roles.includes("CFO") &&
+        !req.user!.roles.includes("General Manager")
+      ) {
+        const user = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { warehouseId: true },
+        });
+        if (user?.warehouseId) {
+          where.warehouseId = user.warehouseId;
+        }
+      }
+
+      const [locations, total] = await Promise.all([
+        prisma.location.findMany({
+          where,
+          skip,
+          take: Number(limit),
+          include: {
+            _count: {
+              select: { warehouses: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.location.count({ where }),
+      ]);
+
+      res.json({
+        locations,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit)),
         },
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.location.count({ where })
-    ]);
-
-    res.json({
-      locations,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit))
-      }
-    });
-  } catch (error) {
-    console.error('Get locations error:', error);
-    res.status(500).json({ error: 'Failed to fetch locations' });
+      });
+    } catch (error) {
+      console.error("Get locations error:", error);
+      res.status(500).json({ error: "Failed to fetch locations" });
+    }
   }
-}
-
 
   async createLocation(req: AuthRequest, res: Response) {
     try {
       const validatedData = createLocationSchema.parse(req.body);
-      
+
       const location = await prisma.location.create({
-        data: validatedData
+        data: validatedData,
       });
 
       res.status(201).json(location);
     } catch (error) {
-      console.error('Create location error:', error);
-      res.status(400).json({ error: 'Failed to create location' });
+      console.error("Create location error:", error);
+      res.status(400).json({ error: "Failed to create location" });
     }
   }
 
   async updateLocation(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      
+
       const location = await prisma.location.update({
         where: { id },
-        data: req.body
+        data: req.body,
       });
 
       res.json(location);
     } catch (error) {
-      console.error('Update location error:', error);
-      res.status(400).json({ error: 'Failed to update location' });
+      console.error("Update location error:", error);
+      res.status(400).json({ error: "Failed to update location" });
+    }
+  }
+
+  //UOM CRUD operations
+
+  async createUOM(req: AuthRequest, res: Response) {
+    try {
+      const validatedData = createUOMSchema.parse(req.body);
+
+      const uom = await prisma.uOM.create({
+        data: {
+          ...validatedData,
+          createdBy: (validatedData as any).createdBy ?? req.user!.id,
+        },
+      });
+
+      res.status(201).json(uom);
+    } catch (error) {
+      console.error("Create UOM error:", error);
+      res.status(400).json({ error: "Failed to create UOM" });
+    }
+  }
+
+  async getUOMs(req: AuthRequest, res: Response) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = (req.query.search as string) || "";
+
+      const skip = (page - 1) * limit;
+
+      const where = search
+        ? {
+            OR: [
+              { code: { contains: search, mode: "insensitive" } },
+              { name: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {};
+
+      const [data, total] = await Promise.all([
+        prisma.uOM.findMany({
+          // where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+        }),
+        prisma.uOM.count(),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return res.status(200).json({
+        data,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+        },
+      });
+    } catch (error) {
+      console.error("Get UOM error:", error);
+      res.status(400).json({ error: "Failed to fetch UOM" });
+    }
+  }
+
+  async updateUOM(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const validatedData = updateUOMSchema.parse(req.body);
+
+      const updated = await prisma.uOM.update({
+        where: { id },
+        data: validatedData,
+      });
+
+      res.status(200).json(updated);
+    } catch (error) {
+      console.error("Update UOM error:", error);
+      res.status(400).json({ error: "Failed to update UOM" });
+    }
+  }
+
+  async deleteUOM(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await prisma.uOM.delete({
+        where: { id },
+      });
+
+      res.status(200).json({ message: "UOM deleted successfully" });
+    } catch (error) {
+      console.error("Delete UOM error:", error);
+      res.status(400).json({ error: "Failed to delete UOM" });
     }
   }
 
   async getInventoryTransfers(req: AuthRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, itemId, fromWarehouseId, toWarehouseId, dateFrom, dateTo } = req.query;
+      const {
+        page = 1,
+        limit = 10,
+        itemId,
+        fromWarehouseId,
+        toWarehouseId,
+        dateFrom,
+        dateTo,
+      } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
-      const where: any = { refType: 'TRANSFER' };
+      const where: any = { refType: "TRANSFER" };
       if (itemId) where.itemId = itemId;
       if (fromWarehouseId || toWarehouseId) {
         // For warehouse filtering, we need to check both directions
         if (fromWarehouseId && toWarehouseId) {
           where.OR = [
-            { warehouseId: fromWarehouseId, direction: 'OUT' },
-            { warehouseId: toWarehouseId, direction: 'IN' }
+            { warehouseId: fromWarehouseId, direction: "OUT" },
+            { warehouseId: toWarehouseId, direction: "IN" },
           ];
         } else if (fromWarehouseId) {
           where.warehouseId = fromWarehouseId;
-          where.direction = 'OUT';
+          where.direction = "OUT";
         } else if (toWarehouseId) {
           where.warehouseId = toWarehouseId;
-          where.direction = 'IN';
+          where.direction = "IN";
         }
       }
       if (dateFrom || dateTo) {
@@ -944,21 +1080,21 @@ const warehouses = await prisma.warehouse.findMany({
         where,
         include: {
           item: {
-            select: { sku: true, name: true, uom: true }
+            select: { sku: true, name: true, uom: true },
           },
           warehouse: {
-            select: { code: true, name: true }
+            select: { code: true, name: true },
           },
           user: {
-            select: { name: true }
-          }
+            select: { name: true },
+          },
         },
-        orderBy: { postedAt: 'desc' }
+        orderBy: { postedAt: "desc" },
       });
 
       // Group by refId to create complete transfer records
       const transferMap = new Map();
-      allTransferEntries.forEach(entry => {
+      allTransferEntries.forEach((entry) => {
         if (!transferMap.has(entry.refId)) {
           transferMap.set(entry.refId, {
             id: entry.refId,
@@ -967,12 +1103,12 @@ const warehouses = await prisma.warehouse.findMany({
             qty: Math.abs(Number(entry.qty)),
             fromWarehouse: null,
             toWarehouse: null,
-            user: entry.user
+            user: entry.user,
           });
         }
-        
+
         const transfer = transferMap.get(entry.refId);
-        if (entry.direction === 'OUT') {
+        if (entry.direction === "OUT") {
           transfer.fromWarehouse = entry.warehouse;
         } else {
           transfer.toWarehouse = entry.warehouse;
@@ -981,13 +1117,18 @@ const warehouses = await prisma.warehouse.findMany({
 
       // Filter complete transfers and apply pagination
       const completeTransfers = Array.from(transferMap.values())
-        .filter(t => t.fromWarehouse && t.toWarehouse)
-        .sort((a, b) => new Date(b.transferDate).getTime() - new Date(a.transferDate).getTime());
+        .filter((t) => t.fromWarehouse && t.toWarehouse)
+        .sort(
+          (a, b) =>
+            new Date(b.transferDate).getTime() -
+            new Date(a.transferDate).getTime()
+        );
 
       const total = completeTransfers.length;
-      const paginatedTransfers = completeTransfers.slice(skip, skip + Number(limit));
-
-
+      const paginatedTransfers = completeTransfers.slice(
+        skip,
+        skip + Number(limit)
+      );
 
       res.json({
         transfers: paginatedTransfers,
@@ -995,12 +1136,80 @@ const warehouses = await prisma.warehouse.findMany({
           page: Number(page),
           limit: Number(limit),
           total,
-          pages: Math.ceil(total / Number(limit))
-        }
+          pages: Math.ceil(total / Number(limit)),
+        },
       });
     } catch (error) {
-      console.error('Get inventory transfers error:', error);
-      res.status(500).json({ error: 'Failed to fetch inventory transfers' });
+      console.error("Get inventory transfers error:", error);
+      res.status(500).json({ error: "Failed to fetch inventory transfers" });
+    }
+  }
+
+  async printInventoryTransfer(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params; // refId of the transfer
+
+      // Fetch all ledger entries for this transfer
+      const entries = await prisma.inventoryLedger.findMany({
+        where: {
+          refId: id,
+          refType: "TRANSFER",
+        },
+        include: {
+          item: {
+            select: { sku: true, name: true, uom: true },
+          },
+          warehouse: {
+            select: { code: true, name: true },
+          },
+          user: {
+            select: { name: true },
+          },
+        },
+        orderBy: { postedAt: "asc" },
+      });
+
+      if (!entries || entries.length === 0) {
+        return res.status(404).json({ error: "Transfer not found" });
+      }
+
+      // Separate into OUT and IN
+      const outEntry = entries.find((e) => e.direction === "OUT");
+      const inEntry = entries.find((e) => e.direction === "IN");
+
+      if (!outEntry || !inEntry) {
+        return res.status(400).json({ error: "Transfer record is incomplete" });
+      }
+
+      const transfer = {
+        id,
+        transferDate: outEntry.postedAt.toISOString(),
+        item: outEntry.item,
+        qty: Math.abs(Number(outEntry.qty)),
+        fromWarehouse: outEntry.warehouse,
+        toWarehouse: inEntry.warehouse,
+        user: outEntry.user,
+      };
+
+      // Format the print data
+      res.json({
+        transfer,
+        printData: {
+          title: "INVENTORY TRANSFER NOTE",
+          documentNo: id,
+          date: transfer.transferDate,
+          item: transfer.item,
+          quantity: transfer.qty,
+          fromWarehouse: transfer.fromWarehouse,
+          toWarehouse: transfer.toWarehouse,
+          postedBy: transfer.user,
+        },
+      });
+    } catch (error) {
+      console.error("Print inventory transfer error:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to generate inventory transfer print" });
     }
   }
 
@@ -1010,67 +1219,70 @@ const warehouses = await prisma.warehouse.findMany({
 
       const lastEntry = await prisma.inventoryLedger.findFirst({
         where: { itemId, warehouseId },
-        orderBy: { postedAt: 'desc' }
+        orderBy: { postedAt: "desc" },
       });
 
       const stock = {
         qty: lastEntry?.runningQty ? Number(lastEntry.runningQty) : 0,
         value: lastEntry?.runningValue ? Number(lastEntry.runningValue) : 0,
-        avgCost: lastEntry?.runningAvgCost ? Number(lastEntry.runningAvgCost) : 0
+        avgCost: lastEntry?.runningAvgCost
+          ? Number(lastEntry.runningAvgCost)
+          : 0,
       };
 
       res.json(stock);
     } catch (error) {
-      console.error('Get item stock error:', error);
-      res.status(500).json({ error: 'Failed to fetch item stock' });
+      console.error("Get item stock error:", error);
+      res.status(500).json({ error: "Failed to fetch item stock" });
     }
   }
 
-
-  
-
   async getItems(req: AuthRequest, res: Response) {
-  try {
-    const page = Number(req.query.page ?? 1);
-    const limit = Number(req.query.limit ?? 10);
-    const rawType = req.query.type;
-    const search = req.query.search ? String(req.query.search) : undefined;
-    const includeStock = String(req.query.includeStock ?? "false");
-    const skip = (page - 1) * limit;
+    try {
+      const page = Number(req.query.page ?? 1);
+      const limit = Number(req.query.limit ?? 10);
+      const rawType = req.query.type;
+      const search = req.query.search ? String(req.query.search) : undefined;
+      const includeStock = String(req.query.includeStock ?? "false");
+      const skip = (page - 1) * limit;
 
-    const where: Prisma.ItemWhereInput = {};
-    const typeFilter =
-      typeof rawType === "string" && rawType.length
-        ? (rawType as ItemType)
-        : undefined;
-    if (typeFilter) where.type = typeFilter;
+      const where: Prisma.ItemWhereInput = {};
+      const typeFilter =
+        typeof rawType === "string" && rawType.length
+          ? (rawType as ItemType)
+          : undefined;
+      if (typeFilter) where.type = typeFilter;
 
-    // Warehouse filter logic
-    let warehouseFilter: string | null = null;
-    if (
-      !req.user!.roles.includes("CFO") &&
-      !req.user!.roles.includes("General Manager")
-    ) {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { warehouseId: true },
-      });
-      warehouseFilter = user?.warehouseId ?? null;
-    } else if (req.query.warehouseId) {
-      warehouseFilter = String(req.query.warehouseId);
-    }
+      // Warehouse filter logic
+      let warehouseFilter: string | null = null;
+      if (
+        !req.user!.roles.includes("CFO") &&
+        !req.user!.roles.includes("General Manager")
+      ) {
+        const user = await prisma.user.findUnique({
+          where: { id: req.user!.id },
+          select: { warehouseId: true },
+        });
+        warehouseFilter = user?.warehouseId ?? null;
+      } else if (req.query.warehouseId) {
+        warehouseFilter = String(req.query.warehouseId);
+      }
 
-    let items: any[] = [];
-    let total = 0;
+      let items: any[] = [];
+      let total = 0;
 
-    if (search) {
-      const enumParam = typeFilter;
+      if (search) {
+        const enumParam = typeFilter;
 
-      const query = Prisma.sql`
+        const query = Prisma.sql`
         SELECT i.*
         FROM "items" i
         WHERE 1=1
-        ${enumParam ? Prisma.sql`AND i."type" = ${enumParam}::"ItemType"` : Prisma.empty}
+        ${
+          enumParam
+            ? Prisma.sql`AND i."type" = ${enumParam}::"ItemType"`
+            : Prisma.empty
+        }
         AND (
           i."sku" ILIKE ${"%" + search + "%"} COLLATE "C"
           OR i."name" ILIKE ${"%" + search + "%"} COLLATE "C"
@@ -1079,108 +1291,111 @@ const warehouses = await prisma.warehouse.findMany({
         LIMIT ${limit} OFFSET ${skip};
       `;
 
-      const countQuery = Prisma.sql`
+        const countQuery = Prisma.sql`
         SELECT COUNT(*)::int AS count
         FROM "items" i
         WHERE 1=1
-        ${enumParam ? Prisma.sql`AND i."type" = ${enumParam}::"ItemType"` : Prisma.empty}
+        ${
+          enumParam
+            ? Prisma.sql`AND i."type" = ${enumParam}::"ItemType"`
+            : Prisma.empty
+        }
         AND (
           i."sku" ILIKE ${"%" + search + "%"} COLLATE "C"
           OR i."name" ILIKE ${"%" + search + "%"} COLLATE "C"
         );
       `;
 
-      items = await prisma.$queryRaw<any[]>(query);
-      const countResult = await prisma.$queryRaw<{ count: number }[]>(countQuery);
-      total = countResult[0]?.count ?? 0;
+        items = await prisma.$queryRaw<any[]>(query);
+        const countResult = await prisma.$queryRaw<{ count: number }[]>(
+          countQuery
+        );
+        total = countResult[0]?.count ?? 0;
 
-      // Fetch price lists separately (since raw SQL doesn’t include relations)
-      const itemIds = items.map((i) => i.id);
-      const priceLists = await prisma.itemPriceList.findMany({
-        where: { itemId: { in: itemIds } },
-        select: {
-          id: true,
-          itemId: true,
-          customerGroup: true,
-          price: true,
+        // Fetch price lists separately (since raw SQL doesn’t include relations)
+        const itemIds = items.map((i) => i.id);
+        const priceLists = await prisma.itemPriceList.findMany({
+          where: { itemId: { in: itemIds } },
+          select: {
+            id: true,
+            itemId: true,
+            customerGroup: true,
+            price: true,
+          },
+        });
+
+        // Merge priceList info into each item
+        items = items.map((item) => ({
+          ...item,
+          priceList: priceLists.filter((pl) => pl.itemId === item.id),
+        }));
+      } else {
+        // Prisma query with relation
+        [items, total] = await Promise.all([
+          prisma.item.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: { createdAt: "desc" },
+            include: {
+              priceList: {
+                // This pulls all prices for the item
+                select: {
+                  id: true,
+                  customerGroup: true,
+                  price: true,
+                },
+              },
+            },
+          }),
+          prisma.item.count({ where }),
+        ]);
+      }
+
+      if (includeStock === "true") {
+        items = await Promise.all(
+          items.map(async (item) => {
+            let stockQty = 0;
+
+            if (warehouseFilter) {
+              const latestEntry = await prisma.inventoryLedger.findFirst({
+                where: { itemId: item.id, warehouseId: warehouseFilter },
+                orderBy: { postedAt: "desc" },
+              });
+              stockQty = Number(latestEntry?.runningQty ?? 0);
+            } else {
+              const warehouses = await prisma.warehouse.findMany({
+                select: { id: true },
+              });
+              const balances = await Promise.all(
+                warehouses.map(async (wh) => {
+                  const latestEntry = await prisma.inventoryLedger.findFirst({
+                    where: { itemId: item.id, warehouseId: wh.id },
+                    orderBy: { postedAt: "desc" },
+                  });
+                  return Number(latestEntry?.runningQty ?? 0);
+                })
+              );
+              stockQty = balances.reduce((sum, qty) => sum + qty, 0);
+            }
+
+            return { ...item, stockQty };
+          })
+        );
+      }
+
+      res.json({
+        items,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
         },
       });
-
-      // Merge priceList info into each item
-      items = items.map((item) => ({
-        ...item,
-        priceList: priceLists.filter((pl) => pl.itemId === item.id),
-      }));
-    } else {
-      // Prisma query with relation
-      [items, total] = await Promise.all([
-        prisma.item.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: { createdAt: "desc" },
-          include: {
-          priceList: { // This pulls all prices for the item
-            select: {
-              id: true,
-              customerGroup: true,
-              price: true,
-            },
-          },
-        },
-        }),
-        prisma.item.count({ where }),
-      ]);
+    } catch (error) {
+      console.error("Get items error:", error);
+      res.status(500).json({ error: "Failed to fetch items" });
     }
-
-    if (includeStock === "true") {
-      items = await Promise.all(
-        items.map(async (item) => {
-          let stockQty = 0;
-
-          if (warehouseFilter) {
-            const latestEntry = await prisma.inventoryLedger.findFirst({
-              where: { itemId: item.id, warehouseId: warehouseFilter },
-              orderBy: { postedAt: "desc" },
-            });
-            stockQty = Number(latestEntry?.runningQty ?? 0);
-          } else {
-            const warehouses = await prisma.warehouse.findMany({
-              select: { id: true },
-            });
-            const balances = await Promise.all(
-              warehouses.map(async (wh) => {
-                const latestEntry = await prisma.inventoryLedger.findFirst({
-                  where: { itemId: item.id, warehouseId: wh.id },
-                  orderBy: { postedAt: "desc" },
-                });
-                return Number(latestEntry?.runningQty ?? 0);
-              })
-            );
-            stockQty = balances.reduce((sum, qty) => sum + qty, 0);
-          }
-
-          return { ...item, stockQty };
-        })
-      );
-    }
-
-    res.json({
-      items,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error("Get items error:", error);
-    res.status(500).json({ error: "Failed to fetch items" });
   }
-}
-
-
-
-
 }

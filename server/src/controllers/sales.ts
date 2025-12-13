@@ -1,16 +1,20 @@
-import { Request, Response } from 'express';
-import { PrismaClient,Prisma } from '@prisma/client';
-import { createCustomerSchema, createSaleSchema, deliverSaleSchema } from '../types/sales';
-import { AuthRequest } from '../middleware/auth';
-import { CostingService } from '../services/costing';
-import { GeneralLedgerService } from '../services/gl';
-import { z } from 'zod';
+import { Request, Response } from "express";
+import { PrismaClient, Prisma } from "@prisma/client";
+import {
+  createCustomerSchema,
+  createSaleSchema,
+  deliverSaleSchema,
+} from "../types/sales";
+import { AuthRequest } from "../middleware/auth";
+import { CostingService } from "../services/costing";
+import { GeneralLedgerService } from "../services/gl";
+import { z } from "zod";
 
 const prisma = new PrismaClient();
 const costingService = new CostingService();
 const glService = new GeneralLedgerService();
 const createCustomerGroupSchema = z.object({
-  name: z.string().min(1, 'Group name is required'),
+  name: z.string().min(1, "Group name is required"),
   code: z.string().optional(),
   description: z.string().optional(),
 });
@@ -32,38 +36,38 @@ export class SalesController {
           take: Number(limit),
           include: {
             customer: {
-              select: { code: true, name: true }
+              select: { code: true, name: true },
             },
             saleLines: {
               include: {
                 item: {
-                  select: { sku: true, name: true, uom: true }
-                }
-              }
-            }
+                  select: { sku: true, name: true, uom: true },
+                },
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        prisma.sale.count({ where })
+        prisma.sale.count({ where }),
       ]);
 
       // Add outstanding balances to customers
       const salesWithBalances = await Promise.all(
         sales.map(async (sale) => {
-          const balanceResult = await prisma.$queryRaw`
+          const balanceResult = (await prisma.$queryRaw`
             SELECT COALESCE(
               (SELECT SUM(s."totalAmount") FROM sales s WHERE s."customerId" = ${sale.customerId} AND s.status IN ('INVOICED', 'PAID')) -
               (SELECT SUM(sr."amountReceived") FROM sales_receipts sr WHERE sr."customerId" = ${sale.customerId}), 
               0
             ) as balance
-          ` as any[];
-          
+          `) as any[];
+
           return {
             ...sale,
             customer: {
               ...sale.customer,
-              outstandingBalance: Number(balanceResult[0]?.balance || 0)
-            }
+              outstandingBalance: Number(balanceResult[0]?.balance || 0),
+            },
           };
         })
       );
@@ -74,12 +78,12 @@ export class SalesController {
           page: Number(page),
           limit: Number(limit),
           total,
-          pages: Math.ceil(total / Number(limit))
-        }
+          pages: Math.ceil(total / Number(limit)),
+        },
       });
     } catch (error) {
-      console.error('Get sales error:', error);
-      res.status(500).json({ error: 'Failed to fetch sales' });
+      console.error("Get sales error:", error);
+      res.status(500).json({ error: "Failed to fetch sales" });
     }
   }
 
@@ -87,56 +91,55 @@ export class SalesController {
     try {
       const validatedData = createSaleSchema.parse(req.body);
 
-      const sale = await prisma.$transaction(async (tx) => {
-        // Generate order number
-        const count = await tx.sale.count();
-        const orderNo = `SO${String(count + 1).padStart(6, '0')}`;
-       // console.log(orderNo)
+      const sale = await prisma.$transaction(
+        async (tx) => {
+          // Generate order number
+          const count = await tx.sale.count();
+          const orderNo = `SO${String(count + 1).padStart(6, "0")}`;
+          // console.log(orderNo)
 
-        // Calculate total amount
-        const totalAmount = validatedData.saleLines.reduce((sum, line) => {
-          return sum + (line.qty * line.unitPrice);
-        }, 0);
+          // Calculate total amount
+          const totalAmount = validatedData.saleLines.reduce((sum, line) => {
+            return sum + line.qty * line.unitPrice;
+          }, 0);
 
-        // Create sale
-        const newSale = await tx.sale.create({
-          
-          data: {
-            orderNo,
-            customerId: validatedData.customerId,
-            orderDate: new Date(validatedData.orderDate),
-            totalAmount,
-            notes: validatedData.notes,
-            status: 'CONFIRMED'
-          }
-          
-        });
-
-        // Create sale lines
-        for (const line of validatedData.saleLines) {
-          await tx.saleLine.create({
+          // Create sale
+          const newSale = await tx.sale.create({
             data: {
-              saleId: newSale.id,
-              itemId: line.itemId,
-              qty: line.qty,
-              unitPrice: line.unitPrice,
-              lineTotal: line.qty * line.unitPrice
-            }
+              orderNo,
+              customerId: validatedData.customerId,
+              orderDate: new Date(validatedData.orderDate),
+              totalAmount,
+              notes: validatedData.notes,
+              status: "CONFIRMED",
+            },
           });
-        }
 
-        return newSale;
-      },
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-    );
+          // Create sale lines
+          for (const line of validatedData.saleLines) {
+            await tx.saleLine.create({
+              data: {
+                saleId: newSale.id,
+                itemId: line.itemId,
+                qty: line.qty,
+                unitPrice: line.unitPrice,
+                lineTotal: line.qty * line.unitPrice,
+              },
+            });
+          }
+
+          return newSale;
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
+        }
+      );
 
       res.status(201).json(sale);
     } catch (error) {
-      console.error('Create sale error:', error);
-      res.status(400).json({ error: 'Failed to create sale' });
+      console.error("Create sale error:", error);
+      res.status(400).json({ error: "Failed to create sale" });
     }
   }
 
@@ -145,62 +148,94 @@ export class SalesController {
       const { id } = req.params;
       const validatedData = deliverSaleSchema.parse(req.body);
 
-      await prisma.$transaction(async (tx) => {
-        // Update sale status
-        await tx.sale.update({
-          where: { id },
-          data: { status: 'DELIVERED' }
-        });
-
-        // Process each delivery line
-        for (const deliveryLine of validatedData.deliveryLines) {
-          const saleLine = await tx.saleLine.findUnique({
-            where: { id: deliveryLine.saleLineId },
-            include: { item: true }
+      await prisma.$transaction(
+        async (tx) => {
+          // Update sale status
+          await tx.sale.update({
+            where: { id },
+            data: { status: "DELIVERED" },
           });
 
-          if (!saleLine) {
-            throw new Error(`Sale line ${deliveryLine.saleLineId} not found`);
+          // Process each delivery line
+          for (const deliveryLine of validatedData.deliveryLines) {
+            const saleLine = await tx.saleLine.findUnique({
+              where: { id: deliveryLine.saleLineId },
+              include: { item: true },
+            });
+
+            if (!saleLine) {
+              throw new Error(`Sale line ${deliveryLine.saleLineId} not found`);
+            }
+
+            // Issue inventory using costing service
+            await costingService.issueInventory(
+              saleLine.itemId,
+              deliveryLine.warehouseId,
+              deliveryLine.qtyDelivered,
+              "SALE",
+              id,
+              req.user!.id
+            );
           }
 
-          // Issue inventory using costing service
-          await costingService.issueInventory(
-            saleLine.itemId,
-            deliveryLine.warehouseId,
-            deliveryLine.qtyDelivered,
-            'SALE',
-            id,
-            req.user!.id
-          );
+          // Post to general ledger
+          const sale = await tx.sale.findUnique({
+            where: { id },
+            include: { saleLines: { include: { item: true } } },
+          });
+
+          if (sale) {
+            const totalCogs = await calculateCogs(
+              sale.saleLines,
+              validatedData.deliveryLines
+            );
+            const itemType = await getItemTypeById(sale.saleLines[0].itemId);
+            await glService.postJournal(
+              [
+                {
+                  accountCode: "1200",
+                  debit: Number(sale.totalAmount),
+                  credit: 0,
+                  refType: "SALE",
+                  refId: id,
+                },
+                {
+                  accountCode: "4000",
+                  debit: 0,
+                  credit: Number(sale.totalAmount),
+                  refType: "SALE",
+                  refId: id,
+                },
+                {
+                  accountCode: "5000",
+                  debit: totalCogs,
+                  credit: 0,
+                  refType: "SALE",
+                  refId: id,
+                },
+                {
+                  accountCode: itemType === "FINISHED_GOODS" ? "1350" : "1300",
+                  debit: 0,
+                  credit: totalCogs,
+                  refType: "SALE",
+                  refId: id,
+                },
+              ],
+              `Sale delivery: ${sale.orderNo}`,
+              req.user!.id
+            );
+          }
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
         }
+      );
 
-        // Post to general ledger
-        const sale = await tx.sale.findUnique({
-          where: { id },
-          include: { saleLines: { include: { item: true } } }
-        });
-
-        if (sale) {
-          const totalCogs = await calculateCogs(sale.saleLines, validatedData.deliveryLines);
-          const itemType = await getItemTypeById(sale.saleLines[0].itemId,)
-          await glService.postJournal([
-            { accountCode: '1200', debit: Number(sale.totalAmount), credit: 0, refType: 'SALE', refId: id },
-            { accountCode: '4000', debit: 0, credit: Number(sale.totalAmount), refType: 'SALE', refId: id },
-            { accountCode: '5000', debit: totalCogs, credit: 0, refType: 'SALE', refId: id },
-            { accountCode: itemType === 'FINISHED_GOODS'?'1350':'1300', debit: 0, credit: totalCogs, refType: 'SALE', refId: id }
-          ], `Sale delivery: ${sale.orderNo}`, req.user!.id);
-        }
-      },
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-    );
-
-      res.json({ message: 'Sale delivered successfully' });
+      res.json({ message: "Sale delivered successfully" });
     } catch (error) {
-      console.error('Deliver sale error:', error);
-      res.status(400).json({ error: 'Failed to deliver sale' });
+      console.error("Deliver sale error:", error);
+      res.status(400).json({ error: "Failed to deliver sale" });
     }
   }
 
@@ -210,13 +245,13 @@ export class SalesController {
 
       await prisma.sale.update({
         where: { id },
-        data: { status: 'INVOICED' }
+        data: { status: "INVOICED" },
       });
 
-      res.json({ message: 'Sale invoiced successfully' });
+      res.json({ message: "Sale invoiced successfully" });
     } catch (error) {
-      console.error('Invoice sale error:', error);
-      res.status(400).json({ error: 'Failed to invoice sale' });
+      console.error("Invoice sale error:", error);
+      res.status(400).json({ error: "Failed to invoice sale" });
     }
   }
 
@@ -228,9 +263,9 @@ export class SalesController {
       const where: any = {};
       if (search) {
         where.OR = [
-          { name: { contains: search as string, mode: 'insensitive' } },
-          { code: { contains: search as string, mode: 'insensitive' } },
-          { email: { contains: search as string, mode: 'insensitive' } }
+          { name: { contains: search as string, mode: "insensitive" } },
+          { code: { contains: search as string, mode: "insensitive" } },
+          { email: { contains: search as string, mode: "insensitive" } },
         ];
       }
 
@@ -239,28 +274,28 @@ export class SalesController {
           where,
           skip,
           take: Number(limit),
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
-      customerGroup: true, 
-    },
+            customerGroup: true,
+          },
         }),
-        prisma.customer.count({ where })
+        prisma.customer.count({ where }),
       ]);
 
       // Calculate outstanding balances for each customer
       const customersWithBalances = await Promise.all(
         customers.map(async (customer) => {
-          const balanceResult = await prisma.$queryRaw`
+          const balanceResult = (await prisma.$queryRaw`
             SELECT COALESCE(
               (SELECT SUM(s."totalAmount") FROM sales s WHERE s."customerId" = ${customer.id} AND s.status IN ('INVOICED', 'PAID')) -
               (SELECT SUM(sr."amountReceived") FROM sales_receipts sr WHERE sr."customerId" = ${customer.id}), 
               0
             ) as balance
-          ` as any[];
-          
+          `) as any[];
+
           return {
             ...customer,
-            outstandingBalance: Number(balanceResult[0]?.balance || 0)
+            outstandingBalance: Number(balanceResult[0]?.balance || 0),
           };
         })
       );
@@ -271,16 +306,16 @@ export class SalesController {
           page: Number(page),
           limit: Number(limit),
           total,
-          pages: Math.ceil(total / Number(limit))
-        }
+          pages: Math.ceil(total / Number(limit)),
+        },
       });
     } catch (error) {
-      console.error('Get customers error:', error);
-      res.status(500).json({ error: 'Failed to fetch customers' });
+      console.error("Get customers error:", error);
+      res.status(500).json({ error: "Failed to fetch customers" });
     }
   }
 
-   async createCustomerGroup(req: Request, res: Response) {
+  async createCustomerGroup(req: Request, res: Response) {
     try {
       const data = createCustomerGroupSchema.parse(req.body);
       const group = await prisma.customerGroup.create({
@@ -288,14 +323,15 @@ export class SalesController {
       });
       res.status(201).json(group);
     } catch (error) {
-      console.error('Create group error:', error);
-      res.status(400).json({ error: 'Failed to create group' });
+      console.error("Create group error:", error);
+      res.status(400).json({ error: "Failed to create group" });
     }
   }
 
   async updateCustomerGroup(req: Request, res: Response) {
     try {
       const id = req.params.id;
+      console.log("Updating group with ID:", id);
       const data = createCustomerGroupSchema.partial().parse(req.body);
       const group = await prisma.customerGroup.update({
         where: { id },
@@ -303,93 +339,89 @@ export class SalesController {
       });
       res.json(group);
     } catch (error) {
-      console.error('Update group error:', error);
-      res.status(400).json({ error: 'Failed to update group' });
+      console.error("Update group error:", error);
+      res.status(400).json({ error: "Failed to update group" });
     }
   }
 
-   async getCustomerGroups(req: Request, res: Response) {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = (req.query.search as string) || '';
+  async getCustomerGroups(req: Request, res: Response) {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const search = (req.query.search as string) || "";
 
-    let where: Prisma.CustomerGroupWhereInput = {};
+      let where: Prisma.CustomerGroupWhereInput = {};
 
-if (search) {
-  where = {
-    name: {
-      contains: search,
-      mode: Prisma.QueryMode.insensitive
+      if (search) {
+        where = {
+          name: {
+            contains: search,
+            mode: Prisma.QueryMode.insensitive,
+          },
+        };
+      }
+
+      const [groups, total] = await Promise.all([
+        prisma.customerGroup.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            _count: { select: { customers: true } },
+          },
+        }),
+        prisma.customerGroup.count({ where }),
+      ]);
+
+      const groupsWithCount = groups.map((group) => ({
+        ...group,
+        customerCount: group._count.customers,
+      }));
+
+      // const where = search
+      //   ? { name: { contains: search, mode: 'insensitive' } }
+      //   : {};
+
+      // const [groups, total] = await Promise.all([
+      //   prisma.customerGroup.findMany({
+      //     where,
+      //     skip: (page - 1) * limit,
+      //     take: limit,
+      //     orderBy: { createdAt: 'desc' },
+      //     include: {
+      //       _count: {
+      //         select: { customers: true },
+      //       },
+      //     },
+      //   }),
+      //   prisma.customerGroup.count({ where }),
+      // ]);
+
+      // const groupsWithCount = groups.map((group) => ({
+      //   ...group,
+      //   customerCount: group._count.customers,
+      // }));
+
+      res.json({
+        groups: groupsWithCount,
+        pagination: {
+          total,
+          page,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      console.error("Get customer groups error:", error);
+      res.status(500).json({ error: "Failed to load customer groups" });
     }
-  };
-}
-
-const [groups, total] = await Promise.all([
-  prisma.customerGroup.findMany({
-    where,
-    skip: (page - 1) * limit,
-    take: limit,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      _count: { select: { customers: true } }
-    }
-  }),
-  prisma.customerGroup.count({ where }),
-]);
-
-const groupsWithCount = groups.map((group) => ({
-  ...group,
-  customerCount: group._count.customers,
-}));
-
-    // const where = search
-    //   ? { name: { contains: search, mode: 'insensitive' } }
-    //   : {};
-
-    // const [groups, total] = await Promise.all([
-    //   prisma.customerGroup.findMany({
-    //     where,
-    //     skip: (page - 1) * limit,
-    //     take: limit,
-    //     orderBy: { createdAt: 'desc' },
-    //     include: {
-    //       _count: {
-    //         select: { customers: true }, 
-    //       },
-    //     },
-    //   }),
-    //   prisma.customerGroup.count({ where }),
-    // ]);
-
-    // const groupsWithCount = groups.map((group) => ({
-    //   ...group,
-    //   customerCount: group._count.customers, 
-    // }));
-
-    res.json({
-      groups: groupsWithCount,
-      pagination: {
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error('Get customer groups error:', error);
-    res.status(500).json({ error: 'Failed to load customer groups' });
   }
-}
-
-      
 
   // async createCustomer(req: AuthRequest, res: Response) {
   //   try {
 
   //     const validatedData = createCustomerSchema.parse(req.body);
-            
-               
-            
+
   //               const customer = await prisma.customer.upsert({
   //                 where: { code: validatedData.code },
   //                 update: { ...validatedData },
@@ -407,35 +439,34 @@ const groupsWithCount = groups.map((group) => ({
   // }
 
   async createCustomer(req: AuthRequest, res: Response) {
-  try {
-    const validatedData = createCustomerSchema.parse(req.body);
+    try {
+      const validatedData = createCustomerSchema.parse(req.body);
 
-    const { customerGroupId, ...rest } = validatedData;
+      const { customerGroupId, ...rest } = validatedData;
 
-    const customer = await prisma.customer.upsert({
-      where: { code: validatedData.code },
-      update: {
-        ...rest,
-        ...(customerGroupId
-          ? { customerGroup: { connect: { id: customerGroupId } } }
-          : { customerGroup: { disconnect: true } }),
-      },
-      create: {
-        ...rest,
-        ...(customerGroupId
-          ? { customerGroup: { connect: { id: customerGroupId } } }
-          : {}),
-      },
-      include: { customerGroup: true }, // Optional: return group info too
-    });
+      const customer = await prisma.customer.upsert({
+        where: { code: validatedData.code },
+        update: {
+          ...rest,
+          ...(customerGroupId
+            ? { customerGroup: { connect: { id: customerGroupId } } }
+            : { customerGroup: { disconnect: true } }),
+        },
+        create: {
+          ...rest,
+          ...(customerGroupId
+            ? { customerGroup: { connect: { id: customerGroupId } } }
+            : {}),
+        },
+        include: { customerGroup: true }, // Optional: return group info too
+      });
 
-    res.status(201).json(customer);
-  } catch (error) {
-    console.error('Create customer error:', error);
-    res.status(400).json({ error: 'Failed to create customer' });
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error("Create customer error:", error);
+      res.status(400).json({ error: "Failed to create customer" });
+    }
   }
-}
-
 
   async updateSale(req: AuthRequest, res: Response) {
     try {
@@ -445,60 +476,66 @@ const groupsWithCount = groups.map((group) => ({
       // Check if sale can be edited
       const existingSale = await prisma.sale.findUnique({
         where: { id },
-        select: { status: true }
+        select: { status: true },
       });
 
-      if (!existingSale || !['DRAFT', 'CONFIRMED'].includes(existingSale.status)) {
-        return res.status(400).json({ error: 'Cannot edit sale in current status' });
+      if (
+        !existingSale ||
+        !["DRAFT", "CONFIRMED"].includes(existingSale.status)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Cannot edit sale in current status" });
       }
 
-      const sale = await prisma.$transaction(async (tx) => {
-        // Calculate new total
-        const totalAmount = saleLines.reduce((sum: number, line: any) => {
-          return sum + (line.qty * line.unitPrice);
-        }, 0);
+      const sale = await prisma.$transaction(
+        async (tx) => {
+          // Calculate new total
+          const totalAmount = saleLines.reduce((sum: number, line: any) => {
+            return sum + line.qty * line.unitPrice;
+          }, 0);
 
-        // Update sale
-        const updatedSale = await tx.sale.update({
-          where: { id },
-          data: {
-            customerId,
-            orderDate: new Date(orderDate),
-            totalAmount,
-            notes
-          }
-        });
-
-        // Delete existing lines
-        await tx.saleLine.deleteMany({
-          where: { saleId: id }
-        });
-
-        // Create new lines
-        for (const line of saleLines) {
-          await tx.saleLine.create({
+          // Update sale
+          const updatedSale = await tx.sale.update({
+            where: { id },
             data: {
-              saleId: id,
-              itemId: line.itemId,
-              qty: line.qty,
-              unitPrice: line.unitPrice,
-              lineTotal: line.qty * line.unitPrice
-            }
+              customerId,
+              orderDate: new Date(orderDate),
+              totalAmount,
+              notes,
+            },
           });
-        }
 
-        return updatedSale;
-      },
-      {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-    );
+          // Delete existing lines
+          await tx.saleLine.deleteMany({
+            where: { saleId: id },
+          });
+
+          // Create new lines
+          for (const line of saleLines) {
+            await tx.saleLine.create({
+              data: {
+                saleId: id,
+                itemId: line.itemId,
+                qty: line.qty,
+                unitPrice: line.unitPrice,
+                lineTotal: line.qty * line.unitPrice,
+              },
+            });
+          }
+
+          return updatedSale;
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
+        }
+      );
 
       res.json(sale);
     } catch (error) {
-      console.error('Update sale error:', error);
-      res.status(400).json({ error: 'Failed to update sale' });
+      console.error("Update sale error:", error);
+      res.status(400).json({ error: "Failed to update sale" });
     }
   }
 
@@ -509,21 +546,23 @@ const groupsWithCount = groups.map((group) => ({
       // Check if sale can be deleted
       const sale = await prisma.sale.findUnique({
         where: { id },
-        select: { status: true, orderNo: true }
+        select: { status: true, orderNo: true },
       });
 
-      if (!sale || !['DRAFT', 'CONFIRMED'].includes(sale.status)) {
-        return res.status(400).json({ error: 'Cannot delete sale in current status' });
+      if (!sale || !["DRAFT", "CONFIRMED"].includes(sale.status)) {
+        return res
+          .status(400)
+          .json({ error: "Cannot delete sale in current status" });
       }
 
       await prisma.sale.delete({
-        where: { id }
+        where: { id },
       });
 
-      res.json({ message: 'Sale deleted successfully' });
+      res.json({ message: "Sale deleted successfully" });
     } catch (error) {
-      console.error('Delete sale error:', error);
-      res.status(400).json({ error: 'Failed to delete sale' });
+      console.error("Delete sale error:", error);
+      res.status(400).json({ error: "Failed to delete sale" });
     }
   }
 
@@ -537,44 +576,49 @@ const groupsWithCount = groups.map((group) => ({
           customer: true,
           saleLines: {
             include: {
-              item: true
-            }
-          }
-        }
+              item: true,
+            },
+          },
+        },
       });
 
       if (!sale) {
-        return res.status(404).json({ error: 'Sale not found' });
+        return res.status(404).json({ error: "Sale not found" });
       }
 
-      if (!['INVOICED', 'PAID'].includes(sale.status)) {
-        return res.status(400).json({ error: 'Sale must be invoiced to print' });
+      if (!["INVOICED", "PAID"].includes(sale.status)) {
+        return res
+          .status(400)
+          .json({ error: "Sale must be invoiced to print" });
       }
 
       res.json({
         sale,
         printData: {
-          title: 'SALES INVOICE',
+          title: "SALES INVOICE",
           documentNo: sale.orderNo,
           date: sale.orderDate,
           customer: sale.customer,
           lines: sale.saleLines,
-          total: sale.totalAmount
-        }
+          total: sale.totalAmount,
+        },
       });
     } catch (error) {
-      console.error('Print sale invoice error:', error);
-      res.status(500).json({ error: 'Failed to generate invoice' });
+      console.error("Print sale invoice error:", error);
+      res.status(500).json({ error: "Failed to generate invoice" });
     }
   }
 }
 
 // Helper function for COGS calculation
-async function calculateCogs(saleLines: any[], deliveryLines: any[]): Promise<number> {
+async function calculateCogs(
+  saleLines: any[],
+  deliveryLines: any[]
+): Promise<number> {
   let totalCogs = 0;
 
   for (const deliveryLine of deliveryLines) {
-    const saleLine = saleLines.find(sl => sl.id === deliveryLine.saleLineId);
+    const saleLine = saleLines.find((sl) => sl.id === deliveryLine.saleLineId);
     if (saleLine) {
       // Get current inventory value for COGS calculation
       const inventoryValue = await costingService.getInventoryValue(

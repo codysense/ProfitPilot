@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useMemos } from '../../hooks/useMemo';
-import CreateAdjustmentModal from './createAdjustmentModal';
-import { adjustmentApi } from '../../lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from "react";
+import { useMemos } from "../../hooks/useMemo";
+import CreateAdjustmentModal from "./createAdjustmentModal";
+import { adjustmentApi } from "../../lib/api";
+import { useQuery } from "@tanstack/react-query";
 // import { format } from 'date-fns';
 
 export const Adjustments = () => {
@@ -10,31 +10,30 @@ export const Adjustments = () => {
   const [query, setQuery] = useState<any>({
     page: 1,
     pageSize: 20,
-    type: '',
-    customerId: '',
-    vendorId: '',
-    status: '',
-    date: '',
+    type: "",
+    customerId: "",
+    vendorId: "",
+    status: "",
+    date: "",
   });
 
   const { data, isLoading, refetch } = useMemos(query);
 
-//   const adjustments = data ?? [];
+  //   const adjustments = data ?? [];
   const pagination = data?.pagination ?? {
     total: 0,
     page: 1,
     pageSize: 10,
     totalPages: 1,
   };
-//  console.log(data)
+  //  console.log(data)
 
-const { data: adjustments } = useQuery<{ data: any[] }>({
-    queryKey: ['adjustments'],
-    queryFn: () => adjustmentApi.getStockAdjustment()
+  const { data: adjustments } = useQuery<{ data: any[] }>({
+    queryKey: ["adjustments"],
+    queryFn: () => adjustmentApi.getStockAdjustment(),
   });
-  console.log(adjustments)
+  console.log(adjustments);
 
- 
   return (
     <div>
       {/* Filters */}
@@ -58,7 +57,6 @@ const { data: adjustments } = useQuery<{ data: any[] }>({
   <option value="CUSTOMER">Customer</option>
   <option value="VENDOR">Vendor</option>
 </select> */}
-
 
         <input
           type="date"
@@ -96,29 +94,37 @@ const { data: adjustments } = useQuery<{ data: any[] }>({
                 Loading...
               </td>
             </tr>
-          ) : (             
-adjustments.data?.map((adjustment: any) => (
-    
-    <tr key={adjustment.id} className="hover:bg-gray-50">
-      <td className="px-3 py-2 border text-gray-500">
-        {adjustment.date?new Date(adjustment.date).toISOString().split("T")[0]:'-'}
-      </td>
-      <td className="px-3 py-2 border text-gray-500">{adjustment.itemName}</td>
-      <td className="px-3 py-2 border   text-gray-500">{adjustment.adjustmentType}</td>
-      <td className="px-3 py-2 border text-gray-500">{adjustment.quantity || "-"}</td>
-      <td className="px-3 py-2 border text-gray-500">{adjustment.warehouse || "-"}</td>
-      {/* <td className="px-3 py-2 border text-gray-500">{Number(adjustme).toLocaleString()}</td> */}
-      <td className="px-3 py-2 border text-gray-500">{adjustment.createdBy}</td>
-      {/* <td className="px-3 py-2 border text-gray-500">{memo.user.name}</td> */}
-    </tr>
-  ))
-        
-
-
+          ) : (
+            adjustments?.data?.map((adjustment: any) => (
+              <tr key={adjustment.id} className="hover:bg-gray-50">
+                <td className="px-3 py-2 border text-gray-500">
+                  {adjustment.date
+                    ? new Date(adjustment.date).toISOString().split("T")[0]
+                    : "-"}
+                </td>
+                <td className="px-3 py-2 border text-gray-500">
+                  {adjustment.itemName}
+                </td>
+                <td className="px-3 py-2 border   text-gray-500">
+                  {adjustment.adjustmentType}
+                </td>
+                <td className="px-3 py-2 border text-gray-500">
+                  {adjustment.quantity || "-"}
+                </td>
+                <td className="px-3 py-2 border text-gray-500">
+                  {adjustment.warehouse || "-"}
+                </td>
+                {/* <td className="px-3 py-2 border text-gray-500">{Number(adjustme).toLocaleString()}</td> */}
+                <td className="px-3 py-2 border text-gray-500">
+                  {adjustment.createdBy}
+                </td>
+                {/* <td className="px-3 py-2 border text-gray-500">{memo.user.name}</td> */}
+              </tr>
+            ))
           )}
         </tbody>
       </table>
-          {/* Pagination */}
+      {/* Pagination */}
       <div className="flex justify-between items-center mt-4">
         <button
           disabled={query.page <= 1}
@@ -128,7 +134,8 @@ adjustments.data?.map((adjustment: any) => (
           Previous
         </button>
         <span className="text-sm text-gray-600">
-          Page {pagination.page} of {pagination.totalPages} (Total {pagination.total})
+          Page {pagination.page} of {pagination.totalPages} (Total{" "}
+          {pagination.total})
         </span>
         <button
           disabled={query.page >= pagination.totalPages}

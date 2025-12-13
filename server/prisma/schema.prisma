@@ -246,6 +246,17 @@ model Item {
   @@map("items")
 }
 
+model UOM{
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("uoms")
+}
+
 model ItemPriceList {
   id            String  @id @default(cuid())
   itemId        String
