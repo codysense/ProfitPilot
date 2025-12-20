@@ -35,4 +35,7 @@ router.get('/production-report', requireRole([ 'Production Manger']), reportsCon
 router.get('/material-usage', requireRole(['Inventory Manager','Assistant Inventory Manager', 'Production Manger']), reportsController.getMaterialUsage);
 
 
+//metabase
+router.get('/metabase/dashboard', reportsController.getDashboardEmbed);
+
 export default router;

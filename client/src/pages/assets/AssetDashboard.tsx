@@ -32,6 +32,7 @@ const AssetDashboard = () => {
     setShowDepreciationModal(false);
     // Refetch data
   };
+   
 
   // Group assets by category for summary
   const assetsByCategory = registerData?.register?.reduce((acc: any, asset: any) => {
@@ -180,15 +181,15 @@ const AssetDashboard = () => {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Cost:</span>
-                    <span className="font-medium">₦{data.totalCost.toLocaleString()}</span>
+                    <span className="font-medium">₦{Number(data.totalCost).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Depreciation:</span>
-                    <span className="font-medium text-red-600">₦{data.totalDepreciation.toLocaleString()}</span>
+                    <span className="font-medium text-red-600">₦{Number(data.totalDepreciation).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-t pt-1">
                     <span className="text-gray-600">Net Book Value:</span>
-                    <span className="font-medium text-green-600">₦{data.netBookValue.toLocaleString()}</span>
+                    <span className="font-medium text-green-600">₦{Number(data.netBookValue).toLocaleString()}</span>
                   </div>
                 </div>
               </div>

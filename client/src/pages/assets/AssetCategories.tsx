@@ -1,73 +1,79 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Building, Settings } from 'lucide-react';
-import { assetsApi, managementApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { AssetCategory } from '../../types/api';
-import CreateAssetCategoryModal from './CreateAssetCategoryModal';
-import { useAuthStore } from '../../store/authStore';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Building, Settings } from "lucide-react";
+import { assetsApi, managementApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { AssetCategory } from "../../types/api";
+import CreateAssetCategoryModal from "./CreateAssetCategoryModal";
+import { useAuthStore } from "../../store/authStore";
 
 const AssetCategories = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuthStore();
 
-  const canManageCategories = user?.roles.includes('General Manager');
+  const canManageCategories = user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['asset-categories'],
-    queryFn: () => assetsApi.getAssetCategories()
+    queryKey: ["asset-categories"],
+    queryFn: () => assetsApi.getAssetCategories(),
   });
+
 
   const columns = [
     {
-      key: 'code',
-      header: 'Code',
-      width: 'w-24'
+      key: "code",
+      header: "Code",
+      width: "w-24",
     },
     {
-      key: 'name',
-      header: 'Category Name',
-      width: 'w-48'
+      key: "name",
+      header: "Category Name",
+      width: "w-48",
     },
     {
-      key: 'description',
-      header: 'Description',
-      cell: (category: AssetCategory) => category.description || '-',
-      width: 'w-64'
+      key: "description",
+      header: "Description",
+      cell: (category: AssetCategory) => category.description || "-",
+      width: "w-64",
     },
     {
-      key: 'depreciationMethod',
-      header: 'Depreciation Method',
+      key: "depreciationMethod",
+      header: "Depreciation Method",
       cell: (category: AssetCategory) => (
-        <StatusBadge status={category.depreciationMethod.replace('_', ' ')} variant="info" />
+        <StatusBadge
+          status={category.depreciationMethod.replace("_", " ")}
+          variant="info"
+        />
       ),
-      width: 'w-40'
+      width: "w-40",
     },
     {
-      key: 'usefulLife',
-      header: 'Useful Life',
+      key: "usefulLife",
+      header: "Useful Life",
       cell: (category: AssetCategory) => `${category.usefulLife} years`,
-      width: 'w-24'
+      width: "w-24",
     },
     {
-      key: 'residualValue',
-      header: 'Residual Value',
+      key: "residualValue",
+      header: "Residual Value",
       cell: (category: AssetCategory) => `${category.residualValue}%`,
-      width: 'w-24'
+      width: "w-24",
     },
     {
-      key: '_count.assets',
-      header: 'Assets',
+      key: "_count.assets",
+      header: "Assets",
       cell: (category: AssetCategory) => category._count?.assets || 0,
-      width: 'w-20'
+      width: "w-20",
     },
     {
-      key: 'isActive',
-      header: 'Status',
-      cell: (category: AssetCategory) => <StatusBadge status={category.isActive ? 'Active' : 'Inactive'} />,
-      width: 'w-24'
-    }
+      key: "isActive",
+      header: "Status",
+      cell: (category: AssetCategory) => (
+        <StatusBadge status={category.isActive ? "Active" : "Inactive"} />
+      ),
+      width: "w-24",
+    },
   ];
 
   const handleCreateCategory = () => {
@@ -80,7 +86,9 @@ const AssetCategories = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Settings className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Denied
+          </h2>
           <p className="text-gray-600">Only CFO can manage asset categories.</p>
         </div>
       </div>
@@ -93,7 +101,9 @@ const AssetCategories = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Asset Categories</h1>
-          <p className="text-gray-600">Configure asset categories and depreciation settings</p>
+          <p className="text-gray-600">
+            Configure asset categories and depreciation settings
+          </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -138,7 +148,8 @@ const AssetCategories = () => {
                     Active Categories
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.categories?.filter((c: AssetCategory) => c.isActive).length || 0}
+                    {data?.categories?.filter((c: AssetCategory) => c.isActive)
+                      .length || 0}
                   </dd>
                 </dl>
               </div>
@@ -158,7 +169,11 @@ const AssetCategories = () => {
                     Total Assets
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.categories?.reduce((sum: number, c: AssetCategory) => sum + (c._count?.assets || 0), 0) || 0}
+                    {data?.categories?.reduce(
+                      (sum: number, c: AssetCategory) =>
+                        sum + (c._count?.assets || 0),
+                      0
+                    ) || 0}
                   </dd>
                 </dl>
               </div>

@@ -220,7 +220,7 @@ model Item {
   description          String?
   type                 ItemType
   uom                  String          @default("EA")
-  costingMethod        CostingMethod   @default(GLOBAL)
+  costingMethod        CostingMethod   @default(WEIGHTED_AVG)
   standardCost         Decimal?        @db.Decimal(15, 4)
   sellingPriceOrdinary Decimal?        @db.Decimal(15, 4)
   sellingPriceBulk     Decimal?        @db.Decimal(15, 4)

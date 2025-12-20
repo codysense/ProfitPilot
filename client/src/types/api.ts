@@ -765,8 +765,10 @@ export interface Asset {
   purchaseOrder?: {
     orderNo: string;
   };
+
   accumulatedDepreciation?: number;
   netBookValue?: number;
+  
   _count?: {
     depreciationEntries: number;
   };

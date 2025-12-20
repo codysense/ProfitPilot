@@ -23,6 +23,7 @@ export class ManagementService {
       address: company.address || '',
       phone: company.phone || '',
       email: company.email || '',
+      
     };
   }
 

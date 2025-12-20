@@ -264,12 +264,14 @@ export class CostingService {
       where: { id: itemId },
       select: { costingMethod: true }
     }).then(item => item?.costingMethod ?? CostingMethod.WEIGHTED_AVG);
+    console.log('Costing Method ', costingMethod)
 
-    if (costingMethod === CostingMethod.WEIGHTED_AVG) {
+    if (costingMethod === CostingMethod.WEIGHTED_AVG || costingMethod === 'GLOBAL') {
       const lastEntry = await prisma.inventoryLedger.findFirst({
         where: { itemId, warehouseId },
         orderBy: { postedAt: 'desc' }
       });
+      console.log('LastEntry for the inventory ', lastEntry)
 
       return {
         qty: lastEntry?.runningQty.toNumber() || 0,
@@ -288,6 +290,7 @@ export class CostingService {
         0
       );
       const avgCost = totalQty > 0 ? totalValue / totalQty : 0;
+      console.log('avgCost from Fifo', avgCost)
 
       return { qty: totalQty, value: totalValue, avgCost };
     }

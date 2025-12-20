@@ -42,13 +42,22 @@ const AssetRegister = () => {
       ...(locationFilter && { locationId: locationFilter })
     })
   });
-
+  
  
 
   const { data: categories } = useQuery({
     queryKey: ['asset-categories'],
     queryFn: () => assetsApi.getAssetCategories()
   });
+
+  const { data: registerData } = useQuery({
+      queryKey: ['asset-register-summary'],
+      queryFn: () => assetsApi.getAssetRegister()
+    });
+    console.log("Assest register ", registerData)
+
+
+  //console.log("Assets ", categories);
 
   const { data: locations } = useQuery({
     queryKey: ['locations-for-assets'],
@@ -86,13 +95,13 @@ const AssetRegister = () => {
     {
       key: 'acquisitionCost',
       header: 'Cost',
-      cell: (asset: Asset) => `₦${asset.acquisitionCost.toLocaleString()}`,
+      cell: (asset: Asset) => `₦${Number(asset.acquisitionCost).toLocaleString()}`,
       width: 'w-32'
     },
     {
       key: 'accumulatedDepreciation',
       header: 'Accumulated Depreciation',
-      cell: (asset: Asset) => `₦${(asset.accumulatedDepreciation || 0).toLocaleString()}`,
+      cell: (asset: Asset) => `₦${(Number(asset.accumulatedDepreciation) || 0).toLocaleString()}`,
       width: 'w-40'
     },
     {
@@ -100,7 +109,7 @@ const AssetRegister = () => {
       header: 'Net Book Value',
       cell: (asset: Asset) => (
         <span className="font-semibold text-blue-600">
-          ₦{(Number(asset.netBookValue).toLocaleString()|| Number(asset.acquisitionCost)).toLocaleString()}
+          ₦{(asset.netBookValue|| Number(asset.acquisitionCost)).toLocaleString()}
         </span>
       ),
       width: 'w-32'
@@ -345,7 +354,7 @@ const AssetRegister = () => {
                     Net Book Value
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{data?.assets?.reduce((sum: number, a: Asset) => sum + (Number(a.netBookValue) || Number(a.acquisitionCost)), 0).toLocaleString() || '0'}
+                    ₦{registerData?.register?.reduce((sum: number, a: Asset) => sum + (Number(a.netBookValue) || Number(a.acquisitionCost)), 0).toLocaleString() || '0'}
                   </dd>
                 </dl>
               </div>
@@ -356,10 +365,10 @@ const AssetRegister = () => {
 
       {/* Data Table */}
       <DataTable
-        data={data?.assets || []}
+        data={registerData?.register || []}
         columns={columns}
         loading={isLoading}
-        pagination={data?.pagination}
+        // pagination={data?.pagination}
         onPageChange={setPage}
         actions={actions}
       />

@@ -147,6 +147,7 @@ export class SalesController {
     try {
       const { id } = req.params;
       const validatedData = deliverSaleSchema.parse(req.body);
+    //  console.log("Delivering sale with data:", id, validatedData);
 
       await prisma.$transaction(
         async (tx) => {
@@ -185,10 +186,14 @@ export class SalesController {
           });
 
           if (sale) {
+           
             const totalCogs = await calculateCogs(
               sale.saleLines,
               validatedData.deliveryLines
             );
+
+            console.log("Total COGS:", totalCogs);
+
             const itemType = await getItemTypeById(sale.saleLines[0].itemId);
             await glService.postJournal(
               [
@@ -616,6 +621,8 @@ async function calculateCogs(
   deliveryLines: any[]
 ): Promise<number> {
   let totalCogs = 0;
+  console.log("Calculating COGS for delivery lines:", deliveryLines);
+  console.log("Against sale lines:", saleLines);
 
   for (const deliveryLine of deliveryLines) {
     const saleLine = saleLines.find((sl) => sl.id === deliveryLine.saleLineId);
@@ -625,6 +632,7 @@ async function calculateCogs(
         saleLine.itemId,
         deliveryLine.warehouseId
       );
+      console.log("Inventory value for item", saleLine.itemId, ":", inventoryValue);
       totalCogs += deliveryLine.qtyDelivered * inventoryValue.avgCost;
     }
   }

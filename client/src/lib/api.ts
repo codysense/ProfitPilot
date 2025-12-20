@@ -589,6 +589,9 @@ export const cashApi = {
 
 // Reports API
 export const reportsApi = {
+  // Metabase Dashboard
+  getDashboardEmbed: () => api.get("/reports/metabase/dashboard"),
+  
   // Financial Reports
   getBalanceSheet: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/balance-sheet?${new URLSearchParams(params).toString()}`),

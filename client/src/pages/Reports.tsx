@@ -498,23 +498,41 @@ const Reports = () => {
           break;
         case 'trial-balance':
           { const trialBalanceColumns = [
-            { key: 'accountCode', header: 'Account Code' },
-            { key: 'accountName', header: 'Account Name' },
-            { key: 'accountType', header: 'Type' },
-            { key: 'debits', header: 'Debits' },
-            { key: 'credits', header: 'Credits' },
-            { key: 'balance', header: 'Balance' }
-          ];
+    { key: 'accountCode', header: 'Account Code', width: 'w-32' },
+    { key: 'accountName', header: 'Account Name', width: 'w-48' },
+    { key: 'accountType', header: 'Type', width: 'w-32' },
+    { 
+      key: 'debits', 
+      header: 'Debits', 
+      cell: (item: any) => {
+        // All accounts: positive balance goes to debit
+        const value = item.balance >= 0 ? item.balance : 0;
+        return value > 0 ? `₦${Number(value).toLocaleString()}` : '-';
+      },
+      width: 'w-32' 
+    },
+    { 
+      key: 'credits', 
+      header: 'Credits', 
+      cell: (item: any) => {
+        // All accounts: negative balance goes to credit
+        const value = item.balance < 0 ? Math.abs(item.balance) : 0;
+        return value > 0 ? `₦${Number(value).toLocaleString()}` : '-';
+      },
+      width: 'w-32' 
+    }
+  ];
+         
           ReportExporter.exportGenericReport(reportData, trialBalanceColumns, 'Trial Balance', format);
           break; }
         case 'cashAccount-balances':
           { const cashAccountBalancesColumns = [
-            { key: 'SerialNo', header: 'Serial No' },
-            { key: 'AccountName', header: 'Account Name' },
-            { key: 'OpeningBalance', header: 'Opening Balance' },
-            { key: 'TotalInflow', header: 'Total Inflow' },
-            { key: 'TotalOutflow', header: 'Total Outflow' },
-            { key: 'ClosingBalance', header: 'Closing Balance' },
+              { key: 'SerialNo', header: 'Serial No', width: 'w-32' },
+              { key: 'AccountName', header: 'Account Name' , width: 'w-32'},
+              { key: 'OpeningBalance', header: 'Opening Balance', width: 'w-32' },
+              { key: 'TotalInflow', header: 'Total Inflow' , width: 'w-32'},
+              { key: 'TotalOutflow', header: 'Total Outflow' , width: 'w-32'},
+              { key: 'ClosingBalance', header: 'Closing Balance' , width: 'w-32'},
             // { key: 'GrandTotalInflow', header: 'Grand TotalInflow' },
             // { key: 'GrandTotalOutflow', header: 'Grand TotaOutflow' },
             // { key: 'GrandTotalClosing', header: 'Grand TotalClosing' },
@@ -1496,7 +1514,7 @@ const CashAccountBalances = ({ data }: { data: any }) => {
   );
 };
 const POSSalesReport = ({ data }: { data: any }) => {
-  console.log(data)
+  // console.log(data)
   const columns = [
   
   
