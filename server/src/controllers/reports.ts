@@ -96,6 +96,7 @@ export class ReportsController {
   async getCashFlow(req: AuthRequest, res: Response) {
     try {
       const { dateFrom, dateTo } = req.query;
+      console.log("Date From:", dateFrom, "Date To:", dateTo);
       
       if (!dateFrom || !dateTo) {
         return res.status(400).json({ error: 'Date range is required' });

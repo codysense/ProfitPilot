@@ -60,7 +60,8 @@ export class ReportsService {
 
       if (['CURRENT_ASSETS', 'NON_CURRENT_ASSETS', 'TRADE_RECEIVABLES'].includes(account.accountType)) {
         assets.push(accountData);
-        totalAssets += account.code === '1100' ? 0: balance;
+        // totalAssets += account.code === '1100' ? balance: 0;
+        totalAssets += balance;
       } else if (['CURRENT_LIABILITY', 'NON_CURRENT_LIABILITY', 'TRADE_PAYABLES'].includes(account.accountType)) {
         liabilities.push(accountData);
         totalLiabilities += balance;
@@ -114,6 +115,7 @@ export class ReportsService {
       
     )
     totalEquity += netProfit
+    // console.log("Assets", assets)
     
     return {
       asOfDate,
@@ -1017,14 +1019,14 @@ async getVendorLedger(fromDate : Date, toDate: Date, vendorId:string){
         : -transaction.amount.toNumber();
 
       // Categorize based on description or reference type
-      if (transaction.refType === 'SALES_RECEIPT' || transaction.description.toLowerCase().includes('sales')) {
+      if (transaction.refType === 'SALES_RECEIPT' || transaction.description?.toLowerCase().includes('sales')) {
         operatingActivities.push({
           description: transaction.description,
           amount,
           date: transaction.transactionDate
         });
         operatingCashFlow += amount;
-      } else if (transaction.refType === 'PURCHASE_PAYMENT' || transaction.description.toLowerCase().includes('purchase')) {
+      } else if (transaction.refType === 'PURCHASE_PAYMENT' || transaction.description?.toLowerCase().includes('purchase')) {
         operatingActivities.push({
           description: transaction.description,
           amount,
