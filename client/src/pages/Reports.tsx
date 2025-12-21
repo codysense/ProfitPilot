@@ -539,17 +539,18 @@ const Reports = () => {
           ];
           ReportExporter.exportGenericReport(reportData, cashAccountBalancesColumns, 'CashAccount Balances', format);
           break; }
-        case 'general-ledger':
-          { const glColumns = [
-            { key: 'date', header: 'Date' },
-            { key: 'journalNo', header: 'Journal No' },
-            { key: 'accountCode', header: 'Account Code' },
-            { key: 'accountName', header: 'Account Name' },
-            { key: 'memo', header: 'Description' },
-            { key: 'debit', header: 'Debit' },
-            { key: 'credit', header: 'Credit' }
-          ];
-          ReportExporter.exportGenericReport(reportData, glColumns, 'General Ledger', format);
+          case 'general-ledger':
+            { const glColumns = [
+              { key: 'date', header: 'Date' },
+              { key: 'journalNo', header: 'Journal No' },
+              { key: 'accountCode', header: 'Account Code' },
+              { key: 'accountName', header: 'Account Name' },
+              { key: 'memo', header: 'Description' },
+              { key: 'debit', header: 'Debit' },
+              { key: 'credit', header: 'Credit' }
+            ];
+            console.log("Export Data", reportData)
+          ReportExporter.exportGenericReport(reportData.lines || [], glColumns, 'General Ledger', format);
           break; }
         case 'cash-flow':
           { const cashFlowData = [
@@ -1165,7 +1166,7 @@ const BalanceSheetReport = ({ data }: { data: any }) => (
         <h3 className="text-lg font-semibold mb-4">Assets</h3>
         <div className="space-y-2">
           {Array.isArray(data?.assets) && data.assets
-   .filter((asset: any) => asset.accountName !== 'Cash and Bank')
+  //  .filter((asset: any) => asset.accountName !== 'Cash and Bank')
   .map((asset: any, index: number) => (
     <div key={index} className="flex justify-between">
       <span>{asset.accountName}</span>
@@ -1489,10 +1490,26 @@ const CashAccountBalances = ({ data }: { data: any }) => {
   
     { key: 'SerialNo', header: 'Serial No', width: 'w-32' },
     { key: 'AccountName', header: 'Account Name' , width: 'w-32'},
-    { key: 'OpeningBalance', header: 'Opening Balance', width: 'w-32' },
-    { key: 'TotalInflow', header: 'Total Inflow' , width: 'w-32'},
-    { key: 'TotalOutflow', header: 'Total Outflow' , width: 'w-32'},
-    { key: 'ClosingBalance', header: 'Closing Balance' , width: 'w-32'},
+    { key: 'OpeningBalance', header: 'Opening Balance', 
+       cell: (item: any) => {
+        return item.OpeningBalance > 0 ? `₦${Number(item.OpeningBalance).toLocaleString()}` : '-';
+      },
+      width: 'w-32' },
+    { key: 'TotalInflow', header: 'Total Inflow' ,
+      cell: (item: any) => {
+        return item.TotalInflow > 0 ? `₦${Number(item.TotalInflow).toLocaleString()}` : '-';
+      },
+      width: 'w-32'},
+    { key: 'TotalOutflow', header: 'Total Outflow' ,
+      cell: (item: any) => {
+        return item.TotalOutflow > 0 ? `₦${Number(item.TotalOutflow).toLocaleString()}` : '-';
+      },
+      width: 'w-32'},
+    { key: 'ClosingBalance', header: 'Closing Balance' ,
+      cell: (item: any) => {
+        return item.ClosingBalance > 0 ? `₦${Number(item.ClosingBalance).toLocaleString()}` : '-';
+      },
+      width: 'w-32'},
     // { key: 'GrandTotalInflow', header: 'Grand TotalInflow' , width: 'w-32'},
     // { key: 'GrandTotalOutflow', header: 'Grand TotaOutflow' , width: 'w-32'},
     // { key: 'GrandTotalClosing', header: 'Grand TotalClosing' , width: 'w-32'},
