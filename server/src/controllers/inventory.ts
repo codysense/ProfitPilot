@@ -637,7 +637,7 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
     }));
 
     const totalQty = lines.reduce((sum, l) => sum + l.qty, 0);
-    const totalValue = lines.reduce((sum, l) => sum + l.value, 0);
+    // const totalValue = lines.reduce((sum, l) => sum + l.value, 0);
 
     res.json({
       transfer: {
@@ -649,7 +649,7 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
         items: lines,
         totals: {
           totalQty,
-          totalValue,
+          // totalValue
         },
       },
       printData: {
@@ -662,7 +662,7 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
         items: lines,
         totals: {
           totalQty,
-          totalValue,
+          // totalValue,
         },
       },
     });
