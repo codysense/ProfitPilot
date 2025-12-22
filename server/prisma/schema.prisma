@@ -73,6 +73,7 @@ model User {
   // Posting relations (VendorPaymentPosting)
   postedVendorPaymentPostings VendorPaymentPosting[] @relation("VendorPaymentPostedBy")
   vendorPaymentPostingUsers   VendorPaymentPosting[] @relation("VendorPaymentPostedUser")
+  InventoryTransfer           InventoryTransfer[]
 
   @@map("users")
 }
@@ -183,6 +184,9 @@ model Warehouse {
   CashAccount      CashAccount[]
   StockAdjustment  StockAdjustment[]
 
+  outgoingTransfers InventoryTransfer[] @relation("TransferFromWarehouse")
+  incomingTransfers InventoryTransfer[] @relation("TransferToWarehouse")
+
   @@map("warehouses")
 }
 
@@ -232,21 +236,22 @@ model Item {
   priceList            ItemPriceList[]
 
   // Relations
-  boms             Bom[]
-  bomLines         BomLine[]
-  inventoryBatches InventoryBatch[]
-  inventoryLedger  InventoryLedger[]
-  productionOrders ProductionOrder[]
-  purchaseLines    PurchaseLine[]
-  saleLines        SaleLine[]
-  posSaleLines     PosSaleLine[]
-  posReturnLines   PosReturnLine[]
-  AdjustmentLines  AdjustmentLines[]
+  boms                  Bom[]
+  bomLines              BomLine[]
+  inventoryBatches      InventoryBatch[]
+  inventoryLedger       InventoryLedger[]
+  productionOrders      ProductionOrder[]
+  purchaseLines         PurchaseLine[]
+  saleLines             SaleLine[]
+  posSaleLines          PosSaleLine[]
+  posReturnLines        PosReturnLine[]
+  AdjustmentLines       AdjustmentLines[]
+  InventoryTransferItem InventoryTransferItem[]
 
   @@map("items")
 }
 
-model UOM{
+model UOM {
   id        String   @id @default(cuid())
   code      String   @unique
   name      String
@@ -346,6 +351,37 @@ model InventoryLedger {
   user      User?           @relation(fields: [userId], references: [id])
 
   @@map("inventory_ledger")
+}
+
+model InventoryTransfer {
+  id    String @id @default(cuid())
+  refId String @unique
+
+  fromWarehouseId String
+  toWarehouseId   String
+  createdById     String
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  fromWarehouse Warehouse @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
+
+  toWarehouse Warehouse @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  items InventoryTransferItem[]
+}
+
+model InventoryTransferItem {
+  id         String  @id @default(cuid())
+  transferId String
+  itemId     String
+  qty        Decimal
+  unitCost   Decimal
+
+  transfer InventoryTransfer @relation(fields: [transferId], references: [id])
+  item     Item              @relation(fields: [itemId], references: [id])
 }
 
 enum ProductionOrderStatus {

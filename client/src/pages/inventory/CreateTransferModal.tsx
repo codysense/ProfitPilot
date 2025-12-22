@@ -89,24 +89,43 @@ const CreateTransferModal = ({ onClose, onSuccess }: CreateTransferModalProps) =
     enabled: !!(selectedFromWarehouse && watchedItems.some(item => item.itemId))
   });
 
-  const onSubmit = async (data: CreateBulkTransferFormData) => {
-    try {
-      // Process each item transfer
-      for (const transferItem of data.transferItems) {
-        await inventoryApi.transferInventory({
-          itemId: transferItem.itemId,
-          fromWarehouseId: data.fromWarehouseId,
-          toWarehouseId: data.toWarehouseId,
-          qty: transferItem.qty
-        });
-      }
+  // const onSubmit = async (data: CreateBulkTransferFormData) => {
+  //   try {
+  //     // Process each item transfer
+  //     for (const transferItem of data.transferItems) {
+  //       await inventoryApi.transferInventory({
+  //         itemId: transferItem.itemId,
+  //         fromWarehouseId: data.fromWarehouseId,
+  //         toWarehouseId: data.toWarehouseId,
+  //         qty: transferItem.qty
+  //       });
+  //     }
       
-      toast.success(`Successfully transferred ${data.transferItems.length} items`);
-      onSuccess();
-    } catch (error) {
-      console.error('Create bulk transfer error:', error);
-    }
-  };
+  //     toast.success(`Successfully transferred ${data.transferItems.length} items`);
+  //     onSuccess();
+  //   } catch (error) {
+  //     console.error('Create bulk transfer error:', error);
+  //   }
+  // };
+
+  const onSubmit = async (data: CreateBulkTransferFormData) => {
+  try {
+    const response = await inventoryApi.transferInventoryBulk({
+      fromWarehouseId: data.fromWarehouseId,
+      toWarehouseId: data.toWarehouseId,
+      transferItems: data.transferItems,
+    });
+
+    toast.success("Inventory transferred successfully");
+
+    //handlePrintTransfer(response.refId); // 🔥
+    onSuccess();
+  } catch (error) {
+    console.error("Create bulk transfer error:", error);
+    toast.error("Bulk transfer failed");
+  }
+};
+
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

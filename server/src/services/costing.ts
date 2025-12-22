@@ -1,6 +1,10 @@
-
-import { PrismaClient, Prisma, CostingMethod, LedgerDirection } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import {
+  PrismaClient,
+  Prisma,
+  CostingMethod,
+  LedgerDirection,
+} from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 const prisma = new PrismaClient();
 
@@ -12,7 +16,7 @@ export class CostingService {
   ): Promise<CostingMethod> {
     const item = await tx.item.findUnique({
       where: { id: itemId },
-      select: { costingMethod: true }
+      select: { costingMethod: true },
     });
 
     if (!item) {
@@ -22,7 +26,7 @@ export class CostingService {
     if (item.costingMethod === CostingMethod.GLOBAL) {
       // Get global costing policy inside same tx
       const policy = await tx.policy.findUnique({
-        where: { key: 'global_costing_method' }
+        where: { key: "global_costing_method" },
       });
 
       return (policy?.valueJson as CostingMethod) || CostingMethod.WEIGHTED_AVG;
@@ -39,15 +43,128 @@ export class CostingService {
     refId: string,
     userId?: string
   ): Promise<{ unitCost: number; value: number; ledgerEntries: any[] }> {
-    return prisma.$transaction(async (tx) => {
-      const costingMethod = await this.getCostingMethod(tx, itemId);
+    return prisma.$transaction(
+      async (tx) => {
+        const costingMethod = await this.getCostingMethod(tx, itemId);
 
-      if (costingMethod === CostingMethod.WEIGHTED_AVG) {
-        return this.issueWeightedAverage(tx, itemId, warehouseId, qty, refType, refId, userId);
-      } else {
-        return this.issueFifo(tx, itemId, warehouseId, qty, refType, refId, userId);
-      }
-    }, { timeout: 15000 });
+        if (
+          costingMethod === CostingMethod.WEIGHTED_AVG ||
+          costingMethod === "GLOBAL"
+        ) {
+          return this.issueWeightedAverage(
+            tx,
+            itemId,
+            warehouseId,
+            qty,
+            refType,
+            refId,
+            userId
+          );
+        } else {
+          return this.issueFifo(
+            tx,
+            itemId,
+            warehouseId,
+            qty,
+            refType,
+            refId,
+            userId
+          );
+        }
+      },
+      { timeout: 15000 }
+    );
+  }
+
+  async issueInventoryForTransfer(
+    tx: Prisma.TransactionClient,
+    itemId: string,
+    warehouseId: string,
+    qty: number,
+    refType: string,
+    refId: string,
+    userId?: string
+  ): Promise<{ unitCost: number; value: number; ledgerEntries: any[] }> {
+    const costingMethod = await this.getCostingMethod(tx, itemId);
+
+    if (
+      costingMethod === CostingMethod.WEIGHTED_AVG ||
+      costingMethod === "GLOBAL"
+    ) {
+      return this.issueWeightedAverage(
+        tx,
+        itemId,
+        warehouseId,
+        qty,
+        refType,
+        refId,
+        userId
+      );
+    } else {
+      return this.issueFifo(
+        tx,
+        itemId,
+        warehouseId,
+        qty,
+        refType,
+        refId,
+        userId
+      );
+    }
+  }
+
+  async receiveInventoryForTransfer(
+    tx: Prisma.TransactionClient,
+    itemId: string,
+    warehouseId: string,
+    qty: number,
+    unitCost: number,
+    refType: string,
+    refId: string,
+    userId?: string
+  ): Promise<void> {
+    const costingMethod = await this.getCostingMethod(tx, itemId);
+
+    const lastEntry = await tx.inventoryLedger.findFirst({
+      where: { itemId, warehouseId },
+      orderBy: { postedAt: "desc" },
+    });
+
+    const currentQty = lastEntry?.runningQty || new Decimal(0);
+    const currentValue = lastEntry?.runningValue || new Decimal(0);
+
+    const newQty = currentQty.plus(qty);
+    const newValue = currentValue.plus(new Decimal(qty).mul(unitCost));
+    const newAvgCost = newQty.gt(0) ? newValue.div(newQty) : new Decimal(0);
+
+    await tx.inventoryLedger.create({
+      data: {
+        itemId,
+        warehouseId,
+        refType,
+        refId,
+        direction: LedgerDirection.IN,
+        qty: new Decimal(qty),
+        unitCost: new Decimal(unitCost),
+        value: new Decimal(qty).mul(unitCost),
+        runningQty: newQty,
+        runningValue: newValue,
+        runningAvgCost: newAvgCost,
+        userId,
+      },
+    });
+
+    if (costingMethod === CostingMethod.FIFO) {
+      await tx.inventoryBatch.create({
+        data: {
+          itemId,
+          warehouseId,
+          qtyOnHand: new Decimal(qty),
+          unitCost: new Decimal(unitCost),
+          receivedAt: new Date(),
+        },
+      });
+    }
   }
 
   async receiveInventory(
@@ -59,57 +176,59 @@ export class CostingService {
     refId: string,
     userId?: string
   ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
-      const costingMethod = await this.getCostingMethod(tx, itemId);
+    await prisma.$transaction(
+      async (tx) => {
+        const costingMethod = await this.getCostingMethod(tx, itemId);
 
-      // Get current running totals
-      const lastEntry = await tx.inventoryLedger.findFirst({
-        where: { itemId, warehouseId },
-        orderBy: { postedAt: 'desc' }
-      });
+        // Get current running totals
+        const lastEntry = await tx.inventoryLedger.findFirst({
+          where: { itemId, warehouseId },
+          orderBy: { postedAt: "desc" },
+        });
 
-      const currentQty = lastEntry?.runningQty || new Decimal(0);
-      const currentValue = lastEntry?.runningValue || new Decimal(0);
+        const currentQty = lastEntry?.runningQty || new Decimal(0);
+        const currentValue = lastEntry?.runningValue || new Decimal(0);
 
-      const newQty = currentQty.plus(qty);
-      const newValue = currentValue.plus(new Decimal(qty).mul(unitCost));
-      const newAvgCost = newQty.gt(0) ? newValue.div(newQty) : new Decimal(0);
+        const newQty = currentQty.plus(qty);
+        const newValue = currentValue.plus(new Decimal(qty).mul(unitCost));
+        const newAvgCost = newQty.gt(0) ? newValue.div(newQty) : new Decimal(0);
 
-      // Create inventory ledger entry
-      await tx.inventoryLedger.create({
-        data: {
-          itemId,
-          warehouseId,
-          refType,
-          refId,
-          direction: LedgerDirection.IN,
-          qty: new Decimal(qty),
-          unitCost: new Decimal(unitCost),
-          value: new Decimal(qty).mul(unitCost),
-          runningQty: newQty,
-          runningValue: newValue,
-          runningAvgCost: newAvgCost,
-          userId
-        }
-      });
-
-      // For FIFO, create inventory batch
-      if (costingMethod === CostingMethod.FIFO) {
-        await tx.inventoryBatch.create({
+        // Create inventory ledger entry
+        await tx.inventoryLedger.create({
           data: {
             itemId,
             warehouseId,
-            qtyOnHand: new Decimal(qty),
+            refType,
+            refId,
+            direction: LedgerDirection.IN,
+            qty: new Decimal(qty),
             unitCost: new Decimal(unitCost),
-            receivedAt: new Date()
-          }
+            value: new Decimal(qty).mul(unitCost),
+            runningQty: newQty,
+            runningValue: newValue,
+            runningAvgCost: newAvgCost,
+            userId,
+          },
         });
+
+        // For FIFO, create inventory batch
+        if (costingMethod === CostingMethod.FIFO) {
+          await tx.inventoryBatch.create({
+            data: {
+              itemId,
+              warehouseId,
+              qtyOnHand: new Decimal(qty),
+              unitCost: new Decimal(unitCost),
+              receivedAt: new Date(),
+            },
+          });
+        }
+      },
+      {
+        maxWait: 5000, // 5s wait for connection
+        timeout: 20000, // 20s max runtime
       }
-    }, 
-  {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-});
+    );
   }
 
   private async issueWeightedAverage(
@@ -124,12 +243,14 @@ export class CostingService {
     // Get current running totals
     const lastEntry = await tx.inventoryLedger.findFirst({
       where: { itemId, warehouseId },
-      orderBy: { postedAt: 'desc' }
+      orderBy: { postedAt: "desc" },
     });
 
     if (!lastEntry || lastEntry.runningQty.lt(qty)) {
       throw new Error(
-        `Insufficient stock. Available: ${lastEntry?.runningQty || 0}, Required: ${qty}`
+        `Insufficient stock. Available: ${
+          lastEntry?.runningQty || 0
+        }, Required: ${qty}`
       );
     }
 
@@ -156,14 +277,14 @@ export class CostingService {
         runningQty: newQty,
         runningValue: newValue,
         runningAvgCost: newAvgCost,
-        userId
-      }
+        userId,
+      },
     });
 
     return {
       unitCost: currentAvgCost.toNumber(),
       value: issueValue.toNumber(),
-      ledgerEntries: [ledgerEntry]
+      ledgerEntries: [ledgerEntry],
     };
   }
 
@@ -179,7 +300,7 @@ export class CostingService {
     // Get available batches ordered by received date (FIFO)
     const batches = await tx.inventoryBatch.findMany({
       where: { itemId, warehouseId, qtyOnHand: { gt: 0 } },
-      orderBy: { receivedAt: 'asc' }
+      orderBy: { receivedAt: "asc" },
     });
 
     const totalAvailable = batches.reduce(
@@ -188,7 +309,9 @@ export class CostingService {
     );
 
     if (totalAvailable.lt(qty)) {
-      throw new Error(`Insufficient stock. Available: ${totalAvailable}, Required: ${qty}`);
+      throw new Error(
+        `Insufficient stock. Available: ${totalAvailable}, Required: ${qty}`
+      );
     }
 
     let remainingQty = new Decimal(qty);
@@ -199,7 +322,7 @@ export class CostingService {
     // Get current running totals
     const lastEntry = await tx.inventoryLedger.findFirst({
       where: { itemId, warehouseId },
-      orderBy: { postedAt: 'desc' }
+      orderBy: { postedAt: "desc" },
     });
 
     let runningQty = lastEntry?.runningQty || new Decimal(0);
@@ -217,7 +340,9 @@ export class CostingService {
       runningQty = runningQty.minus(qtyToTake);
       runningValue = runningValue.minus(issueValue);
 
-      const runningAvgCost = runningQty.gt(0) ? runningValue.div(runningQty) : new Decimal(0);
+      const runningAvgCost = runningQty.gt(0)
+        ? runningValue.div(runningQty)
+        : new Decimal(0);
 
       // Create ledger entry
       const ledgerEntry = await tx.inventoryLedger.create({
@@ -234,8 +359,8 @@ export class CostingService {
           runningValue,
           runningAvgCost,
           batchId: batch.id,
-          userId
-        }
+          userId,
+        },
       });
 
       ledgerEntries.push(ledgerEntry);
@@ -243,16 +368,18 @@ export class CostingService {
       // Update batch
       await tx.inventoryBatch.update({
         where: { id: batch.id },
-        data: { qtyOnHand: batch.qtyOnHand.minus(qtyToTake) }
+        data: { qtyOnHand: batch.qtyOnHand.minus(qtyToTake) },
       });
     }
 
-    weightedUnitCost = new Decimal(qty).gt(0) ? totalValue.div(qty) : new Decimal(0);
+    weightedUnitCost = new Decimal(qty).gt(0)
+      ? totalValue.div(qty)
+      : new Decimal(0);
 
     return {
       unitCost: weightedUnitCost.toNumber(),
       value: totalValue.toNumber(),
-      ledgerEntries
+      ledgerEntries,
     };
   }
 
@@ -260,37 +387,45 @@ export class CostingService {
     itemId: string,
     warehouseId: string
   ): Promise<{ qty: number; value: number; avgCost: number }> {
-    const costingMethod = await prisma.item.findUnique({
-      where: { id: itemId },
-      select: { costingMethod: true }
-    }).then(item => item?.costingMethod ?? CostingMethod.WEIGHTED_AVG);
-    console.log('Costing Method ', costingMethod)
+    const costingMethod = await prisma.item
+      .findUnique({
+        where: { id: itemId },
+        select: { costingMethod: true },
+      })
+      .then((item) => item?.costingMethod ?? CostingMethod.WEIGHTED_AVG);
+    console.log("Costing Method ", costingMethod);
 
-    if (costingMethod === CostingMethod.WEIGHTED_AVG || costingMethod === 'GLOBAL') {
+    if (
+      costingMethod === CostingMethod.WEIGHTED_AVG ||
+      costingMethod === "GLOBAL"
+    ) {
       const lastEntry = await prisma.inventoryLedger.findFirst({
         where: { itemId, warehouseId },
-        orderBy: { postedAt: 'desc' }
+        orderBy: { postedAt: "desc" },
       });
-      console.log('LastEntry for the inventory ', lastEntry)
+      console.log("LastEntry for the inventory ", lastEntry);
 
       return {
         qty: lastEntry?.runningQty.toNumber() || 0,
         value: lastEntry?.runningValue.toNumber() || 0,
-        avgCost: lastEntry?.runningAvgCost.toNumber() || 0
+        avgCost: lastEntry?.runningAvgCost.toNumber() || 0,
       };
     } else {
       // FIFO - sum batches
       const batches = await prisma.inventoryBatch.findMany({
-        where: { itemId, warehouseId, qtyOnHand: { gt: 0 } }
+        where: { itemId, warehouseId, qtyOnHand: { gt: 0 } },
       });
 
-      const totalQty = batches.reduce((sum, b) => sum + b.qtyOnHand.toNumber(), 0);
+      const totalQty = batches.reduce(
+        (sum, b) => sum + b.qtyOnHand.toNumber(),
+        0
+      );
       const totalValue = batches.reduce(
         (sum, b) => sum + b.qtyOnHand.toNumber() * b.unitCost.toNumber(),
         0
       );
       const avgCost = totalQty > 0 ? totalValue / totalQty : 0;
-      console.log('avgCost from Fifo', avgCost)
+      console.log("avgCost from Fifo", avgCost);
 
       return { qty: totalQty, value: totalValue, avgCost };
     }

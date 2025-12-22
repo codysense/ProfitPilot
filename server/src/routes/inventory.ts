@@ -57,13 +57,15 @@ router.post(
   "/transfer",
   requireRole(["Inventory Manager"]),
   auditLogger("TRANSFER", "INVENTORY"),
-  inventoryController.transferInventory
+  inventoryController.transferInventoryBulk
 );
 router.get(
   "/inventory/transfers",
   requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
   inventoryController.getInventoryTransfers
 );
+
+
 
 // Reports
 router.get(

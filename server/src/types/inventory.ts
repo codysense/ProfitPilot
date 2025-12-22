@@ -43,12 +43,30 @@ export const inventoryAdjustmentSchema = z.object({
   reason: z.string().min(1, "Reason is required"),
 });
 
-export const inventoryTransferSchema = z.object({
-  itemId: z.string().cuid(),
-  fromWarehouseId: z.string().cuid(),
-  toWarehouseId: z.string().cuid(),
-  qty: z.number().positive(),
-});
+// export const inventoryTransferSchema = z.object({
+//   itemId: z.string().cuid(),
+//   fromWarehouseId: z.string().cuid(),
+//   toWarehouseId: z.string().cuid(),
+//   qty: z.number().positive(),
+// });
+
+export const bulkInventoryTransferSchema = z.object({
+  fromWarehouseId: z.string().min(1),
+  toWarehouseId: z.string().min(1),
+  transferItems: z.array(
+    z.object({
+      itemId: z.string().min(1),
+      qty: z.number().positive(),
+    })
+  ).min(1),
+}).refine(
+  (data) => data.fromWarehouseId !== data.toWarehouseId,
+  {
+    message: "Source and destination warehouses must be different",
+    path: ["toWarehouseId"],
+  }
+);
+
 
 export type CreateItemRequest = z.infer<typeof createItemSchema>;
 export type CreateBomRequest = z.infer<typeof createBomSchema>;
@@ -100,4 +118,4 @@ export type CreateWarehouseRequest = z.infer<typeof createWarehouseSchema>;
 export type InventoryAdjustmentRequest = z.infer<
   typeof inventoryAdjustmentSchema
 >;
-export type InventoryTransferRequest = z.infer<typeof inventoryTransferSchema>;
+export type InventoryTransferRequest = z.infer<typeof bulkInventoryTransferSchema>;

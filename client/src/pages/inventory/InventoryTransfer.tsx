@@ -1,20 +1,38 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, ArrowRight, Package, Building } from 'lucide-react';
-import { inventoryApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { useAuthStore } from '../../store/authStore';
-import CreateTransferModal from './CreateTransferModal';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Plus,
+  ArrowRight,
+  Package,
+  Building,
+  Edit,
+  Printer,
+} from "lucide-react";
+import { inventoryApi, managementApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { useAuthStore } from "../../store/authStore";
+import CreateTransferModal from "./CreateTransferModal";
+import toast from "react-hot-toast";
+import QRCode from "qrcode";
 
-interface InventoryTransfer {
+interface TransferItem {
   id: string;
-  transferDate: string;
-  qty: number;
+  qty: string;
+  unitCost: string;
   item: {
     sku: string;
     name: string;
     uom: string;
+  };
+}
+
+interface InventoryTransfer {
+  id: string;
+  refId: string;
+  createdAt: string;
+  createdBy: {
+    name: string;
   };
   fromWarehouse: {
     code: string;
@@ -24,95 +42,128 @@ interface InventoryTransfer {
     code: string;
     name: string;
   };
-  user?: {
-    name: string;
-  };
+  items: TransferItem[];
 }
+
+// const [showEditTransferModal, setShowEditTransferModal] = useState(false);
+// const [selectedTransfer, setSelectedTransfer] = useState<InventoryTransfer | null>(
+//   null
+// );
+
+
+
+const getTotalQty = (items: TransferItem[]) =>
+  items.reduce((sum, i) => sum + Number(i.qty), 0);
+
+const getItemSummary = (items: TransferItem[]) =>
+  items.map((i) => i.item.name).join(", ");
 
 const InventoryTransfer = () => {
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuthStore();
   
-  // Check if user can create transfers (CFO or GM only)
-  const canCreateTransfer = user?.roles.includes('CFO') || user?.roles.includes('General Manager');
-
+  // Check if user can create transfers (Inventory Manager or GM only)
+  const canCreateTransfer =
+  user?.roles.includes("Inventory Manager") ||
+  user?.roles.includes("Assistant Inventory Manager") ||
+  user?.roles.includes("General Manager");
+  
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['inventory-transfers', { page }],
-    queryFn: () => inventoryApi.getInventoryTransfers({ 
-      page, 
-      limit: 10,
-    })})
-
-    const { data: printInventoryTransfer } = useQuery({
-    queryKey: ['print-inventory-transfer'],
-    queryFn: () => inventoryApi.printInventoryTransfer(),
-    enabled: false, // Disable automatic query execution
-  });
+    queryKey: ["inventory-transfers", { page }],
+    queryFn: () =>
+      inventoryApi.getInventoryTransfers({
+        page,
+        limit: 10,
+      }),
+    });
     
-    console.log(data)
- 
+    const{data:companyInformations} = useQuery({
+            queryKey: ['company-info-for-transfer'],
+            queryFn:  () => managementApi.getCompanySettings()
+          });
+  //   const { data: printInventoryTransfer } = useQuery({
+  //   queryKey: ['print-inventory-transfer'],
+  //   queryFn: () => inventoryApi.printInventoryTransfer(),
+  //   enabled: false, // Disable automatic query execution
+  // });
 
-
-
-// console.log(data)
+  console.log(data);
 
   // console.log('Loading:', isLoading);
 
   const columns = [
     {
-      key: 'transferDate',
-      header: 'Date',
-      cell: (transfer: InventoryTransfer) => new Date(transfer.transferDate).toLocaleDateString(),
-      width: 'w-24'
+      key: "createdAt",
+      header: "Date",
+      cell: (t: InventoryTransfer) =>
+        new Date(t.createdAt).toLocaleDateString(),
+      width: "w-24",
     },
     {
-      key: 'item.sku',
-      header: 'Item SKU',
-      width: 'w-32'
+      key: "refId",
+      header: "Ref No",
+      width: "w-36",
     },
     {
-      key: 'item.name',
-      header: 'Item Name',
-      width: 'w-48'
+      key: "items",
+      header: "Items",
+      cell: (t: InventoryTransfer) => (
+        <span className="text-sm">{t.items.length} item(s)</span>
+      ),
+      width: "w-24",
     },
     {
-      key: 'qty',
-      header: 'Quantity',
-      cell: (transfer: InventoryTransfer) => `${transfer.qty.toLocaleString()} ${transfer.item.uom}`,
-      width: 'w-24'
+      key: "itemsSummary",
+      header: "Item Summary",
+      cell: (t: InventoryTransfer) => (
+        <span className="text-sm truncate block max-w-xs">
+          {getItemSummary(t.items)}
+        </span>
+      ),
+      width: "w-64",
     },
     {
-      key: 'fromWarehouse',
-      header: 'From Warehouse',
-      cell: (transfer: InventoryTransfer) => (
+      key: "quantity",
+      header: "Total Qty",
+      cell: (t: InventoryTransfer) => (
+        <span className="font-medium">
+          {getTotalQty(t.items).toLocaleString()}
+        </span>
+      ),
+      width: "w-24",
+    },
+    {
+      key: "fromWarehouse",
+      header: "From",
+      cell: (t: InventoryTransfer) => (
         <div className="flex items-center">
           <Building className="h-4 w-4 text-gray-400 mr-2" />
-          <span>{transfer.fromWarehouse.code} - {transfer.fromWarehouse.name}</span>
+          {t.fromWarehouse.name}
         </div>
       ),
-      width: 'w-48'
+      width: "w-32",
     },
     {
-      key: 'toWarehouse',
-      header: 'To Warehouse',
-      cell: (transfer: InventoryTransfer) => (
+      key: "toWarehouse",
+      header: "To",
+      cell: (t: InventoryTransfer) => (
         <div className="flex items-center">
           <ArrowRight className="h-4 w-4 text-blue-500 mr-2" />
           <Building className="h-4 w-4 text-gray-400 mr-2" />
-          <span>{transfer.toWarehouse.code} - {transfer.toWarehouse.name}</span>
+          {t.toWarehouse.name}
         </div>
       ),
-      width: 'w-48'
+      width: "w-32",
     },
     {
-      key: 'user',
-      header: 'Transferred By',
-      cell: (transfer: InventoryTransfer) => (
-        <span className="text-sm">{transfer.user?.name || 'System'}</span>
+      key: "createdBy",
+      header: "Posted By",
+      cell: (t: InventoryTransfer) => (
+        <span className="text-sm">{t.createdBy?.name || "System"}</span>
       ),
-      width: 'w-32'
-    }
+      width: "w-40",
+    },
   ];
 
   const handleCreateTransfer = () => {
@@ -120,12 +171,246 @@ const InventoryTransfer = () => {
     setShowCreateModal(false);
   };
 
+  const actions = (inventoryTransfer: InventoryTransfer) => (
+    <div className="flex space-x-2">
+      {/* <button
+        onClick={() => {
+          // setSelectedTransfer(inventoryTransfer);
+          // setShowEditTransferModal(true);
+        }}
+        className="text-blue-600 hover:text-blue-900"
+        title="Edit Transfer"
+      >
+        <Edit className="h-4 w-4" />
+      </button> */}
+
+      <button
+         onClick={() => handlePrintTransfer(inventoryTransfer)}
+        className="text-blue-600 hover:text-blue-900"
+        title="Print Transfer"
+      >
+        <Printer className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+ const handlePrintTransfer = async (transfer: InventoryTransfer) => {
+  try {
+    const printData = await inventoryApi.printInventoryTransfer(transfer.refId);
+
+    const company = companyInformations;
+    const note = printData.printData;
+
+    console.log("Print Data:", note);
+
+    // Generate QR Code using transfer document number
+    const qrData = await QRCode.toDataURL(`Transfer:${note.documentNo}`);
+
+    // Open print window
+    const printWindow = window.open("", "_blank", "width=900,height=1000");
+
+    if (!printWindow) {
+      toast.error("Unable to open print window");
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>${note.title} - ${note.documentNo}</title>
+
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            width: 210mm;
+            margin: auto;
+            color: #111827;
+          }
+
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+          }
+
+          h1, h2, h3 {
+            margin: 5px 0;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+          }
+
+          th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+          }
+
+          th {
+            background: #f3f4f6;
+            text-align: left;
+          }
+
+          .grid {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 25px;
+          }
+
+          .qr-section {
+            margin-top: 30px;
+            text-align: right;
+          }
+
+          .signature-section {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+          }
+
+          .signature-box {
+            width: 45%;
+          }
+
+          .signature-line {
+            border-bottom: 1px solid #000;
+            margin-top: 45px;
+          }
+
+          @media print {
+            body {
+              width: 210mm;
+              height: 297mm;
+            }
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <!-- HEADER -->
+        <div class="header">
+          <h1>${company.name}</h1>
+          <h2>${company.address}</h2>
+          <h2>${company.phone}</h2>
+
+          <h1 style="margin-top:20px;">${note.title}</h1>
+          <h2>${note.documentNo}</h2>
+        </div>
+
+        <!-- TRANSFER INFO -->
+        <div class="grid">
+          <div>
+            <h3>From Warehouse</h3>
+            <p><strong>${note.fromWarehouse.code}</strong></p>
+            <p>${note.fromWarehouse.name}</p>
+          </div>
+
+          <div>
+            <h3>To Warehouse</h3>
+            <p><strong>${note.toWarehouse.code}</strong></p>
+            <p>${note.toWarehouse.name}</p>
+          </div>
+
+          <div>
+            <h3>Transfer Details</h3>
+            <p><strong>Date:</strong> ${new Date(note.date).toLocaleDateString()}</p>
+            <p><strong>Posted By:</strong> ${note.postedBy?.name || "System"}</p>
+          </div>
+        </div>
+
+        <!-- ITEMS TABLE -->
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th style="text-align:right;">Qty</th>
+            
+            </tr>
+          </thead>
+
+          <tbody>
+            ${note.items
+              .map(
+                (line: any) => `
+              <tr>
+                <td>
+                  <strong>${line.sku}</strong><br/>
+                  ${line.name}
+                </td>
+                <td style="text-align:right;">
+                  ${Number(line.qty).toLocaleString()} ${line.uom}
+                </td>
+               
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+
+          <tfoot>
+            <tr style="background-color:#f3f4f6;">
+              <td style="text-align:right; font-weight:bold;">Totals</td>
+              <td style="text-align:right; font-weight:bold;">
+                ${note.totals.totalQty.toLocaleString()}
+              </td>
+              
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- QR CODE -->
+        <div class="qr-section">
+          <img src="${qrData}" width="120"/>
+          <p style="font-size:12px; color:#6b7280;">Scan for verification</p>
+        </div>
+
+        <!-- SIGNATURES -->
+        <div class="signature-section">
+          <div class="signature-box">
+            <strong>Issued By</strong>
+            <div class="signature-line"></div>
+          </div>
+
+          <div class="signature-box">
+            <strong>Received By</strong>
+            <div class="signature-line"></div>
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <p style="text-align:center; color:#6b7280; margin-top:40px; font-size:12px;">
+          Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
+        </p>
+
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+  } catch (error) {
+    console.error("Print transfer error:", error);
+    toast.error("Failed to print inventory transfer");
+  }
+};
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Transfers</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Inventory Transfers
+          </h1>
           <p className="text-gray-600">Transfer items between warehouses</p>
         </div>
         <button
@@ -171,8 +456,10 @@ const InventoryTransfer = () => {
                     Today's Transfers
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.transfers?.filter((t: InventoryTransfer) => 
-                      new Date(t.transferDate).toDateString() === new Date().toDateString()
+                    {data?.transfers?.filter(
+                      (t: InventoryTransfer) =>
+                        new Date(t.createdAt).toDateString() ===
+                        new Date().toDateString()
                     ).length || 0}
                   </dd>
                 </dl>
@@ -193,7 +480,13 @@ const InventoryTransfer = () => {
                     Total Items Moved
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.transfers?.reduce((sum: number, t: InventoryTransfer) => sum + t.qty, 0).toLocaleString() || '0'}
+                    {data?.transfers
+                      ?.reduce(
+                        (sum: number, t: InventoryTransfer) =>
+                          sum + getTotalQty(t.items),
+                        0
+                      )
+                      .toLocaleString() || "0"}
                   </dd>
                 </dl>
               </div>
@@ -209,6 +502,7 @@ const InventoryTransfer = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        actions={actions}
       />
 
       {/* Create Modal */}
@@ -223,14 +517,21 @@ const InventoryTransfer = () => {
       {showCreateModal && !canCreateTransfer && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowCreateModal(false)} />
-            
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setShowCreateModal(false)}
+            />
+
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="text-center">
                   <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
-                  <p className="text-gray-600 mb-4">Only CFO and General Manager can create inventory transfers.</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Access Restricted
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Only CFO and General Manager can create inventory transfers.
+                  </p>
                   <button
                     onClick={() => setShowCreateModal(false)}
                     className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"

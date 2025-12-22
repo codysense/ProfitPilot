@@ -194,7 +194,7 @@ export const inventoryApi = {
     ),
   createBom: (data: any) => api.post("/inventory/boms", data),
   adjustInventory: (data: any) => api.post("/inventory/adjust", data),
-  transferInventory: (data: any) => api.post("/inventory/transfer", data),
+  transferInventoryBulk: (data: any) => api.post("/inventory/transfer", data),
   getInventoryLedger: (params?: {
     itemId?: string;
     warehouseId?: string;

@@ -116,28 +116,44 @@ const PosTerminal = ({
       if (!selectedItem) return;
 
       // Default price
-      let unitPrice = selectedItem.sellingPriceWIC ?? 0;
+      // let unitPrice =  0;
 
-      if (customer?.customerGroupName) {
-        switch (customer.customerGroupName) {
-          case "Bulk":
-            unitPrice = selectedItem.sellingPriceBulk ?? unitPrice;
-            break;
+      // if (customer?.customerGroupName) {
+      //   switch (customer.customerGroupName) {
+      //     case "Bulk":
+      //       unitPrice = selectedItem.sellingPriceBulk ?? unitPrice;
+      //       break;
 
-          case "Retail":
-            unitPrice = selectedItem.sellingPriceOrdinary ?? unitPrice;
-            break;
+      //     case "Retail":
+      //       unitPrice = selectedItem.sellingPriceOrdinary ?? unitPrice;
+      //       break;
 
-          default:
-            unitPrice = selectedItem.sellingPriceWIC ?? unitPrice;
-        }
-      }
+      //     default:
+      //       unitPrice = selectedItem.sellingPriceWIC ?? unitPrice;
+      //   }
+      // }
 
-      setValue(`saleLines.${index}.unitPrice`, unitPrice, {
-        shouldDirty: true,
-        shouldValidate: true,
-        shouldTouch: true,
-      });
+       if (selectedItem && selectedCustomer) {
+          // find the matching price for this customer's group
+          const customerGroup = selectedCustomer.customerGroupName; 
+          const groupPrice = selectedItem.priceList?.find(
+            (priceObj: any) => priceObj.customerGroup === customerGroup
+          );
+          console.log("selected customer", selectedCustomer);
+          console.log("selected item", selectedItem);
+          // fallback if no group-specific price found
+          const unitPrice = groupPrice
+            ? groupPrice.price
+            : selectedItem.defaultPrice || 0;
+
+          
+            setValue(`saleLines.${index}.unitPrice`, unitPrice, {
+              shouldDirty: true,
+              shouldValidate: true,
+              shouldTouch: true,
+            });
+          }
+
     });
   }, [
     watchedCustomerId,
