@@ -81,7 +81,7 @@ const PosTerminal = ({
   const { data: items } = useQuery({
     queryKey: ["pos-items"],
     queryFn: () =>
-      inventoryApi.getItems({ type: "FINISHED_GOODS", limit: 100 }),
+      inventoryApi.getItems({  limit: 100 }),
   });
 
   const { data: customersWithBalances } = useQuery({
