@@ -46,9 +46,9 @@ const AssetDashboard = () => {
       };
     }
     acc[categoryName].count++;
-    acc[categoryName].totalCost += asset.acquisitionCost;
-    acc[categoryName].totalDepreciation += asset.accumulatedDepreciation || 0;
-    acc[categoryName].netBookValue += asset.netBookValue || asset.acquisitionCost;
+    acc[categoryName].totalCost += Number(asset.acquisitionCost) || 0;
+    acc[categoryName].totalDepreciation += Number(asset.accumulatedDepreciation) || 0;
+    acc[categoryName].netBookValue += Number(asset.netBookValue) || Number(asset.acquisitionCost) - (Number(asset.accumulatedDepreciation) || 0);
     return acc;
   }, {}) || {};
 

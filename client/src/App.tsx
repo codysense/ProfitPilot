@@ -42,6 +42,9 @@ import WipSummary from "./pages/production/WipSummary";
 // Reports
 import Reports from "./pages/Reports";
 
+//metabase
+import MetabaseDashboard from "./pages/MetabaseDashboard";
+
 // User Management
 import UserManagement from "./pages/UserManagement";
 
@@ -277,6 +280,16 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Reports />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Metabase Dashboard Route */}
+            <Route
+              path="/metabase-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <MetabaseDashboard />
                 </ProtectedRoute>
               }
             />

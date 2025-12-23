@@ -190,6 +190,17 @@ const Layout = ({ children }: LayoutProps) => {
       ],
     },
     // {
+    //   name: "Metabase Dashboard",
+    //   href: "/metabase-dashboard",
+    //   icon: FileText,
+    //   requiresRole: [ "Inventory Manager",
+    //     "Assistant Inventory Manager",
+    //     "Production Manager",
+    //     "Accountant",
+    //     "General Manager",
+    //     "Auditor",]
+    // },
+    // {
     //   name: 'Users',
     //   href: '/users',
     //   icon: Users,

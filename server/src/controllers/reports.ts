@@ -10,7 +10,7 @@ import { AuthRequest } from '../middleware/auth';
 import { ReportsService } from '../services/reports';
 import jwt from "jsonwebtoken";
 
-const METABASE_URL = "http://localhost:3001";
+const METABASE_URL = "http://localhost:3002";
 const METABASE_SECRET = process.env.METABASE_SECRET;
 
 
