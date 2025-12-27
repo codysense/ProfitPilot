@@ -96,7 +96,7 @@ const ChartOfAccounts = () => {
   const accountTypes = [
     { value: 'CURRENT_ASSETS', label: 'Current Assets', icon: TrendingUp, color: 'text-green-600', range: '1000-1199' },
     { value: 'TRADE_RECEIVABLES', label: 'Trade Receivables', icon: Users, color: 'text-blue-600', range: '1200-1299' },
-    { value: 'NON_CURRENT_ASSETS', label: 'Non-Current Assets', icon: Building, color: 'text-blue-700', range: '1500-1999' },
+    { value: 'NON_CURRENT_ASSETS', label: 'Non-Current Assets', icon: Building, color: 'text-blue-700', range: '1500-1599' },
     { value: 'CURRENT_LIABILITY', label: 'Current Liability', icon: TrendingDown, color: 'text-red-600', range: '2000-2099' },
     { value: 'TRADE_PAYABLES', label: 'Trade Payables', icon: CreditCard, color: 'text-red-700', range: '2100-2199' },
     { value: 'NON_CURRENT_LIABILITY', label: 'Non-Current Liability', icon: TrendingDown, color: 'text-red-800', range: '2500-2999' },
@@ -104,7 +104,7 @@ const ChartOfAccounts = () => {
     { value: 'INCOME', label: 'Income', icon: TrendingUp, color: 'text-green-500', range: '4000-4499' },
     { value: 'OTHER_INCOME', label: 'Other Income', icon: TrendingUp, color: 'text-green-400', range: '4500-4999' },
     { value: 'COST_OF_SALES', label: 'Cost of Sales', icon: TrendingDown, color: 'text-orange-600', range: '5000-5999' },
-    { value: 'EXPENSES', label: 'Expenses', icon: TrendingDown, color: 'text-red-500', range: '6000-8999' },
+    { value: 'EXPENSES', label: 'Expenses', icon: TrendingDown, color: 'text-red-500', range: '6000-6299' },
   ];
 
   const columns = [

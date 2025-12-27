@@ -263,7 +263,7 @@ export const inventoryApi = {
     }
   },
   getUsers: () => api.get("/auth/users?limit=100"),
-  getInventoryValuation: (params?: { warehouseId?: string }) =>
+  getInventoryValuation: (params?: { warehouseId?: string; }, p0?: { type: string; } | undefined) =>
     api.get(
       `/inventory/valuation${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
@@ -879,6 +879,9 @@ export const posApi = {
     customerId?: string;
     dateFrom?: string;
     dateTo?: string;
+    status?: string;
+    paymentMethod?: string;
+    userId?: string;
   }) =>
     api.get(
       `/pos/sales${

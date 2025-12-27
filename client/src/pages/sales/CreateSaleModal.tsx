@@ -82,8 +82,8 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
   // console.log('Customers Data', customers)
 
   const { data: items } = useQuery({
-    queryKey: ["items-for-sale"],
-    queryFn: () => inventoryApi.getItems({ limit: 100 }),
+    queryKey: ["items-ready-for-sale", "FINISHED_GOODS"],
+    queryFn: () => inventoryApi.getItems({type:'FINISHED_GOODS', limit: 100 }),
   });
   console.log("Item Data", items);
 
@@ -281,13 +281,14 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                     return (
                       <div key={field.id} className="bg-gray-50 p-4 rounded-lg">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
-                          {/* Item Select (Headless UI Combobox) */}
+                          {/* {Item  Select } */}
                           <div className="sm:col-span-2">
                             <label className="block text-sm font-medium text-gray-700">
                               Item *
                             </label>
                             <ItemSelect
-                              items={items?.items || []}
+                              // items={items?.items || []}
+                              typeFilter="FINISHED_GOODS"
                               value={watch(`saleLines.${index}.itemId`)}
                               onChange={(val) =>
                                 setValue(`saleLines.${index}.itemId`, val)

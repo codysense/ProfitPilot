@@ -43,7 +43,7 @@ export function ItemSelect({ value, onChange, error, typeFilter }: ItemSelectPro
     placeholderData: keepPreviousData, 
   });
 
-
+// console.log("ItemSelect Data:", data);
    
 
   const items: Item[] = data?.items ?? [];

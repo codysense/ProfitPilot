@@ -26,6 +26,7 @@ const { data: todaySales } = useQuery({
     posApi.getSales({
       dateFrom: `${today}T00:00:00.000Z`,
       dateTo: `${today}T23:59:59.999Z`,
+      status: 'COMPLETED',
     }),
 });
 

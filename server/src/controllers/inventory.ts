@@ -849,77 +849,74 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
     }
   }
 
-  async getInventoryValuation(req: AuthRequest, res: Response) {
-    try {
-      const { warehouseId, limit = 10 } = req.query;
+  async getInventoryValuation(req: AuthRequest, res: Response) {  
+  try {
+  const { warehouseId, limit = 10, type } = req.query;
 
-      // Get all items with their latest inventory positions
-      const items = await prisma.item.findMany({
-        where: { isActive: true },
+  const items = await prisma.item.findMany({
+    where: {
+      isActive: true,
+      ...(type && { type: type as ItemType }),
+    },
+    select: {
+      id: true,
+      sku: true,
+      name: true,
+      type: true,
+      costingMethod: true,
+    },
+  });
 
-        select: {
-          id: true,
-          sku: true,
-          name: true,
-          type: true,
-          costingMethod: true,
+  const valuation: any[] = [];
+  let totalValue = 0;
+
+  // Warehouses resolved ONCE (important)
+  const warehouses = await prisma.warehouse.findMany({
+    where: warehouseId
+      ? { id: String(warehouseId) }
+      : { isActive: true },
+    select: { id: true },
+  });
+
+  for (const item of items) {
+    for (const warehouse of warehouses) {
+      const latestEntry = await prisma.inventoryLedger.findFirst({
+        where: {
+          itemId: item.id,
+          warehouseId: warehouse.id,
         },
+        orderBy: { postedAt: "desc" },
       });
 
-      const valuation = [];
-      let totalValue = 0;
+      if (latestEntry && Number(latestEntry.runningQty) > 0) {
+        const itemValuation = {
+          itemId: item.id,
+          sku: item.sku,
+          name: item.name,
+          type: item.type,
+          costingMethod: item.costingMethod,
+          qty: Number(latestEntry.runningQty),
+          unitCost: Number(latestEntry.runningAvgCost),
+          totalValue: Number(latestEntry.runningValue),
+        };
 
-      for (const item of items) {
-        // Get warehouses to check
-        const warehouseFilter: any = warehouseId
-          ? { id: String(warehouseId) } // force to string
-          : { isActive: true };
-
-        const warehouses = await prisma.warehouse.findMany({
-          where: warehouseFilter,
-          select: { id: true },
-        });
-
-        // });
-
-        for (const warehouse of warehouses) {
-          // Get latest ledger entry for this item-warehouse combination
-          const latestEntry = await prisma.inventoryLedger.findFirst({
-            where: {
-              itemId: item.id,
-              warehouseId: warehouse.id,
-            },
-            orderBy: { postedAt: "desc" },
-          });
-
-          if (latestEntry && Number(latestEntry.runningQty) > 0) {
-            const itemValuation = {
-              itemId: item.id,
-              sku: item.sku,
-              name: item.name,
-              type: item.type,
-              costingMethod: item.costingMethod,
-              qty: Number(latestEntry.runningQty),
-              unitCost: Number(latestEntry.runningAvgCost),
-              totalValue: Number(latestEntry.runningValue),
-            };
-
-            valuation.push(itemValuation);
-            totalValue += itemValuation.totalValue;
-          }
-        }
+        valuation.push(itemValuation);
+        totalValue += itemValuation.totalValue;
       }
-
-      res.json({
-        valuation,
-        totalValue,
-        asOfDate: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Get inventory valuation error:", error);
-      res.status(500).json({ error: "Failed to fetch inventory valuation" });
     }
   }
+
+  res.json({
+    valuation,
+    totalValue,
+    asOfDate: new Date().toISOString(),
+  });
+} catch (error) {
+  console.error("Get inventory valuation error:", error);
+  res.status(500).json({ error: "Failed to fetch inventory valuation" });
+}
+}
+
 
   async getWarehouses(req: AuthRequest, res: Response) {
     try {

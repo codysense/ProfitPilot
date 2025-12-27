@@ -79,16 +79,17 @@ const PosTerminal = ({
   const watchedItemIds = watchedLines.map((line) => line.itemId);
 
   const { data: items } = useQuery({
-    queryKey: ["pos-items"],
+    queryKey: ["pos-itemss", "FINISHED_GOODS"],
     queryFn: () =>
-      inventoryApi.getItems({  limit: 100 }),
+      inventoryApi.getItems({ type:'FINISHED_GOODS', limit: 100 }),
   });
+
 
   const { data: customersWithBalances } = useQuery({
     queryKey: ["customers-with-balances"],
     queryFn: () => posApi.getCustomersWithBalances(),
   });
-  console.log("Customers with balances:", customersWithBalances);
+  // console.log("Customers with balances:", customersWithBalances);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-info-for-receipt"],
@@ -592,10 +593,12 @@ const PosTerminal = ({
                             Item *
                           </label>
                           <ItemSelect
-                            items={items?.items || []}
+                           // items={items?.items || []}
                             value={watch(`saleLines.${index}.itemId`)}
+                            typeFilter="FINISHED_GOODS"
                             onChange={(val) =>
                               setValue(`saleLines.${index}.itemId`, val)
+                              
                             }
                             error={errors.saleLines?.[index]?.itemId?.message}
                           />

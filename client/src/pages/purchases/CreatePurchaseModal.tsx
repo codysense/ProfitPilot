@@ -8,6 +8,8 @@ import { purchaseApi, inventoryApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { VendorSelect } from '../../components/VendorSelect';
 import { ItemSelect } from '../../components/ItemSelect';
+import { useState } from 'react';
+import CreateItemModal from '../inventory/CreateItemModal';
 
 const createPurchaseSchema = z.object({
   vendorId: z.string().min(1, 'Vendor is required'),
@@ -48,6 +50,8 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
     name: 'purchaseLines'
   });
 
+  const [createItemModal, setCreateItemModal] = useState(false);
+
   const watchedLines = watch('purchaseLines');
 
   const { data: vendors } = useQuery({
@@ -55,7 +59,7 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
     queryFn: () => purchaseApi.getVendors({limit: 100 })
   });
 
-  const { data: items } = useQuery({
+  const { data: items, refetch } = useQuery({
     queryKey: ['items-for-purchases'],
     queryFn: () => inventoryApi.getItems({  limit: 100 })
   });
@@ -64,6 +68,11 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
     return watchedLines.reduce((sum, line) => {
       return sum + (line.qty || 0) * (line.unitPrice || 0);
     }, 0);
+  };
+
+  const handleCreateItem = () => {
+    refetch();
+    setCreateItemModal(false);
   };
 
   const onSubmit = async (data: CreatePurchaseFormData) => {
@@ -77,6 +86,7 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
   };
 
   return (
+
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
@@ -143,8 +153,17 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
 
               {/* Purchase Lines */}
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-start space-x-8 mb-4">
+                  
                   <h4 className="text-md font-medium text-gray-900">Items</h4>
+                  <button
+                    type="button"
+                    onClick={() => setCreateItemModal(true)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Item
+                  </button>
                   <button
                     type="button"
                     
@@ -273,6 +292,14 @@ const CreatePurchaseModal = ({ onClose, onSuccess }: CreatePurchaseModalProps) =
           </div>
         </div>
       </div>
+      {/* Create Modal */}
+            {createItemModal && (
+              <CreateItemModal
+                onClose={() => setCreateItemModal(false)}
+                onSuccess={handleCreateItem}
+              />
+            )}
+      
     </div>
   );
 };

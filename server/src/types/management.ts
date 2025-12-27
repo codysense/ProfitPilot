@@ -72,7 +72,7 @@ export type UpdateRoleRequest = z.infer<typeof updateRoleSchema>;
 
 // Chart of Accounts
 export const createChartAccountSchema = z.object({
-  code: z.string().min(1, 'Account code is required'),
+  code: z.string().optional(),
   name: z.string().min(1, 'Account name is required'),
   accountType: z.enum([
     'INCOME', 

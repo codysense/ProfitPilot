@@ -792,7 +792,7 @@ export class ManagementService {
     const codeRanges = {
       'CURRENT_ASSETS': { start: 1000, end: 1199 },
       'TRADE_RECEIVABLES': { start: 1200, end: 1299 },
-      'NON_CURRENT_ASSETS': { start: 1500, end: 1999 },
+      'NON_CURRENT_ASSETS': { start: 1500, end: 1599 },
       'CURRENT_LIABILITY': { start: 2000, end: 2499 },
       'TRADE_PAYABLES': { start: 2100, end: 2199 },
       'NON_CURRENT_LIABILITY': { start: 2500, end: 2999 },
@@ -800,7 +800,7 @@ export class ManagementService {
       'INCOME': { start: 4000, end: 4499 },
       'OTHER_INCOME': { start: 4500, end: 4999 },
       'COST_OF_SALES': { start: 5000, end: 5999 },
-      'EXPENSES': { start: 6000, end: 8999 }
+      'EXPENSES': { start: 6000, end: 6299 }
     };
 
     const range = codeRanges[accountType as keyof typeof codeRanges];

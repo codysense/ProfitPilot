@@ -1356,6 +1356,12 @@ model PosSession {
   @@map("pos_sessions")
 }
 
+enum PosSaleStatus {
+  COMPLETED
+  RETURNED
+  VOIDED
+}
+
 model PosSale {
   id             String   @id @default(cuid())
   saleNo         String   @unique
@@ -1370,10 +1376,13 @@ model PosSale {
   amountPaid     Decimal  @db.Decimal(15, 2)
   changeAmount   Decimal  @default(0) @db.Decimal(15, 2)
   paymentMethod  String // CASH, CARD, TRANSFER
-  status         String   @default("COMPLETED") // COMPLETED, RETURNED
+  status         String @default("COMPLETED") // COMPLETED, RETURNED, VOIDED
   notes          String?
   userId         String
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) 
+
+
 
   // Relations
   session     PosSession    @relation(fields: [sessionId], references: [id])

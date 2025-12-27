@@ -276,6 +276,7 @@ export class PosController {
 
   async getSales(req: AuthRequest, res: Response) {
     try {
+    
       const {
         page = 1,
         limit = 20,
@@ -283,6 +284,9 @@ export class PosController {
         customerId,
         dateFrom,
         dateTo,
+        status,
+        paymentMethod,
+        userId,
       } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
@@ -304,6 +308,9 @@ export class PosController {
 
       if (sessionId) where.sessionId = sessionId;
       if (customerId) where.customerId = customerId;
+      if (status) where.status = status;
+      if (paymentMethod) where.paymentMethod = paymentMethod;
+      if (userId) where.userId = userId;
       if (dateFrom || dateTo) {
         where.createdAt = {};
         if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
@@ -324,7 +331,7 @@ export class PosController {
                 item: { select: { sku: true, name: true, uom: true } },
               },
             },
-            user: { select: { name: true } },
+            user: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: "desc" },
         }),
@@ -565,6 +572,15 @@ export class PosController {
             `POS Return: ${returnNo}`,
             req.user!.id
           );
+
+          // Mark original sale as returned
+          await tx.posSale.update({
+            where: { id: validatedData.originalSaleId },
+            data: {
+              status: "RETURNED",
+              updatedAt: new Date(),
+            },
+          });
 
           return newReturn;
         },
