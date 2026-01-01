@@ -12,6 +12,8 @@ router.use(authenticate);
 // Asset Categories (CFO and GM only)
 router.get('/categories', requireRole(['General Manager']), assetsController.getAssetCategories);
 router.post('/categories', requireRole(['General Manager']), auditLogger('CREATE', 'ASSET_CATEGORY'), assetsController.createAssetCategory);
+router.put('/categories/:id', requireRole(['General Manager']), auditLogger('UPDATE', 'ASSET_CATEGORY'), assetsController.updateAssetCategory);
+router.delete('/categories/:id', requireRole(['General Manager']), auditLogger('DELETE', 'ASSET_CATEGORY'), assetsController.deleteAssetCategory);
 
 // Assets
 router.get('/',requireRole(['General Manager']), assetsController.getAssets);

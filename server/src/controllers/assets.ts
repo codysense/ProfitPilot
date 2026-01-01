@@ -37,6 +37,29 @@ export class AssetsController {
     }
   }
 
+  async updateAssetCategory(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const validatedData = createAssetCategorySchema.parse(req.body);
+      const category = await assetsService.updateAssetCategory(id, validatedData);
+      res.json(category);
+    } catch (error) {
+      console.error('Update asset category error:', error);
+      res.status(400).json({ error: 'Failed to update asset category' });
+    }
+  }
+
+  async deleteAssetCategory(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      await assetsService.deleteAssetCategory(id);
+      res.json({ message: 'Asset category deleted successfully' });
+    } catch (error) {
+      console.error('Delete asset category error:', error);
+      res.status(400).json({ error: 'Failed to delete asset category' });
+    }
+  }
+
   // Assets
   async getAssets(req: AuthRequest, res: Response) {
     try {

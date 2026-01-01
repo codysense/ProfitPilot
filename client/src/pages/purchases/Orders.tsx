@@ -66,6 +66,12 @@ const PurchaseOrders = () => {
       width: 'w-32'
     },
     {
+      key: 'balanceAmount',
+      header: 'Balance Amount',
+      cell: (purchase: Purchase) => `₦${purchase.balanceAmount.toLocaleString()}`,
+      width: 'w-32'
+    },
+    {
       key: 'status',
       header: 'Status',
       cell: (purchase: Purchase) => <StatusBadge status={purchase.status} />,
@@ -511,6 +517,7 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
               <option value="ORDERED">Ordered</option>
               <option value="RECEIVED">Received</option>
               <option value="INVOICED">Invoiced</option>
+              <option value="PARTIALLY_PAID">Partially Paid</option>
               <option value="PAID">Paid</option>
             </select>
           </div>
@@ -518,8 +525,8 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        {['ORDERED', 'RECEIVED', 'INVOICED', 'PAID'].map(status => {
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-5">
+        {['ORDERED', 'RECEIVED', 'INVOICED', 'PARTIALLY_PAID', 'PAID'].map(status => {
           const count = data?.purchases?.filter((p: Purchase) => p.status === status).length || 0;
           const total = data?.purchases?.filter((p: Purchase) => p.status === status)
             .reduce((sum: number, p: Purchase) => sum + Number(p.totalAmount), 0) || 0;

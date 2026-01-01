@@ -16,12 +16,17 @@ const glService = new GeneralLedgerService();
 export class PurchaseController {
   async getPurchases(req: AuthRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, status, vendorId } = req.query;
+      const { page = 1, limit = 10, status, vendorId, paymentStatus } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
       if (status) where.status = status;
       if (vendorId) where.vendorId = vendorId;
+      if (paymentStatus === "OUTSTANDING") {
+        where.status = {
+          in: ["INVOICED", "PARTIALLY_PAID"],
+        };
+      }
 
       const [purchases, total] = await Promise.all([
         prisma.purchase.findMany({
@@ -83,6 +88,8 @@ export class PurchaseController {
               vendorId: validatedData.vendorId,
               orderDate: new Date(validatedData.orderDate),
               totalAmount,
+              amountPaid: 0,
+              balanceAmount: totalAmount,
               notes: validatedData.notes,
               status: "ORDERED",
             },

@@ -62,7 +62,7 @@ router.get('/vendor-payments', requireRole(['Accountant']),  cashController.getV
 router.post('/vendor-payments/:id/authorize', requireRole(['Accountant']), auditLogger('AUTHORIZE', 'VENDOR_PAYMENT'), cashController.authorizeVendorPayment);
 router.post('/vendor-payments/:id/approve', requireRole(['Accountant']), auditLogger('APPROVE', 'VENDOR_PAYMENT'), cashController.approveVendorPayment);
 router.post('/vendor-payments/:id/pay', requireRole(['Accountant']), auditLogger('PAY', 'VENDOR_PAYMENT'), cashController.payVendorPayment);
-router.delete('/vendor-payments', requireRole(['Accountant']), auditLogger('DELETE', 'VENDOR_PAYMENT'), cashController.deleteVendorPayment);
+router.delete('/vendor-payments/:id', requireRole(['Accountant']), auditLogger('DELETE', 'VENDOR_PAYMENT'), cashController.deleteVendorPayment);
 router.post('/vendor-refunds', requireRole(['Accountant']), auditLogger('CREATE', 'VENDOR_REFUND'), cashController.createVendorRefund);
 router.get('/vendor-refunds', requireRole(['Accountant']),  cashController.getVendorRefunds);
 router.get('/vendor-payments/:id/print', requireRole(['Accountant', 'POS User']),cashController.printVendorPayment);

@@ -1,88 +1,102 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Package, TrendingUp, DollarSign } from 'lucide-react';
-import { inventoryApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { InventoryValuation as InventoryValuationType } from '../../types/api';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Package, TrendingUp, DollarSign } from "lucide-react";
+import { inventoryApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { InventoryValuation as InventoryValuationType } from "../../types/api";
 
 const InventoryValuation = () => {
-  const [warehouseFilter, setWarehouseFilter] = useState('');
-   const [typeFilter, setTypeFilter] = useState<string>('');
+  const [warehouseFilter, setWarehouseFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
 
   const { data: valuationData, isLoading } = useQuery({
-  queryKey: [
-    "inventory-valuation",
-    { warehouseId: warehouseFilter, type: typeFilter },
-  ],
-  queryFn: () =>
-    inventoryApi.getInventoryValuation({
-      ...(warehouseFilter && { warehouseId: warehouseFilter }),
-      ...(typeFilter && { type: typeFilter }),
-    }),
-});
-
+    queryKey: [
+      "inventory-valuation",
+      { warehouseId: warehouseFilter, type: typeFilter },
+    ],
+    queryFn: () =>
+      inventoryApi.getInventoryValuation({
+        ...(warehouseFilter && { warehouseId: warehouseFilter }),
+        ...(typeFilter && { type: typeFilter }),
+      }),
+  });
 
   const { data: warehouses } = useQuery({
-    queryKey: ['warehouses-for-valuation'],
-    queryFn: () => inventoryApi.getWarehouses()
+    queryKey: ["warehouses-for-valuation"],
+    queryFn: () => inventoryApi.getWarehouses(),
   });
 
   const columns = [
     {
-      key: 'sku',
-      header: 'SKU',
-      width: 'w-32'
+      key: "sku",
+      header: "SKU",
+      width: "w-32",
     },
     {
-      key: 'name',
-      header: 'Item Name',
-      width: 'w-48'
+      key: "name",
+      header: "Item Name",
+      width: "w-48",
     },
     {
-      key: 'type',
-      header: 'Type',
+      key: "type",
+      header: "Type",
       cell: (item: InventoryValuationType) => (
-        <StatusBadge status={item.type.replace('_', ' ')} />
+        <StatusBadge status={item.type.replace("_", " ")} />
       ),
-      width: 'w-36'
+      width: "w-36",
     },
     {
-      key: 'costingMethod',
-      header: 'Costing Method',
+      key: "costingMethod",
+      header: "Costing Method",
       cell: (item: InventoryValuationType) => (
-        <StatusBadge status={item.costingMethod.replace('_', ' ')} variant="info" />
+        <StatusBadge
+          status={item.costingMethod.replace("_", " ")}
+          variant="info"
+        />
       ),
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'qty',
-      header: 'Quantity',
+      key: "qty",
+      header: "Quantity",
       cell: (item: InventoryValuationType) => item.qty.toLocaleString(),
-      width: 'w-24'
+      width: "w-24",
     },
     {
-      key: 'unitCost',
-      header: 'Unit Cost',
-      cell: (item: InventoryValuationType) => `₦${item.unitCost.toLocaleString()}`,
-      width: 'w-32'
+      key: "unitCost",
+      header: "Unit Cost",
+      cell: (item: InventoryValuationType) =>
+        `₦${item.unitCost.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+      width: "w-32",
     },
     {
-      key: 'totalValue',
-      header: 'Total Value',
-      cell: (item: InventoryValuationType) => `₦${item.totalValue.toLocaleString()}`,
-      width: 'w-32'
-    }
+      key: "totalValue",
+      header: "Total Value",
+      cell: (item: InventoryValuationType) =>
+        `₦${item.totalValue.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+      width: "w-32",
+    },
   ];
 
   const handleExport = () => {
     // TODO: Implement export functionality
-    console.log('Export inventory valuation');
+    console.log("Export inventory valuation");
   };
 
   // Calculate summary statistics
   const totalItems = valuationData?.valuation?.length || 0;
-  const totalQuantity = valuationData?.valuation?.reduce((sum: number, item: InventoryValuationType) => sum + item.qty, 0) || 0;
+  const totalQuantity =
+    valuationData?.valuation?.reduce(
+      (sum: number, item: InventoryValuationType) => sum + item.qty,
+      0
+    ) || 0;
   const totalValue = valuationData?.totalValue || 0;
   const avgUnitCost = totalQuantity > 0 ? totalValue / totalQuantity : 0;
 
@@ -91,8 +105,12 @@ const InventoryValuation = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Valuation</h1>
-          <p className="text-gray-600">Current inventory values and costing analysis</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Inventory Valuation
+          </h1>
+          <p className="text-gray-600">
+            Current inventory values and costing analysis
+          </p>
         </div>
       </div>
 
@@ -116,23 +134,23 @@ const InventoryValuation = () => {
               ))}
             </select>
           </div>
-          <div >
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Filter by Item Type
             </label>
             <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          >
-            <option value="">All Types</option>
-            <option value="RAW_MATERIAL">Raw Material</option>
-            <option value="WORK_IN_PROGRESS">Work in Progress</option>
-            <option value="FINISHED_GOODS">Finished Goods</option>
-            <option value="CONSUMABLE">Consumable</option>
-          </select>
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              <option value="">All Types</option>
+              <option value="RAW_MATERIAL">Raw Material</option>
+              <option value="WORK_IN_PROGRESS">Work in Progress</option>
+              <option value="FINISHED_GOODS">Finished Goods</option>
+              <option value="CONSUMABLE">Consumable</option>
+            </select>
           </div>
-          
+
           {/* <div className="flex items-end">
             <div className="text-sm text-gray-500">
               As of: {valuationData?.asOfDate ? new Date(valuationData.asOfDate).toLocaleString() : '-'}

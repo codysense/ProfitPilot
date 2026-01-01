@@ -133,7 +133,7 @@ const CreateAssetCategoryModal = ({ onClose, onSuccess }: CreateAssetCategoryMod
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Depreciation Method *
+                    Depreciation Method*
                   </label>
                   <select
                     {...register('depreciationMethod')}

@@ -524,6 +524,7 @@ enum PurchaseStatus {
   RECEIVED
   INVOICED
   PAID
+  PARTIALLY_PAID
 }
 
 model Purchase {
@@ -533,6 +534,8 @@ model Purchase {
   orderDate   DateTime
   status      PurchaseStatus @default(DRAFT)
   totalAmount Decimal        @db.Decimal(15, 2)
+  amountPaid    Decimal @default(0)
+  balanceAmount Decimal   @default(0) @db.Decimal(15, 2)
   notes       String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

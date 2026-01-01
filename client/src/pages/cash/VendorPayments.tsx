@@ -537,7 +537,8 @@ const {data:companyInformations} = useQuery({
             <option value="Preapred">Prepared</option>
             <option value="APPROVED">Approved</option>
             <option value="AUTHORIZED">Authorized</option>
-            <option value="Paid">Paid</option>
+            <option value="PAID">Paid</option>
+            {/* <option value="PARTIALLY_PAID">Partially Paid</option> */}
           </select>
         </div>
       </div>

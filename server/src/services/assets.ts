@@ -30,6 +30,53 @@ export class AssetsService {
     });
   }
 
+
+  async updateAssetCategory(categoryId: string, data: any) {
+  // 1. Check if any asset exists in this category
+  const assetCount = await prisma.asset.count({
+    where: { categoryId },
+  });
+
+  if (assetCount > 0) {
+    throw new Error(
+      "Cannot update asset category. Assets already exist under this category."
+    );
+  }
+
+  // 2. Update category
+  return await prisma.assetCategory.update({
+    where: { id: categoryId },
+    data,
+    include: {
+      glAssetAccount: { select: { code: true, name: true } },
+      glDepreciationAccount: { select: { code: true, name: true } },
+      glAccumulatedDepreciationAccount: {
+        select: { code: true, name: true },
+      },
+    },
+  });
+}
+
+
+async deleteAssetCategory(categoryId: string) {
+  // 1. Check if any asset exists in this category
+  const assetCount = await prisma.asset.count({
+    where: { categoryId },
+  });
+
+  if (assetCount > 0) {
+    throw new Error(
+      "Cannot delete asset category. Assets already exist under this category."
+    );
+  }
+
+  // 2. Delete category
+  return await prisma.assetCategory.delete({
+    where: { id: categoryId },
+  });
+}
+
+
   // Assets
   async getAssets(filters: any = {}) {
     let { page = 1, limit = 10, categoryId, status, locationId } = filters;

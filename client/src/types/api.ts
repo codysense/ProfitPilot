@@ -155,6 +155,7 @@ export interface Purchase {
   orderDate: string;
   status: 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'INVOICED' | 'PAID';
   totalAmount: number;
+  balanceAmount: number;
   notes?: string;
   vendor: {
     code: string;

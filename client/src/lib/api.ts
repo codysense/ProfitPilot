@@ -361,7 +361,7 @@ export const purchaseApi = {
   getPurchases: (params?: {
     page?: number;
     limit?: number;
-    status?: string;
+    paymentStatus?: string;
     vendorId?: string;
   }) =>
     api.get(
@@ -810,6 +810,9 @@ export const assetsApi = {
   // Asset Categories
   getAssetCategories: () => api.get("/assets/categories"),
   createAssetCategory: (data: any) => api.post("/assets/categories", data),
+  updateAssetCategory: (id: string, data: any) =>
+    api.put(`/assets/categories/${id}`, data),
+  deleteAssetCategory: (id: string) => api.delete(`/assets/categories/${id}`),
 
   // Assets
   getAssets: (params?: {

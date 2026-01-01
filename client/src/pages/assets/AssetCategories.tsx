@@ -1,15 +1,19 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Building, Settings } from "lucide-react";
+import { Plus, Building, Settings, Edit, Trash2 } from "lucide-react";
 import { assetsApi, managementApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import { AssetCategory } from "../../types/api";
 import CreateAssetCategoryModal from "./CreateAssetCategoryModal";
 import { useAuthStore } from "../../store/authStore";
+import EditAssetCategoryModal from "./EditAssetCategoryModal";
+import toast from "react-hot-toast";
 
 const AssetCategories = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditAssetCategoryModal, setShowEditAssetCategoryModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<AssetCategory | null>(null);
   const { user } = useAuthStore();
 
   const canManageCategories = user?.roles.includes("General Manager");
@@ -18,6 +22,8 @@ const AssetCategories = () => {
     queryKey: ["asset-categories"],
     queryFn: () => assetsApi.getAssetCategories(),
   });
+
+
 
 
   const columns = [
@@ -76,11 +82,61 @@ const AssetCategories = () => {
     },
   ];
 
+
+
   const handleCreateCategory = () => {
     refetch();
     setShowCreateModal(false);
   };
 
+  const handleDeleteCategory = async (id: string, category: AssetCategory) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete the asset category "${category.name}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await assetsApi.deleteAssetCategory(id);
+      refetch();
+      toast.success("Asset category deleted successfully");
+    } catch (error) {
+      console.error("Failed to delete category:", error);
+    }
+  };  
+
+  const handleEditCategory = () => {
+    refetch();
+    setShowEditAssetCategoryModal(false);
+  }
+
+  const actions = (category: AssetCategory) => (
+      <div className="flex space-x-2">
+        <button
+          onClick={() => {
+            setSelectedCategory(category);
+            setShowEditAssetCategoryModal(true);
+          }}
+          className="text-blue-600 hover:text-blue-900"
+          title="Edit Category"
+        >
+          <Edit className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => {
+            handleDeleteCategory(category.id, category);
+           
+          }}
+          className="text-red-600 hover:text-red-900"
+          title="Delete Category"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  
   if (!canManageCategories) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -185,6 +241,7 @@ const AssetCategories = () => {
       {/* Data Table */}
       <DataTable
         data={data?.categories || []}
+        actions={actions}
         columns={columns}
         loading={isLoading}
       />
@@ -196,6 +253,17 @@ const AssetCategories = () => {
           onSuccess={handleCreateCategory}
         />
       )}
+
+      {/* Edit Modal */}
+      {showEditAssetCategoryModal && selectedCategory && (
+        <EditAssetCategoryModal
+          assetCategory={selectedCategory}
+          onClose={() => setShowEditAssetCategoryModal(false)}
+          onSuccess={handleEditCategory}
+        />
+      )}
+
+
     </div>
   );
 };
