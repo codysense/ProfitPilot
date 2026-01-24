@@ -1,92 +1,94 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Eye, RotateCcw, Calendar, DollarSign } from 'lucide-react';
-import { posApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Eye, RotateCcw, Calendar, DollarSign } from "lucide-react";
+import { posApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
 
 const PosReturnsHistory = () => {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['pos-returns-history', { page }],
-    queryFn: () => posApi.getReturns({ page, limit: 20 })
+    queryKey: ["pos-returns-history", { page }],
+    queryFn: () => posApi.getReturns({ page, limit: 20 }),
   });
 
-
-  console.log(data)
+  console.log(data);
   const columns = [
     {
-      key: 'returnNo',
-      header: 'Return No',
-      width: 'w-32'
+      key: "returnNo",
+      header: "Return No",
+      width: "w-32",
     },
     // {
     //   key: 'returnLines.item.name',
     //   header: 'Item Name',
     //   width: 'w-32'
     // },
-    
-  {
-  Key: "itemsSummary",
-  header: "Items",
-  cell: (returnRecord: any) => returnRecord.itemsSummary,
-  width: 'w-32'
-},
 
+    {
+      Key: "itemsSummary",
+      header: "Items",
+      cell: (returnRecord: any) => returnRecord.itemsSummary,
+      width: "w-32",
+    },
 
-{
-      key: 'customer.name',
-      header: 'Customer',
-      cell: (returnRecord: any) => returnRecord.customer?.name || 'Walk-in Customer',
-      width: 'w-48'
+    {
+      key: "customer.name",
+      header: "Customer",
+      cell: (returnRecord: any) =>
+        returnRecord.customer?.name || "Walk-in Customer",
+      width: "w-48",
     },
     {
-      key: 'createdAt',
-      header: 'Return Date',
-      cell: (returnRecord: any) => new Date(returnRecord.createdAt).toLocaleDateString(),
-      width: 'w-32'
+      key: "createdAt",
+      header: "Return Date",
+      cell: (returnRecord: any) =>
+        new Date(returnRecord.createdAt).toLocaleDateString(),
+      width: "w-32",
     },
     {
-      key: 'totalAmount',
-      header: 'Return Amount',
-      cell: (returnRecord: any) => `₦${returnRecord.totalAmount.toLocaleString()}`,
-      width: 'w-32'
+      key: "refundAmount",
+      header: "Return Amount",
+      cell: (returnRecord: any) =>
+        `₦${returnRecord.refundAmount.toLocaleString()}`,
+      width: "w-32",
     },
     {
-      key: 'reason',
-      header: 'Reason',
-      cell: (returnRecord: any) => <StatusBadge status={returnRecord.reason} variant="warning" />,
-      width: 'w-32'
+      key: "reason",
+      header: "Reason",
+      cell: (returnRecord: any) => (
+        <StatusBadge status={returnRecord.reason} variant="warning" />
+      ),
+      width: "w-32",
     },
     {
-      key: 'user.name',
-      header: 'Processed By',
-      width: 'w-32'
-    }
+      key: "createdBy.name",
+      header: "Processed By",
+      width: "w-32",
+    },
   ];
 
   const totalRefund = (data?.data ?? []).reduce(
-  (sum, ret) => sum + Number(ret.totalAmount ?? 0),
-  0
-);
+    (sum, ret) => sum + Number(ret.totalAmount ?? 0),
+    0,
+  );
 
-const today = new Date();
-today.setHours(0, 0, 0, 0); // start of today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // start of today
 
-const totalRefundToday = (data?.data ?? [])
-  .filter((ret) => new Date(ret.createdAt) >= today)
-  .reduce((sum, ret) => sum + Number(ret.totalAmount ?? 0), 0);
-
-
-
+  const totalRefundToday = (data?.data ?? [])
+    .filter((ret) => new Date(ret.createdAt) >= today)
+    .reduce((sum, ret) => sum + Number(ret.totalAmount ?? 0), 0);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">POS Returns History</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            POS Returns History
+          </h1>
           <p className="text-gray-600">View processed returns and refunds</p>
         </div>
       </div>
@@ -125,7 +127,7 @@ const totalRefundToday = (data?.data ?? [])
                     Total Refunds
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦ {Number(totalRefund).toLocaleString() }
+                    ₦ {Number(totalRefund).toLocaleString()}
                   </dd>
                 </dl>
               </div>
@@ -155,21 +157,27 @@ const totalRefundToday = (data?.data ?? [])
       </div>
 
       {/* Placeholder for returns table */}
-      {!data && <div className="bg-white shadow rounded-lg p-6">
-        <div className="text-center py-8">
-          <RotateCcw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-sm text-gray-500">Returns history will be displayed here</p>
-          <p className="text-xs text-gray-400 mt-1">Process returns from the POS terminal to see data</p>
+      {!data && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="text-center py-8">
+            <RotateCcw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-sm text-gray-500">
+              Returns history will be displayed here
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Process returns from the POS terminal to see data
+            </p>
+          </div>
         </div>
-      </div>}
+      )}
       <DataTable
-              data={data?.data || []}
-              columns={columns}
-              loading={isLoading}
-              pagination={data?.pagination}
-              onPageChange={setPage}
-              // actions={actions}
-            />
+        data={data?.data || []}
+        columns={columns}
+        loading={isLoading}
+        pagination={data?.pagination}
+        onPageChange={setPage}
+        // actions={actions}
+      />
     </div>
   );
 };

@@ -15,7 +15,7 @@ const issueMaterialsSchema = z.object({
       z.object({
         itemId: z.string().min(1, "Item is required"),
         qty: z.number().positive("Quantity must be positive"),
-      })
+      }),
     )
     .min(1, "At least one material is required"),
 });
@@ -59,6 +59,11 @@ const IssueMaterialsModal = ({
   });
 
   // Get stock information for materials
+  type StockInfo = {
+    qty: number;
+    avgCost: number;
+  };
+
   const { data: stockData } = useQuery({
     queryKey: ["materials-stock", order.warehouseId],
     queryFn: async () => {
@@ -68,19 +73,34 @@ const IssueMaterialsModal = ({
         try {
           const stock = await inventoryApi.getItemStock(
             item.id,
-            order.warehouseId
+            order.warehouseId,
           );
-          return { itemId: item.id, stock: stock.qty };
+          return {
+            itemId: item.id,
+            qty: stock.qty,
+            avgCost: stock.avgCost,
+          };
         } catch {
-          return { itemId: item.id, stock: 0 };
+          return {
+            itemId: item.id,
+            qty: 0,
+            avgCost: 0,
+          };
         }
       });
 
       const stockResults = await Promise.all(stockPromises);
-      return stockResults.reduce((acc, result) => {
-        acc[result.itemId] = result.stock;
-        return acc;
-      }, {} as Record<string, number>);
+
+      return stockResults.reduce(
+        (acc, result) => {
+          acc[result.itemId] = {
+            qty: result.qty,
+            avgCost: result.avgCost,
+          };
+          return acc;
+        },
+        {} as Record<string, StockInfo>,
+      );
     },
     enabled: !!rawMaterials?.items,
   });
@@ -123,10 +143,9 @@ const IssueMaterialsModal = ({
   // Calculate total estimated cost
   const calculateTotalCost = () => {
     return watchedMaterials.reduce((total, material) => {
-      const item = rawMaterials?.items?.find(
-        (item: any) => item.id === material.itemId
-      );
-      const cost = item?.standardCost || 0;
+      const stock = stockData?.[material.itemId];
+      const cost = stock?.avgCost || 0;
+
       return total + (material.qty || 0) * cost;
     }, 0);
   };
@@ -278,13 +297,11 @@ const IssueMaterialsModal = ({
                             {rawMaterials?.items?.map((item: any) => (
                               <option key={item.id} value={item.id}>
                                 {item.sku} - {item.name}
-                                (Stock:{" "}
-                                {stockData?.[item.id] ||
-                                  item.stockQty ||
-                                  0}{" "}
+                                (Stock: {stockData?.[item.id]?.qty ?? 0}{" "}
                                 {item.uom})
-                                {item.standardCost &&
-                                  ` - ₦${item.standardCost}`}
+                                {stockData?.[item.id]?.avgCost
+                                  ? ` - ₦${stockData[item.id].avgCost.toLocaleString()}`
+                                  : ""}
                               </option>
                             ))}
                           </select>
@@ -303,11 +320,12 @@ const IssueMaterialsModal = ({
                             {(() => {
                               const selectedItem = rawMaterials?.items?.find(
                                 (item: any) =>
-                                  item.id === watchedMaterials[index]?.itemId
+                                  item.id === watchedMaterials[index]?.itemId,
                               );
                               const stock =
-                                stockData?.[watchedMaterials[index]?.itemId] ||
-                                0;
+                                stockData?.[watchedMaterials[index]?.itemId]
+                                  ?.qty || 0;
+
                               const isInsufficient =
                                 stock < (watchedMaterials[index]?.qty || 0);
 
@@ -378,7 +396,7 @@ const IssueMaterialsModal = ({
                   </span>
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
-                  Based on standard costs of selected materials
+                  Based on inventory average costs of selected materials(warehouse-specific).
                 </div>
               </div>
 

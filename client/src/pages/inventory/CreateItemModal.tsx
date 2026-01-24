@@ -48,7 +48,7 @@ const createItemSchema = z.object({
       // itemId: z.string().cuid(),
       customerGroup: z.string(),
       price: z.number().positive(),
-    })
+    }),
   ),
 });
 
@@ -310,7 +310,7 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
                             <option disabled>Loading...</option>
                           ) : (
                             groups.map((group) => (
-                              <option key={group.code} value={group.id}>
+                              <option key={group.code} value={group.name}>
                                 {group.name}
                               </option>
                             ))

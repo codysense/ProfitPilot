@@ -57,11 +57,11 @@ export class ReportsService {
     chartAccounts.forEach((account) => {
       const totalDebits = account.journalLines.reduce(
         (sum, line) => sum.plus(line.debit),
-        new Decimal(0)
+        new Decimal(0),
       );
       const totalCredits = account.journalLines.reduce(
         (sum, line) => sum.plus(line.credit),
-        new Decimal(0)
+        new Decimal(0),
       );
 
       const balance = [
@@ -80,7 +80,7 @@ export class ReportsService {
 
       if (
         ["CURRENT_ASSETS", "NON_CURRENT_ASSETS", "TRADE_RECEIVABLES"].includes(
-          account.accountType
+          account.accountType,
         )
       ) {
         assets.push(accountData);
@@ -120,12 +120,12 @@ export class ReportsService {
 
     const { netIncome: retainProfit } = await this.getProfitAndLoss(
       new Date("01/01/1900"),
-      newDate
+      newDate,
     );
 
     const { netIncome: netProfit } = await this.getProfitAndLoss(
       fromDate,
-      asOfDate
+      asOfDate,
     );
 
     //  console.log("Net Profit", netProfit, 'retain Profit', retainProfit)
@@ -214,11 +214,11 @@ export class ReportsService {
     accounts.forEach((account) => {
       const totalDebits = account.journalLines.reduce(
         (sum, line) => sum.plus(line.debit),
-        new Decimal(0)
+        new Decimal(0),
       );
       const totalCredits = account.journalLines.reduce(
         (sum, line) => sum.plus(line.credit),
-        new Decimal(0)
+        new Decimal(0),
       );
       const netAmount =
         account.accountType === "INCOME" ||
@@ -433,11 +433,11 @@ export class ReportsService {
     chartAccounts.forEach((account) => {
       const totalDebits = account.journalLines.reduce(
         (sum, line) => sum.plus(line.debit),
-        new Decimal(0)
+        new Decimal(0),
       );
       const totalCredits = account.journalLines.reduce(
         (sum, line) => sum.plus(line.credit),
-        new Decimal(0)
+        new Decimal(0),
       );
       const balance = totalDebits.minus(totalCredits);
 
@@ -456,7 +456,7 @@ export class ReportsService {
 
     const { netIncome: retainProfit } = await this.getProfitAndLoss(
       new Date("01/01/1900"),
-      newDate
+      newDate,
     );
 
     trialBalanceData.push({
@@ -480,7 +480,7 @@ export class ReportsService {
     // });
 
     return trialBalanceData.sort((a, b) =>
-      a.accountCode.localeCompare(b.accountCode)
+      a.accountCode.localeCompare(b.accountCode),
     );
   }
 
@@ -539,11 +539,11 @@ export class ReportsService {
     // Calculate totals for the period
     const totalReceipt = journalLines.reduce(
       (sum, line) => sum + line.debit.toNumber(),
-      0
+      0,
     );
     const totalPayment = journalLines.reduce(
       (sum, line) => sum + line.credit.toNumber(),
-      0
+      0,
     );
 
     // Calculate closing balance
@@ -585,8 +585,6 @@ export class ReportsService {
           : null,
     };
   }
-
-  
 
   async getCashAccountBalances(dateFrom: Date, dateTo: Date) {
     const rawResult = await prisma.$queryRawUnsafe<
@@ -669,7 +667,7 @@ export class ReportsService {
     ORDER BY "SerialNo" NULLS LAST;
   `,
       dateFrom,
-      dateTo
+      dateTo,
     );
 
     // Convert Decimals → numbers
@@ -731,9 +729,11 @@ LEFT JOIN (
     FROM customer_payments cp
     INNER JOIN customer_payment_lines cpl
         ON cpl."customerPaymentId" = cp.id
-       AND cpl."glAccountId" = 'cmjj5gp9v001y13ldnyxkxhxq'  -- TRADE RECEIVABLES
+    INNER JOIN chart_of_accounts coa
+        ON coa.id = cpl."glAccountId"
+       AND coa.code = '1200'  -- ACCOUNTS RECEIVABLE
     WHERE cp.status = 'PAID'
-      AND DATE(cp."paymentDate") <= $1
+      AND cp."paymentDate" <= $1
     GROUP BY cp."customerId"
 ) p ON p."customerId" = c.id
 
@@ -744,13 +744,13 @@ LEFT JOIN (
         "customerId",
         SUM("amountRefunded") AS total_refunds
     FROM sales_refunds
-    WHERE DATE("refundDate") <= $1
+    WHERE "refundDate" <= $1
     GROUP BY "customerId"
 ) r ON r."customerId" = c.id
 
 ORDER BY c.name;
   `,
-      asOfDate
+      asOfDate,
     );
     console.log("Customer Balances Result:", result);
 
@@ -763,21 +763,24 @@ ORDER BY c.name;
       `
    SELECT COALESCE(SUM(x.balance), 0) AS balance
 FROM (
+
   /* ---------------- SALES (DEBIT) ---------------- */
   SELECT s."totalAmount" AS balance
   FROM sales s
   WHERE s."customerId" = $1
     AND s."orderDate" <= $2
-    AND s."status" != 'DRAFT'
+    AND s.status != 'DRAFT'
 
   UNION ALL
 
-  /* ---------------- PAYMENTS (CREDIT → NEGATIVE) ---------------- */
+  /* ---------------- PAYMENTS (CREDIT) ---------------- */
   SELECT -SUM(cpl."lineAmount") AS balance
   FROM customer_payments cp
   INNER JOIN customer_payment_lines cpl
-    ON cpl."customerPaymentId" = cp.id
-   AND cpl."glAccountId" = 'cmjj5gp9v001y13ldnyxkxhxq' -- TRADE RECEIVABLES
+      ON cpl."customerPaymentId" = cp.id
+  INNER JOIN chart_of_accounts coa
+      ON coa.id = cpl."glAccountId"
+     AND coa.code = '1200'
   WHERE cp."customerId" = $1
     AND cp.status = 'PAID'
     AND cp."paymentDate" <= $2
@@ -789,10 +792,11 @@ FROM (
   FROM sales_refunds srr
   WHERE srr."customerId" = $1
     AND srr."refundDate" <= $2
+
 ) x;
     `,
       customerId,
-      fromDate
+      fromDate,
     );
 
     const openingBalance = Number(opening[0].balance || 0);
@@ -846,9 +850,12 @@ SELECT
   CONCAT('Customer payment ', COALESCE(cp."reference", '')) AS description
 FROM customer_payments cp
 INNER JOIN customer_payment_lines cpl
-  ON cpl."customerPaymentId" = cp.id
- AND cpl."glAccountId" = 'cmjj5gp9v001y13ldnyxkxhxq' -- TRADE RECEIVABLES
-INNER JOIN customers c ON cp."customerId" = c.id
+    ON cpl."customerPaymentId" = cp.id
+INNER JOIN chart_of_accounts coa
+    ON coa.id = cpl."glAccountId"
+   AND coa.code = '1200'
+INNER JOIN customers c
+    ON cp."customerId" = c.id
 WHERE c.id = $1
   AND cp.status = 'PAID'
   AND cp."paymentDate" BETWEEN $2 AND $3
@@ -876,17 +883,17 @@ ORDER BY date, reference;
     `,
       customerId,
       fromDate,
-      toDate
+      toDate,
     );
 
     //  Totals
     const totalSales = entries.reduce(
       (sum, e) => sum + Number(e.debit || 0),
-      0
+      0,
     );
     const totalPayments = entries.reduce(
       (sum, e) => sum + Number(e.credit || 0),
-      0
+      0,
     );
     const closingBalance = openingBalance + totalSales - totalPayments;
 
@@ -917,12 +924,14 @@ FROM (
 
     UNION ALL
 
-    /* ---------------- PAYMENTS (TRADE PAYABLES ONLY) ---------------- */
+    /* ---------------- PAYMENTS (ACCOUNTS PAYABLE ONLY – CODE 2000) ---------------- */
     SELECT -SUM(vpl."lineAmount") AS balance
     FROM vendor_payments vp
     INNER JOIN vendor_payment_lines vpl
         ON vpl."vendorPaymentId" = vp.id
-       AND vpl."glAccountId" = 'cmjj5gtdb002213lddpgght89'
+    INNER JOIN chart_of_accounts coa
+        ON coa.id = vpl."glAccountId"
+       AND coa.code = '2000'                -- Accounts Payable
     WHERE vp."vendorId" = $1
       AND vp.status = 'PAID'
       AND vp."paymentDate" < $2
@@ -939,7 +948,7 @@ FROM (
 ) x;
     `,
       vendorId,
-      fromDate
+      fromDate,
     );
 
     const openingBalance = Number(opening[0]?.balance || 0);
@@ -960,7 +969,8 @@ FROM (
       }[]
     >(
       `
-    SELECT 
+    /* ---------------- PURCHASE INVOICES ---------------- */
+SELECT 
     'VENDOR' AS type,
     v."code" AS account_code,
     v."name" AS account_name,
@@ -979,7 +989,7 @@ WHERE v."id" = $1
 
 UNION ALL
 
-/* ---------------- PAYMENTS (AP CONTROL ACCOUNT) ---------------- */
+/* ---------------- PAYMENTS (ACCOUNTS PAYABLE – CODE 2000) ---------------- */
 SELECT 
     'VENDOR' AS type,
     v."code" AS account_code,
@@ -994,8 +1004,11 @@ SELECT
 FROM vendor_payments vp
 INNER JOIN vendor_payment_lines vpl
     ON vpl."vendorPaymentId" = vp.id
-   AND vpl."glAccountId" = 'cmjj5gtdb002213lddpgght89'
-INNER JOIN vendors v ON vp."vendorId" = v."id"
+INNER JOIN chart_of_accounts coa
+    ON coa.id = vpl."glAccountId"
+   AND coa.code = '2000'                  -- Accounts Payable
+INNER JOIN vendors v
+    ON vp."vendorId" = v."id"
 WHERE v."id" = $1
   AND vp.status = 'PAID'
   AND vp."paymentDate" BETWEEN $2 AND $3
@@ -1024,17 +1037,17 @@ ORDER BY date, reference;
     `,
       vendorId,
       fromDate,
-      toDate
+      toDate,
     );
 
     // 🔹 Totals
     const totalPurchases = entries.reduce(
       (sum, e) => sum + Number(e.credit || 0),
-      0
+      0,
     );
     const totalPayments = entries.reduce(
       (sum, e) => sum + Number(e.debit || 0),
-      0
+      0,
     );
     const closingBalance = openingBalance + totalPurchases - totalPayments;
 
@@ -1079,15 +1092,15 @@ FROM vendors v
 /* ---------------- PURCHASES (AP INVOICES) ---------------- */
 LEFT JOIN (
     SELECT 
-        "vendorId",
-        SUM("totalAmount") AS total_purchases
-    FROM purchases
-    WHERE "orderDate" <= $1
-      AND status IN ('INVOICED', 'PAID')
-    GROUP BY "vendorId"
+        p."vendorId",
+        SUM(p."totalAmount") AS total_purchases
+    FROM purchases p
+    WHERE p."orderDate" <= $1
+      AND p.status IN ('INVOICED', 'PAID', 'PARTIALLY_PAID')
+    GROUP BY p."vendorId"
 ) p ON p."vendorId" = v.id
 
-/* ---------------- PAYMENTS (TRADE PAYABLES ONLY) ---------------- */
+/* ---------------- PAYMENTS (ONLY AP = CODE 2000) ---------------- */
 LEFT JOIN (
     SELECT 
         vp."vendorId",
@@ -1095,7 +1108,9 @@ LEFT JOIN (
     FROM vendor_payments vp
     INNER JOIN vendor_payment_lines vpl
         ON vpl."vendorPaymentId" = vp.id
-       AND vpl."glAccountId" = 'cmjj5gtdb002213lddpgght89' -- TRADE PAYABLES
+    INNER JOIN chart_of_accounts coa
+        ON coa.id = vpl."glAccountId"
+       AND coa.code = '2000'                -- Accounts Payable
     WHERE vp.status = 'PAID'
       AND vp."paymentDate" <= $1
     GROUP BY vp."vendorId"
@@ -1104,16 +1119,17 @@ LEFT JOIN (
 /* ---------------- PURCHASE REFUNDS / CREDIT NOTES ---------------- */
 LEFT JOIN (
     SELECT 
-        "vendorId",
-        SUM("amount") AS total_refunds
-    FROM purchase_refunds
-    WHERE "refundDate" <= $1
-    GROUP BY "vendorId"
+        pr."vendorId",
+        SUM(pr."amount") AS total_refunds
+    FROM purchase_refunds pr
+    WHERE pr."refundDate" <= $1
+    GROUP BY pr."vendorId"
 ) r ON r."vendorId" = v.id
 
 ORDER BY v.name;
+
   `,
-      asOfDate
+      asOfDate,
     );
 
     return result;
@@ -1228,7 +1244,7 @@ ORDER BY v.name;
           name: item?.name,
           CumProduction: group._sum.qtyProduced,
         };
-      })
+      }),
     );
     return resultWithNames;
   }
@@ -1330,7 +1346,7 @@ ORDER BY v.name;
       if (entry.direction === "IN") {
         const daysSinceReceived = Math.floor(
           (currentDate.getTime() - entry.postedAt.getTime()) /
-            (1000 * 60 * 60 * 24)
+            (1000 * 60 * 60 * 24),
         );
         aging.batches.push({
           qty: entry.qty.toNumber(),
@@ -1345,11 +1361,11 @@ ORDER BY v.name;
     const agingReport = Array.from(agingMap.values()).map((item) => {
       const totalQty = item.batches.reduce(
         (sum: number, batch: any) => sum + batch.qty,
-        0
+        0,
       );
       const totalValue = item.batches.reduce(
         (sum: number, batch: any) => sum + batch.value,
-        0
+        0,
       );
 
       const aging0to30 = item.batches
@@ -1384,7 +1400,7 @@ ORDER BY v.name;
     itemId: string,
     warehouseId?: string,
     fromDate?: Date,
-    toDate?: Date
+    toDate?: Date,
   ) {
     const where: any = { itemId };
     if (warehouseId) where.warehouseId = warehouseId;
@@ -1546,7 +1562,7 @@ ORDER BY v.name;
     });
 
     return Array.from(itemSalesMap.values()).sort(
-      (a, b) => b.totalValue - a.totalValue
+      (a, b) => b.totalValue - a.totalValue,
     );
   }
 
@@ -1587,7 +1603,7 @@ ORDER BY v.name;
     });
 
     return Array.from(customerSalesMap.values()).sort(
-      (a, b) => b.totalValue - a.totalValue
+      (a, b) => b.totalValue - a.totalValue,
     );
   }
 
@@ -1628,7 +1644,7 @@ ORDER BY v.name;
     });
 
     return Array.from(vendorPurchasesMap.values()).sort(
-      (a, b) => b.totalValue - a.totalValue
+      (a, b) => b.totalValue - a.totalValue,
     );
   }
 
@@ -1657,17 +1673,17 @@ ORDER BY v.name;
         .map((sale) => {
           const totalReceived = sale.salesReceipts.reduce(
             (sum, receipt) => sum + receipt.amountReceived.toNumber(),
-            0
+            0,
           );
           const totalRefunded = sale.SalesRefunds.reduce(
             (sum, refund) => sum + refund.amountRefunded.toNumber(),
-            0
+            0,
           );
           const outstandingAmount =
             sale.totalAmount.toNumber() - totalReceived + totalRefunded;
           const daysPastDue = Math.floor(
             (asOfDate.getTime() - sale.orderDate.getTime()) /
-              (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24),
           );
 
           return {
@@ -1683,10 +1699,10 @@ ORDER BY v.name;
               daysPastDue <= 30
                 ? "Current"
                 : daysPastDue <= 60
-                ? "31-60 Days"
-                : daysPastDue <= 90
-                ? "61-90 Days"
-                : "Over 90 Days",
+                  ? "31-60 Days"
+                  : daysPastDue <= 90
+                    ? "61-90 Days"
+                    : "Over 90 Days",
           };
         })
         .filter((item) => item.outstandingAmount > 0);
@@ -1716,13 +1732,13 @@ ORDER BY v.name;
           //const totalPaid = purchase.reduce((sum, payment) => sum + payment.amountPaid.toNumber(), 0);
           const totalRefunds = purchase.PurchaseRefunds.reduce(
             (sum, refund) => sum + refund.amount.toNumber(),
-            0
+            0,
           );
           const outstandingAmount =
             purchase.balanceAmount.toNumber() + totalRefunds;
           const daysPastDue = Math.floor(
             (asOfDate.getTime() - purchase.orderDate.getTime()) /
-              (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24),
           );
 
           return {
@@ -1738,10 +1754,10 @@ ORDER BY v.name;
               daysPastDue <= 30
                 ? "Current"
                 : daysPastDue <= 60
-                ? "31-60 Days"
-                : daysPastDue <= 90
-                ? "61-90 Days"
-                : "Over 90 Days",
+                  ? "31-60 Days"
+                  : daysPastDue <= 90
+                    ? "61-90 Days"
+                    : "Over 90 Days",
           };
         })
         .filter((item) => item.outstandingAmount > 0);

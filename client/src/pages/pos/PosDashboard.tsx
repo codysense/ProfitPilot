@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, ShoppingCart, RotateCcw, DollarSign, Clock, Users, Package } from 'lucide-react';
-import { posApi, inventoryApi, cashApi } from '../../lib/api';
-import { useAuthStore } from '../../store/authStore';
-import CreatePosSessionModal from './CreatePosSessionModal';
-import PosTerminal from './PosTerminal';
-import PosReturnsModal from './PosReturnsModal';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Plus,
+  ShoppingCart,
+  RotateCcw,
+  DollarSign,
+  Clock,
+  Users,
+  Package,
+} from "lucide-react";
+import { posApi, inventoryApi, cashApi } from "../../lib/api";
+import { useAuthStore } from "../../store/authStore";
+import CreatePosSessionModal from "./CreatePosSessionModal";
+import PosTerminal from "./PosTerminal";
+import PosReturnsModal from "./PosReturnsModal";
 
 const PosDashboard = () => {
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
@@ -14,37 +22,37 @@ const PosDashboard = () => {
   const { user } = useAuthStore();
 
   const { data: currentSession, refetch: refetchSession } = useQuery({
-    queryKey: ['current-pos-session'],
-    queryFn: () => posApi.getCurrentSession()
+    queryKey: ["current-pos-session"],
+    queryFn: () => posApi.getCurrentSession(),
   });
 
   const today = new Date().toISOString().split("T")[0]; // "2025-09-03"
 
-const { data: todaySales } = useQuery({
-  queryKey: ["today-pos-sales"],
-  queryFn: () =>
-    posApi.getSales({
-      dateFrom: `${today}T00:00:00.000Z`,
-      dateTo: `${today}T23:59:59.999Z`,
-      status: 'COMPLETED',
-    }),
-});
+  const { data: todaySales } = useQuery({
+    queryKey: ["today-pos-sales"],
+    queryFn: () =>
+      posApi.getSales({
+        dateFrom: `${today}T00:00:00.000Z`,
+        dateTo: `${today}T23:59:59.999Z`,
+        status: "COMPLETED",
+      }),
+  });
 
   const { data: warehouseItems } = useQuery({
-  queryKey: ['warehouse-items', user?.warehouseId],
-  queryFn: () =>
-    inventoryApi.getItems({
-      type: 'FINISHED_GOODS',
-      limit: 100,
-      includeStock: 'true',   
-    }),
-  enabled: !!user?.warehouseId,
-});
+    queryKey: ["warehouse-items", user?.warehouseId],
+    queryFn: () =>
+      inventoryApi.getItems({
+        type: "FINISHED_GOODS",
+        limit: 100,
+        includeStock: "true",
+      }),
+    enabled: !!user?.warehouseId,
+  });
 
-console.log(warehouseItems)
+  // console.log(warehouseItems)
   const { data: cashAccounts } = useQuery({
-    queryKey: ['pos-cash-accounts'],
-    queryFn: () => cashApi.getCashAccounts()
+    queryKey: ["pos-cash-accounts"],
+    queryFn: () => cashApi.getCashAccounts(),
   });
 
   const handleCreateSession = () => {
@@ -53,47 +61,49 @@ console.log(warehouseItems)
   };
 
   const handleCloseSession = async () => {
-    if (currentSession?.session && confirm('Are you sure you want to close the current session?')) {
+    if (
+      currentSession?.session &&
+      confirm("Are you sure you want to close the current session?")
+    ) {
       try {
-        const closingBalance = prompt('Enter closing balance:');
+        const closingBalance = prompt("Enter closing balance:");
         if (closingBalance) {
-          await posApi.closeSession(currentSession.session.id, { 
-            closingBalance: parseFloat(closingBalance) 
+          await posApi.closeSession(currentSession.session.id, {
+            closingBalance: parseFloat(closingBalance),
           });
           refetchSession();
         }
       } catch (error) {
-        console.error('Close session error:', error);
+        console.error("Close session error:", error);
       }
     }
   };
 
-  
   const stats = [
     {
-      name: 'Today\'s Sales',
+      name: "Today's Sales",
       value: todaySales?.sales?.length || 0,
       icon: ShoppingCart,
-      color: 'text-blue-600'
+      color: "text-blue-600",
     },
     {
-      name: 'Today\'s Revenue',
-      value: `₦${todaySales?.sales?.reduce((sum: number, sale: any) => sum + Number(sale.totalAmount), 0).toLocaleString() || '0'}`,
+      name: "Today's Revenue",
+      value: `₦${todaySales?.sales?.reduce((sum: number, sale: any) => sum + Number(sale.totalAmount), 0).toLocaleString() || "0"}`,
       icon: DollarSign,
-      color: 'text-green-600'
+      color: "text-green-600",
     },
     {
-      name: 'Available Items',
+      name: "Available Items",
       value: warehouseItems?.items?.length || 0,
       icon: Package,
-      color: 'text-purple-600'
+      color: "text-purple-600",
     },
     {
-      name: 'Session Status',
-      value: currentSession?.session ? 'OPEN' : 'CLOSED',
+      name: "Session Status",
+      value: currentSession?.session ? "OPEN" : "CLOSED",
       icon: Clock,
-      color: currentSession?.session ? 'text-green-600' : 'text-red-600'
-    }
+      color: currentSession?.session ? "text-green-600" : "text-red-600",
+    },
   ];
 
   return (
@@ -102,7 +112,9 @@ console.log(warehouseItems)
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Point of Sales</h1>
-          <p className="text-gray-600">Fast sales processing for walk-in customers</p>
+          <p className="text-gray-600">
+            Fast sales processing for walk-in customers
+          </p>
         </div>
         <div className="flex space-x-2">
           {!currentSession?.session ? (
@@ -150,8 +162,10 @@ console.log(warehouseItems)
                 Active Session: {currentSession.session.sessionNo}
               </h3>
               <p className="text-green-700">
-                Started: {new Date(currentSession.session.openedAt).toLocaleString()} | 
-                Opening Balance: ₦{currentSession.session.openingBalance.toLocaleString()}
+                Started:{" "}
+                {new Date(currentSession.session.openedAt).toLocaleString()} |
+                Opening Balance: ₦
+                {currentSession.session.openingBalance.toLocaleString()}
               </p>
             </div>
             <div className="text-right">
@@ -169,7 +183,10 @@ console.log(warehouseItems)
       {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.name} className="bg-white overflow-hidden shadow rounded-lg">
+          <div
+            key={stat.name}
+            className="bg-white overflow-hidden shadow rounded-lg"
+          >
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -208,7 +225,9 @@ console.log(warehouseItems)
               <ShoppingCart className="h-8 w-8 text-gray-400 mr-3" />
               <div className="text-left">
                 <div className="font-medium text-gray-900">New Sale</div>
-                <div className="text-sm text-gray-500">Process customer sale</div>
+                <div className="text-sm text-gray-500">
+                  Process customer sale
+                </div>
               </div>
             </button>
 
@@ -230,7 +249,9 @@ console.log(warehouseItems)
             >
               <Users className="h-8 w-8 text-gray-400 mr-3" />
               <div className="text-left">
-                <div className="font-medium text-gray-900">Manage Customers</div>
+                <div className="font-medium text-gray-900">
+                  Manage Customers
+                </div>
                 <div className="text-sm text-gray-500">Add/edit customers</div>
               </div>
             </a>

@@ -12,7 +12,7 @@ export class CostingService {
   // ✅ use tx for transaction safety
   async getCostingMethod(
     tx: Prisma.TransactionClient,
-    itemId: string
+    itemId: string,
   ): Promise<CostingMethod> {
     const item = await tx.item.findUnique({
       where: { id: itemId },
@@ -41,7 +41,7 @@ export class CostingService {
     qty: number,
     refType: string,
     refId: string,
-    userId?: string
+    userId?: string,
   ): Promise<{ unitCost: number; value: number; ledgerEntries: any[] }> {
     return prisma.$transaction(
       async (tx) => {
@@ -58,7 +58,7 @@ export class CostingService {
             qty,
             refType,
             refId,
-            userId
+            userId,
           );
         } else {
           return this.issueFifo(
@@ -68,11 +68,11 @@ export class CostingService {
             qty,
             refType,
             refId,
-            userId
+            userId,
           );
         }
       },
-      { timeout: 15000 }
+      { timeout: 15000 },
     );
   }
 
@@ -83,7 +83,7 @@ export class CostingService {
     qty: number,
     refType: string,
     refId: string,
-    userId?: string
+    userId?: string,
   ): Promise<{ unitCost: number; value: number; ledgerEntries: any[] }> {
     const costingMethod = await this.getCostingMethod(tx, itemId);
 
@@ -98,7 +98,7 @@ export class CostingService {
         qty,
         refType,
         refId,
-        userId
+        userId,
       );
     } else {
       return this.issueFifo(
@@ -108,7 +108,7 @@ export class CostingService {
         qty,
         refType,
         refId,
-        userId
+        userId,
       );
     }
   }
@@ -121,7 +121,7 @@ export class CostingService {
     unitCost: number,
     refType: string,
     refId: string,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     const costingMethod = await this.getCostingMethod(tx, itemId);
 
@@ -174,7 +174,7 @@ export class CostingService {
     unitCost: number,
     refType: string,
     refId: string,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     await prisma.$transaction(
       async (tx) => {
@@ -227,7 +227,7 @@ export class CostingService {
       {
         maxWait: 5000, // 5s wait for connection
         timeout: 20000, // 20s max runtime
-      }
+      },
     );
   }
 
@@ -238,7 +238,7 @@ export class CostingService {
     qty: number,
     refType: string,
     refId: string,
-    userId?: string
+    userId?: string,
   ): Promise<{ unitCost: number; value: number; ledgerEntries: any[] }> {
     // Get current running totals
     const lastEntry = await tx.inventoryLedger.findFirst({
@@ -250,7 +250,7 @@ export class CostingService {
       throw new Error(
         `Insufficient stock. Available: ${
           lastEntry?.runningQty || 0
-        }, Required: ${qty}`
+        }, Required: ${qty}`,
       );
     }
 
@@ -295,7 +295,7 @@ export class CostingService {
     qty: number,
     refType: string,
     refId: string,
-    userId?: string
+    userId?: string,
   ): Promise<{ unitCost: number; value: number; ledgerEntries: any[] }> {
     // Get available batches ordered by received date (FIFO)
     const batches = await tx.inventoryBatch.findMany({
@@ -305,12 +305,12 @@ export class CostingService {
 
     const totalAvailable = batches.reduce(
       (sum, batch) => sum.plus(batch.qtyOnHand),
-      new Decimal(0)
+      new Decimal(0),
     );
 
     if (totalAvailable.lt(qty)) {
       throw new Error(
-        `Insufficient stock. Available: ${totalAvailable}, Required: ${qty}`
+        `Insufficient stock. Available: ${totalAvailable}, Required: ${qty}`,
       );
     }
 
@@ -385,7 +385,7 @@ export class CostingService {
 
   async getInventoryValue(
     itemId: string,
-    warehouseId: string
+    warehouseId: string,
   ): Promise<{ qty: number; value: number; avgCost: number }> {
     const costingMethod = await prisma.item
       .findUnique({
@@ -393,7 +393,7 @@ export class CostingService {
         select: { costingMethod: true },
       })
       .then((item) => item?.costingMethod ?? CostingMethod.WEIGHTED_AVG);
-    console.log("Costing Method ", costingMethod);
+    // console.log("Costing Method ", costingMethod);
 
     if (
       costingMethod === CostingMethod.WEIGHTED_AVG ||
@@ -403,7 +403,7 @@ export class CostingService {
         where: { itemId, warehouseId },
         orderBy: { postedAt: "desc" },
       });
-      console.log("LastEntry for the inventory ", lastEntry);
+      // console.log("LastEntry for the inventory ", lastEntry);
 
       return {
         qty: lastEntry?.runningQty.toNumber() || 0,
@@ -418,14 +418,14 @@ export class CostingService {
 
       const totalQty = batches.reduce(
         (sum, b) => sum + b.qtyOnHand.toNumber(),
-        0
+        0,
       );
       const totalValue = batches.reduce(
         (sum, b) => sum + b.qtyOnHand.toNumber() * b.unitCost.toNumber(),
-        0
+        0,
       );
       const avgCost = totalQty > 0 ? totalValue / totalQty : 0;
-      console.log("avgCost from Fifo", avgCost);
+      // console.log("avgCost from Fifo", avgCost);
 
       return { qty: totalQty, value: totalValue, avgCost };
     }

@@ -56,31 +56,31 @@ export interface Item {
   sku: string;
   name: string;
   description?: string;
-  type: 'RAW_MATERIAL' | 'WORK_IN_PROGRESS' | 'FINISHED_GOODS' | 'CONSUMABLE';
+  type: "RAW_MATERIAL" | "WORK_IN_PROGRESS" | "FINISHED_GOODS" | "CONSUMABLE";
   uom: string;
-  costingMethod: 'GLOBAL' | 'FIFO' | 'WEIGHTED_AVG';
+  costingMethod: "GLOBAL" | "FIFO" | "WEIGHTED_AVG";
   standardCost?: string;
   sellingPriceOrdinary?: string;
-  sellingPriceBulk?:string,
-  sellingPriceWIC?:string,
+  sellingPriceBulk?: string;
+  sellingPriceWIC?: string;
   taxCode?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  priceList:{
-    id:string;
-    customerGroup:string;
-    price:number;
-  }
+  priceList: {
+    id: string;
+    customerGroup: string;
+    price: number;
+  };
 }
 
 export interface CreateItemRequest {
   sku: string;
   name: string;
   description?: string;
-  type: 'RAW_MATERIAL' | 'WORK_IN_PROGRESS' | 'FINISHED_GOODS' | 'CONSUMABLE';
+  type: "RAW_MATERIAL" | "WORK_IN_PROGRESS" | "FINISHED_GOODS" | "CONSUMABLE";
   uom?: string;
-  costingMethod?: 'GLOBAL' | 'FIFO' | 'WEIGHTED_AVG';
+  costingMethod?: "GLOBAL" | "FIFO" | "WEIGHTED_AVG";
   standardCost?: number;
   sellingPrice?: number;
   taxCode?: string;
@@ -153,7 +153,7 @@ export interface Purchase {
   orderNo: string;
   vendorId: string;
   orderDate: string;
-  status: 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'INVOICED' | 'PAID';
+  status: "DRAFT" | "ORDERED" | "RECEIVED" | "INVOICED" | "PAID";
   totalAmount: number;
   balanceAmount: number;
   notes?: string;
@@ -185,7 +185,7 @@ export interface Customer {
   phone?: string;
   email?: string;
   creditLimit?: number;
-  customerGroupId:string;
+  customerGroupId: string;
   customerGroup?: CustomerGroup[];
   isActive: boolean;
   createdAt: string;
@@ -200,7 +200,6 @@ export interface CustomerGroup {
   customerCount?: number;
   isActive: boolean;
 }
-
 
 // Sales Types
 export interface SaleLine {
@@ -221,7 +220,7 @@ export interface Sale {
   orderNo: string;
   customerId: string;
   orderDate: string;
-  status: 'DRAFT' | 'CONFIRMED' | 'DELIVERED' | 'INVOICED' | 'PAID';
+  status: "DRAFT" | "CONFIRMED" | "DELIVERED" | "INVOICED" | "PAID";
   totalAmount: number;
   notes?: string;
   customer: {
@@ -250,7 +249,7 @@ export interface ProductionOrder {
   itemId: string;
   qtyTarget: number;
   qtyProduced: number;
-  status: 'PLANNED' | 'RELEASED' | 'IN_PROGRESS' | 'FINISHED' | 'CLOSED';
+  status: "PLANNED" | "RELEASED" | "IN_PROGRESS" | "FINISHED" | "CLOSED";
   warehouseId: string;
   bomId?: string;
   startedAt?: string;
@@ -284,7 +283,7 @@ export interface InventoryLedgerEntry {
   warehouseId: string;
   refType: string;
   refId: string;
-  direction: 'IN' | 'OUT';
+  direction: "IN" | "OUT";
   qty: number;
   unitCost: number;
   value: number;
@@ -349,25 +348,25 @@ export interface CashAccount {
   id: string;
   code: string;
   name: string;
-  accountType: 'CASH' | 'BANK';
+  accountType: "CASH" | "BANK";
   accountNumber?: string;
   bankName?: string;
   glAccountId?: string;
   balance: number;
   isActive: boolean;
   createdAt: string;
-  warehouseId?:string;
+  warehouseId?: string;
 }
 
 export interface CashTransaction {
   id: string;
   transactionNo: string;
   cashAccountId: string;
-  transactionType: 'RECEIPT' | 'PAYMENT';
+  transactionType: "RECEIPT" | "PAYMENT";
   amount: number;
   //description: string;
-  refType?: 'SALES_RECEIPT' | 'PURCHASE_PAYMENT' | 'OTHER';
-  status:'PREPARED' | 'APPROVED' |'AUTHORIZED'|'PAID';
+  refType?: "SALES_RECEIPT" | "PURCHASE_PAYMENT" | "OTHER";
+  status: "PREPARED" | "APPROVED" | "AUTHORIZED" | "PAID";
   refId?: string;
   transactionDate: string;
   userId: string;
@@ -381,10 +380,10 @@ export interface CashTransaction {
     name: string;
     email: string;
   };
-  CashTransactionLine:CashTransactionLine[];
+  CashTransactionLine: CashTransactionLine[];
 }
 
-export interface CashTransactionLine{
+export interface CashTransactionLine {
   glAccountId: string;
   contraAccountId: string;
   lineAmount: number;
@@ -495,7 +494,7 @@ export interface SystemSetting {
   category: string;
   key: string;
   value: string;
-  dataType: 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON';
+  dataType: "STRING" | "NUMBER" | "BOOLEAN" | "JSON";
   description?: string;
   isEditable: boolean;
   updatedBy: string;
@@ -537,7 +536,7 @@ export interface ApprovalRequest {
   entityId: string;
   requestedBy: string;
   currentStepId?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: "PENDING" | "APPROVED" | "REJECTED";
   requestedAt: string;
   completedAt?: string;
   workflow?: {
@@ -562,7 +561,7 @@ export interface ApprovalAction {
   requestId: string;
   stepId: string;
   userId: string;
-  action: 'APPROVE' | 'REJECT';
+  action: "APPROVE" | "REJECT";
   comments?: string;
   actionDate: string;
   user?: {
@@ -613,13 +612,17 @@ export interface CreateSystemSettingRequest {
   category: string;
   key: string;
   value: string;
-  dataType?: 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON';
+  dataType?: "STRING" | "NUMBER" | "BOOLEAN" | "JSON";
   description?: string;
 }
 
 export interface CreateApprovalWorkflowRequest {
   name: string;
-  entity: 'PURCHASE_ORDER' | 'SALES_ORDER' | 'PRODUCTION_ORDER' | 'INVENTORY_ADJUSTMENT';
+  entity:
+    | "PURCHASE_ORDER"
+    | "SALES_ORDER"
+    | "PRODUCTION_ORDER"
+    | "INVENTORY_ADJUSTMENT";
   minAmount?: number;
   maxAmount?: number;
   steps: {
@@ -663,7 +666,18 @@ export interface CreateChartAccountRequest {
   code?: string;
   code: string;
   name: string;
-  accountType: 'INCOME' | 'EXPENSES' | 'OTHER_INCOME' | 'CURRENT_ASSETS' | 'NON_CURRENT_ASSETS' | 'CURRENT_LIABILITY' | 'NON_CURRENT_LIABILITY' | 'COST_OF_SALES' | 'TRADE_RECEIVABLES' | 'TRADE_PAYABLES' | 'EQUITY';
+  accountType:
+    | "INCOME"
+    | "EXPENSES"
+    | "OTHER_INCOME"
+    | "CURRENT_ASSETS"
+    | "NON_CURRENT_ASSETS"
+    | "CURRENT_LIABILITY"
+    | "NON_CURRENT_LIABILITY"
+    | "COST_OF_SALES"
+    | "TRADE_RECEIVABLES"
+    | "TRADE_PAYABLES"
+    | "EQUITY";
   description?: string;
   parentId?: string;
 }
@@ -686,14 +700,14 @@ export interface CreatePurchasePaymentRequest {
 
 export interface CreateCashTransactionRequest {
   cashAccountId: string;
-  transactionType: 'RECEIPT' | 'PAYMENT';
+  transactionType: "RECEIPT" | "PAYMENT";
   amount: number;
   description: string;
   transactionDate: string;
 }
 export interface CreateCustomerJournalRequest {
   customerId: string;
-  transactionType: 'CREDIT' | 'DEBIT';
+  transactionType: "CREDIT" | "DEBIT";
   amount: number;
   description: string;
   transactionDate: string;
@@ -705,7 +719,7 @@ export interface AssetCategory {
   code: string;
   name: string;
   description?: string;
-  depreciationMethod: 'STRAIGHT_LINE' | 'REDUCING_BALANCE';
+  depreciationMethod: "STRAIGHT_LINE" | "REDUCING_BALANCE";
   usefulLife: number;
   residualValue: number;
   glAssetAccountId: string;
@@ -740,12 +754,12 @@ export interface Asset {
   acquisitionCost: number;
   residualValue: number;
   usefulLife: number;
-  depreciationMethod: 'STRAIGHT_LINE' | 'REDUCING_BALANCE';
+  depreciationMethod: "STRAIGHT_LINE" | "REDUCING_BALANCE";
   locationId?: string;
   serialNumber?: string;
   supplier?: string;
   purchaseOrderId?: string;
-  status: 'ACTIVE' | 'DISPOSED' | 'SOLD' | 'WRITTEN_OFF';
+  status: "ACTIVE" | "DISPOSED" | "SOLD" | "WRITTEN_OFF";
   disposalDate?: string;
   disposalAmount?: number;
   disposalMethod?: string;
@@ -769,7 +783,7 @@ export interface Asset {
 
   accumulatedDepreciation?: number;
   netBookValue?: number;
-  
+
   _count?: {
     depreciationEntries: number;
   };
@@ -794,7 +808,7 @@ export interface AssetDisposal {
   assetId: string;
   disposalDate: string;
   disposalAmount: number;
-  disposalMethod: 'SALE' | 'SCRAP' | 'DONATION' | 'WRITE_OFF';
+  disposalMethod: "SALE" | "SCRAP" | "DONATION" | "WRITE_OFF";
   buyerDetails?: string;
   gainLoss: number;
   notes?: string;
@@ -807,7 +821,7 @@ export interface CreateAssetCategoryRequest {
   code: string;
   name: string;
   description?: string;
-  depreciationMethod: 'STRAIGHT_LINE' | 'REDUCING_BALANCE';
+  depreciationMethod: "STRAIGHT_LINE" | "REDUCING_BALANCE";
   usefulLife: number;
   residualValue: number;
   glAssetAccountId: string;
@@ -823,7 +837,7 @@ export interface CreateAssetRequest {
   acquisitionCost: number;
   residualValue?: number;
   usefulLife?: number;
-  depreciationMethod?: 'STRAIGHT_LINE' | 'REDUCING_BALANCE';
+  depreciationMethod?: "STRAIGHT_LINE" | "REDUCING_BALANCE";
   locationId?: string;
   serialNumber?: string;
   supplier?: string;
@@ -844,7 +858,7 @@ export interface CapitalizeFromPurchaseRequest {
 export interface DisposeAssetRequest {
   disposalDate: string;
   disposalAmount: number;
-  disposalMethod: 'SALE' | 'SCRAP' | 'DONATION' | 'WRITE_OFF';
+  disposalMethod: "SALE" | "SCRAP" | "DONATION" | "WRITE_OFF";
   buyerDetails?: string;
   notes?: string;
 }
@@ -868,7 +882,7 @@ export interface PosSession {
   totalReturns: number;
   openedAt: string;
   closedAt?: string;
-  status: 'OPEN' | 'CLOSED';
+  status: "OPEN" | "CLOSED";
   warehouse: {
     code: string;
     name: string;
@@ -885,15 +899,19 @@ export interface PosSale {
   sessionId: string;
   customerId?: string;
   warehouseId: string;
-  cashAccountId: string;
   subtotal: number;
   taxAmount: number;
   discountAmount: number;
   totalAmount: number;
   amountPaid: number;
   changeAmount: number;
-  paymentMethod: 'CASH' | 'CARD' | 'TRANSFER';
-  status: 'COMPLETED' | 'RETURNED';
+  payments: {
+    method: "CASH" | "TRANSFER" | "CARD";
+    cashAccountId: string;
+    amount: number;
+  }[];
+  // paymentMethod: 'CASH' | 'CARD' | 'TRANSFER';
+  status: "COMPLETED" | "RETURNED";
   notes?: string;
   createdAt: string;
   customer?: {
@@ -983,7 +1001,7 @@ export interface CreatePosSaleRequest {
   totalAmount: number;
   amountPaid: number;
   changeAmount?: number;
-  paymentMethod?: 'CASH' | 'CARD' | 'TRANSFER';
+  paymentMethod?: "CASH" | "CARD" | "TRANSFER";
   notes?: string;
 }
 

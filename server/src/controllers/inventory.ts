@@ -292,7 +292,7 @@ export class InventoryController {
         {
           maxWait: 5000, // 5s wait for connection
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       res.status(201).json(bom);
@@ -317,7 +317,7 @@ export class InventoryController {
               validatedData.unitCost || 0,
               "ADJUSTMENT",
               `ADJ-${Date.now()}`,
-              req.user!.id
+              req.user!.id,
             );
 
             // Post to general ledger
@@ -340,7 +340,7 @@ export class InventoryController {
                 },
               ],
               `Inventory adjustment: ${validatedData.reason}`,
-              req.user!.id
+              req.user!.id,
             );
           } else {
             // Inventory decrease
@@ -350,7 +350,7 @@ export class InventoryController {
               validatedData.qty,
               "ADJUSTMENT",
               `ADJ-${Date.now()}`,
-              req.user!.id
+              req.user!.id,
             );
 
             // Post to general ledger
@@ -372,14 +372,14 @@ export class InventoryController {
                 },
               ],
               `Inventory adjustment: ${validatedData.reason}`,
-              req.user!.id
+              req.user!.id,
             );
           }
         },
         {
           maxWait: 5000, // 5s wait for connection
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       res.json({ message: "Inventory adjusted successfully" });
@@ -435,100 +435,142 @@ export class InventoryController {
   // }
 
   async transferInventoryBulk(req: AuthRequest, res: Response) {
-  try {
-    const data = bulkInventoryTransferSchema.parse(req.body);
-    const refId = `TRF-${Date.now()}`;
+    try {
+      const data = bulkInventoryTransferSchema.parse(req.body);
+      const refId = `TRF-${Date.now()}`;
 
-    await prisma.$transaction(async (tx) => {
-      // 1️⃣ Create transfer header
-      const transfer = await tx.inventoryTransfer.create({
-        data: {
-          refId,
-          fromWarehouseId: data.fromWarehouseId,
-          toWarehouseId: data.toWarehouseId,
-          createdById: req.user!.id,
-        },
-      });
-
-      // 2️⃣ Process items
-      for (const item of data.transferItems) {
-        const issueResult = await costingService.issueInventoryForTransfer(
-          tx,
-          item.itemId,
-          data.fromWarehouseId,
-          item.qty,
-          "TRANSFER",
-          refId,
-          req.user!.id
-        );
-
-        await costingService.receiveInventoryForTransfer(
-          tx,
-          item.itemId,
-          data.toWarehouseId,
-          item.qty,
-          issueResult.unitCost,
-          "TRANSFER",
-          refId,
-          req.user!.id
-        );
-
-        // 3️⃣ Create transfer line
-        await tx.inventoryTransferItem.create({
+      await prisma.$transaction(async (tx) => {
+        // 1️⃣ Create transfer header
+        const transfer = await tx.inventoryTransfer.create({
           data: {
-            transferId: transfer.id,
-            itemId: item.itemId,
-            qty: item.qty,
-            unitCost: issueResult.unitCost,
+            refId,
+            fromWarehouseId: data.fromWarehouseId,
+            toWarehouseId: data.toWarehouseId,
+            createdById: req.user!.id,
           },
         });
-      }
-    });
 
-    res.json({
-      message: "Bulk inventory transfer successful",
-      refId,
-    });
-  } catch (error) {
-    console.error("Bulk transfer error:", error);
-    res.status(400).json({ error: "Bulk transfer failed" });
+        // 2️⃣ Process items
+        for (const item of data.transferItems) {
+          const issueResult = await costingService.issueInventoryForTransfer(
+            tx,
+            item.itemId,
+            data.fromWarehouseId,
+            item.qty,
+            "TRANSFER",
+            refId,
+            req.user!.id,
+          );
+
+          await costingService.receiveInventoryForTransfer(
+            tx,
+            item.itemId,
+            data.toWarehouseId,
+            item.qty,
+            issueResult.unitCost,
+            "TRANSFER",
+            refId,
+            req.user!.id,
+          );
+
+          // 3️⃣ Create transfer line
+          await tx.inventoryTransferItem.create({
+            data: {
+              transferId: transfer.id,
+              itemId: item.itemId,
+              qty: item.qty,
+              unitCost: issueResult.unitCost,
+            },
+          });
+        }
+      });
+
+      res.json({
+        message: "Bulk inventory transfer successful",
+        refId,
+      });
+    } catch (error) {
+      console.error("Bulk transfer error:", error);
+      res.status(400).json({ error: "Bulk transfer failed" });
+    }
   }
-}
 
-async getInventoryTransfers(req: AuthRequest, res: Response) {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      itemId,
-      fromWarehouseId,
-      toWarehouseId,
-      dateFrom,
-      dateTo,
-    } = req.query;
+  async getInventoryTransfers(req: AuthRequest, res: Response) {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        itemId,
+        fromWarehouseId,
+        toWarehouseId,
+        dateFrom,
+        dateTo,
+      } = req.query;
 
-    const skip = (Number(page) - 1) * Number(limit);
+      const skip = (Number(page) - 1) * Number(limit);
 
-    const where: any = {};
+      const where: any = {};
 
-    if (fromWarehouseId) where.fromWarehouseId = fromWarehouseId;
-    if (toWarehouseId) where.toWarehouseId = toWarehouseId;
+      if (fromWarehouseId) where.fromWarehouseId = fromWarehouseId;
+      if (toWarehouseId) where.toWarehouseId = toWarehouseId;
 
-    if (dateFrom || dateTo) {
-      where.createdAt = {};
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
-      if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+      if (dateFrom || dateTo) {
+        where.createdAt = {};
+        if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+        if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+      }
+
+      if (itemId) {
+        where.items = {
+          some: { itemId: itemId as string },
+        };
+      }
+
+      const [transfers, total] = await Promise.all([
+        prisma.inventoryTransfer.findMany({
+          where,
+          include: {
+            fromWarehouse: { select: { code: true, name: true } },
+            toWarehouse: { select: { code: true, name: true } },
+            createdBy: { select: { name: true } },
+            items: {
+              include: {
+                item: { select: { sku: true, name: true, uom: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: Number(limit),
+        }),
+        prisma.inventoryTransfer.count({ where }),
+      ]);
+
+      res.json({
+        transfers,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit)),
+        },
+      });
+    } catch (error) {
+      console.error("Get inventory transfers error:", error);
+      res.status(500).json({ error: "Failed to fetch inventory transfers" });
     }
+  }
 
-    if (itemId) {
-      where.items = {
-        some: { itemId: itemId as string },
-      };
-    }
+  async getInventoryTransfer(req: AuthRequest, res: Response) {
+    try {
+      const { refId } = req.params;
 
-    const [transfers, total] = await Promise.all([
-      prisma.inventoryTransfer.findMany({
-        where,
+      if (!refId) {
+        return res.status(400).json({ error: "refId is required" });
+      }
+
+      const transfer = await prisma.inventoryTransfer.findUnique({
+        where: { refId },
         include: {
           fromWarehouse: { select: { code: true, name: true } },
           toWarehouse: { select: { code: true, name: true } },
@@ -539,141 +581,97 @@ async getInventoryTransfers(req: AuthRequest, res: Response) {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: Number(limit),
-      }),
-      prisma.inventoryTransfer.count({ where }),
-    ]);
+      });
 
-    res.json({
-      transfers,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit)),
-      },
-    });
-  } catch (error) {
-    console.error("Get inventory transfers error:", error);
-    res.status(500).json({ error: "Failed to fetch inventory transfers" });
-  }
-}
+      if (!transfer) {
+        return res.status(404).json({ error: "Inventory transfer not found" });
+      }
 
-async getInventoryTransfer(req: AuthRequest, res: Response) {
-  try {
-    const { refId } = req.params;
-
-    if (!refId) {
-      return res.status(400).json({ error: "refId is required" });
+      res.json({ transfer });
+    } catch (error) {
+      console.error("Get inventory transfer error:", error);
+      res.status(500).json({ error: "Failed to fetch inventory transfer" });
     }
+  }
 
-    const transfer = await prisma.inventoryTransfer.findUnique({
-      where: { refId },
-      include: {
-        fromWarehouse: { select: { code: true, name: true } },
-        toWarehouse: { select: { code: true, name: true } },
-        createdBy: { select: { name: true } },
-        items: {
-          include: {
-            item: { select: { sku: true, name: true, uom: true } },
+  async printInventoryTransfer(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params; // refId
+
+      const transfer = await prisma.inventoryTransfer.findUnique({
+        where: { refId: id },
+        include: {
+          fromWarehouse: {
+            select: { code: true, name: true },
           },
-        },
-      },
-    });
-
-    if (!transfer) {
-      return res.status(404).json({ error: "Inventory transfer not found" });
-    }
-
-    res.json({ transfer });
-  } catch (error) {
-    console.error("Get inventory transfer error:", error);
-    res.status(500).json({ error: "Failed to fetch inventory transfer" });
-  }
-}
-
-
-async printInventoryTransfer(req: AuthRequest, res: Response) {
-  try {
-    const { id } = req.params; // refId
-
-    const transfer = await prisma.inventoryTransfer.findUnique({
-      where: { refId: id },
-      include: {
-        fromWarehouse: {
-          select: { code: true, name: true },
-        },
-        toWarehouse: {
-          select: { code: true, name: true },
-        },
-        createdBy: {
-          select: { name: true },
-        },
-        items: {
-          include: {
-            item: {
-              select: { sku: true, name: true, uom: true },
+          toWarehouse: {
+            select: { code: true, name: true },
+          },
+          createdBy: {
+            select: { name: true },
+          },
+          items: {
+            include: {
+              item: {
+                select: { sku: true, name: true, uom: true },
+              },
             },
           },
         },
-      },
-    });
+      });
 
-    if (!transfer) {
-      return res.status(404).json({ error: "Transfer not found" });
+      if (!transfer) {
+        return res.status(404).json({ error: "Transfer not found" });
+      }
+
+      // Format line items
+      const lines = transfer.items.map((line, index) => ({
+        sn: index + 1,
+        sku: line.item.sku,
+        name: line.item.name,
+        uom: line.item.uom,
+        qty: Number(line.qty),
+        // unitCost: Number(line.unitCost),
+        //value: Number(line.qty) * Number(line.unitCost),
+      }));
+
+      const totalQty = lines.reduce((sum, l) => sum + l.qty, 0);
+      // const totalValue = lines.reduce((sum, l) => sum + l.value, 0);
+
+      res.json({
+        transfer: {
+          refId: transfer.refId,
+          date: transfer.createdAt.toISOString(),
+          fromWarehouse: transfer.fromWarehouse,
+          toWarehouse: transfer.toWarehouse,
+          postedBy: transfer.createdBy,
+          items: lines,
+          totals: {
+            totalQty,
+            // totalValue
+          },
+        },
+        printData: {
+          title: "INVENTORY TRANSFER NOTE",
+          documentNo: transfer.refId,
+          date: transfer.createdAt,
+          fromWarehouse: transfer.fromWarehouse,
+          toWarehouse: transfer.toWarehouse,
+          postedBy: transfer.createdBy,
+          items: lines,
+          totals: {
+            totalQty,
+            // totalValue,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Print inventory transfer error:", error);
+      res.status(500).json({
+        error: "Failed to generate inventory transfer print",
+      });
     }
-
-    // Format line items
-    const lines = transfer.items.map((line, index) => ({
-      sn: index + 1,
-      sku: line.item.sku,
-      name: line.item.name,
-      uom: line.item.uom,
-      qty: Number(line.qty),
-     // unitCost: Number(line.unitCost),
-      //value: Number(line.qty) * Number(line.unitCost),
-    }));
-
-    const totalQty = lines.reduce((sum, l) => sum + l.qty, 0);
-    // const totalValue = lines.reduce((sum, l) => sum + l.value, 0);
-
-    res.json({
-      transfer: {
-        refId: transfer.refId,
-        date: transfer.createdAt.toISOString(),
-        fromWarehouse: transfer.fromWarehouse,
-        toWarehouse: transfer.toWarehouse,
-        postedBy: transfer.createdBy,
-        items: lines,
-        totals: {
-          totalQty,
-          // totalValue
-        },
-      },
-      printData: {
-        title: "INVENTORY TRANSFER NOTE",
-        documentNo: transfer.refId,
-        date: transfer.createdAt,
-        fromWarehouse: transfer.fromWarehouse,
-        toWarehouse: transfer.toWarehouse,
-        postedBy: transfer.createdBy,
-        items: lines,
-        totals: {
-          totalQty,
-          // totalValue,
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Print inventory transfer error:", error);
-    res.status(500).json({
-      error: "Failed to generate inventory transfer print",
-    });
   }
-}
-
 
   async getInventoryLedger(req: AuthRequest, res: Response) {
     try {
@@ -836,7 +834,7 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
           "Content-Disposition",
           `attachment; filename="inventory-ledger-${
             new Date().toISOString().split("T")[0]
-          }.csv"`
+          }.csv"`,
         );
         res.send(csvContent);
       } else {
@@ -849,74 +847,71 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
     }
   }
 
-  async getInventoryValuation(req: AuthRequest, res: Response) {  
-  try {
-  const { warehouseId, limit = 10, type } = req.query;
+  async getInventoryValuation(req: AuthRequest, res: Response) {
+    try {
+      const { warehouseId, limit = 10, type } = req.query;
 
-  const items = await prisma.item.findMany({
-    where: {
-      isActive: true,
-      ...(type && { type: type as ItemType }),
-    },
-    select: {
-      id: true,
-      sku: true,
-      name: true,
-      type: true,
-      costingMethod: true,
-    },
-  });
-
-  const valuation: any[] = [];
-  let totalValue = 0;
-
-  // Warehouses resolved ONCE (important)
-  const warehouses = await prisma.warehouse.findMany({
-    where: warehouseId
-      ? { id: String(warehouseId) }
-      : { isActive: true },
-    select: { id: true },
-  });
-
-  for (const item of items) {
-    for (const warehouse of warehouses) {
-      const latestEntry = await prisma.inventoryLedger.findFirst({
+      const items = await prisma.item.findMany({
         where: {
-          itemId: item.id,
-          warehouseId: warehouse.id,
+          isActive: true,
+          ...(type && { type: type as ItemType }),
         },
-        orderBy: { postedAt: "desc" },
+        select: {
+          id: true,
+          sku: true,
+          name: true,
+          type: true,
+          costingMethod: true,
+        },
       });
 
-      if (latestEntry && Number(latestEntry.runningQty) > 0) {
-        const itemValuation = {
-          itemId: item.id,
-          sku: item.sku,
-          name: item.name,
-          type: item.type,
-          costingMethod: item.costingMethod,
-          qty: Number(latestEntry.runningQty),
-          unitCost: Number(latestEntry.runningAvgCost),
-          totalValue: Number(latestEntry.runningValue),
-        };
+      const valuation: any[] = [];
+      let totalValue = 0;
 
-        valuation.push(itemValuation);
-        totalValue += itemValuation.totalValue;
+      // Warehouses resolved ONCE (important)
+      const warehouses = await prisma.warehouse.findMany({
+        where: warehouseId ? { id: String(warehouseId) } : { isActive: true },
+        select: { id: true },
+      });
+
+      for (const item of items) {
+        for (const warehouse of warehouses) {
+          const latestEntry = await prisma.inventoryLedger.findFirst({
+            where: {
+              itemId: item.id,
+              warehouseId: warehouse.id,
+            },
+            orderBy: { postedAt: "desc" },
+          });
+
+          if (latestEntry && Number(latestEntry.runningQty) > 0) {
+            const itemValuation = {
+              itemId: item.id,
+              sku: item.sku,
+              name: item.name,
+              type: item.type,
+              costingMethod: item.costingMethod,
+              qty: Number(latestEntry.runningQty),
+              unitCost: Number(latestEntry.runningAvgCost),
+              totalValue: Number(latestEntry.runningValue),
+            };
+
+            valuation.push(itemValuation);
+            totalValue += itemValuation.totalValue;
+          }
+        }
       }
+
+      res.json({
+        valuation,
+        totalValue,
+        asOfDate: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Get inventory valuation error:", error);
+      res.status(500).json({ error: "Failed to fetch inventory valuation" });
     }
   }
-
-  res.json({
-    valuation,
-    totalValue,
-    asOfDate: new Date().toISOString(),
-  });
-} catch (error) {
-  console.error("Get inventory valuation error:", error);
-  res.status(500).json({ error: "Failed to fetch inventory valuation" });
-}
-}
-
 
   async getWarehouses(req: AuthRequest, res: Response) {
     try {
@@ -1545,9 +1540,8 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
       `;
 
         items = await prisma.$queryRaw<any[]>(query);
-        const countResult = await prisma.$queryRaw<{ count: number }[]>(
-          countQuery
-        );
+        const countResult =
+          await prisma.$queryRaw<{ count: number }[]>(countQuery);
         total = countResult[0]?.count ?? 0;
 
         // Fetch price lists separately (since raw SQL doesn’t include relations)
@@ -1612,13 +1606,13 @@ async printInventoryTransfer(req: AuthRequest, res: Response) {
                     orderBy: { postedAt: "desc" },
                   });
                   return Number(latestEntry?.runningQty ?? 0);
-                })
+                }),
               );
               stockQty = balances.reduce((sum, qty) => sum + qty, 0);
             }
 
             return { ...item, stockQty };
-          })
+          }),
         );
       }
 

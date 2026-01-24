@@ -21,7 +21,7 @@ const createPurchaseSchema = z.object({
         itemId: z.string().min(1, "Item is required"),
         qty: z.number().positive("Quantity must be positive"),
         unitPrice: z.number().positive("Unit price must be positive"),
-      })
+      }),
     )
     .min(1, "At least one line item is required"),
 });
@@ -76,7 +76,6 @@ const CreatePurchaseModal = ({
     queryFn: () => purchaseApi.getPurchases({ limit: 100 }),
   });
 
-
   const watchedItemIds = watchedLines
     .map((line) => line.itemId)
     .filter((id) => id);
@@ -93,18 +92,18 @@ const CreatePurchaseModal = ({
 
       const lastPurchase = purchaseData.purchases
         .filter((purchase: any) =>
-          purchase.purchaseLines?.some((l: any) => l.itemId === line)
+          purchase.purchaseLines?.some((l: any) => l.itemId === line),
         )
         .sort(
           (a: any, b: any) =>
-            new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()
+            new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime(),
         )[0];
 
+      if (lastPurchase === undefined) return;
 
       const lastLine = lastPurchase?.purchaseLines?.find(
-        (l: any) => l.itemId === line
+        (l: any) => l.itemId === line,
       );
-   
 
       // if (!lastLine){
       //   setValue(`purchaseLines.${index}.unitPrice`, 0, {
@@ -113,19 +112,11 @@ const CreatePurchaseModal = ({
       //   });
       //   return;
       // }
-        
-   
 
       // const lastUnitPrice = Number(lastLine.unitPrice);
 
       const currentPrice = Number(watchedLines[index]?.unitPrice || 0);
-    const newPrice = lastLine
-      ? Number(lastLine.unitPrice)
-      : 0;
-
-
-      
-     
+      const newPrice = lastLine ? Number(lastLine.unitPrice) : 0;
 
       if (currentPrice !== newPrice) {
         setValue(`purchaseLines.${index}.unitPrice`, newPrice, {
@@ -133,9 +124,8 @@ const CreatePurchaseModal = ({
           shouldTouch: true,
         });
       }
-
     });
-  }, [watchedItemIds,watchedLines, purchaseData, setValue]);
+  }, [watchedItemIds, watchedLines, purchaseData, setValue]);
 
   const calculateTotal = () => {
     return watchedLines.reduce((sum, line) => {

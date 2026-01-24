@@ -14,26 +14,46 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { posApi, inventoryApi, managementApi, cashApi } from "../../lib/api";
 import { PosSession } from "../../types/api";
-import { ReportExporter } from "../../utils/reportExport";
+// import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 import { ItemSelect } from "../../components/ItemSelect";
 import { CustomerSelect } from "../../components/CustomerSelect";
 
+// const posSaleSchema = z.object({
+//   customerId: z.string().optional(),
+//   cashAccountId: z.string().cuid(),
+//   saleLines: z
+//     .array(
+//       z.object({
+//         itemId: z.string().min(1, "Item is required"),
+//         qty: z.number().positive("Quantity must be positive"),
+//         unitPrice: z.number().positive("Unit price must be positive"),
+//         discountPercent: z.number().min(0).max(100).default(0),
+//       }),
+//     )
+//     .min(1, "At least one item is required"),
+//   paymentMethod: z.enum(["CASH", "CARD", "TRANSFER"]),
+//   amountPaid: z.number().positive("Amount paid must be positive"),
+//   notes: z.string().optional(),
+// });
+
+const paymentSchema = z.object({
+  method: z.enum(["CASH", "TRANSFER", "CARD"]),
+  cashAccountId: z.string().cuid(),
+  amount: z.number().positive("Amount must be positive"),
+});
+
 const posSaleSchema = z.object({
   customerId: z.string().optional(),
-  cashAccountId: z.string().cuid(),
-  saleLines: z
-    .array(
-      z.object({
-        itemId: z.string().min(1, "Item is required"),
-        qty: z.number().positive("Quantity must be positive"),
-        unitPrice: z.number().positive("Unit price must be positive"),
-        discountPercent: z.number().min(0).max(100).default(0),
-      })
-    )
-    .min(1, "At least one item is required"),
-  paymentMethod: z.enum(["CASH", "CARD", "TRANSFER"]),
-  amountPaid: z.number().positive("Amount paid must be positive"),
+  saleLines: z.array(
+    z.object({
+      itemId: z.string().min(1),
+      qty: z.number().positive(),
+      unitPrice: z.number().positive(),
+      discountPercent: z.number().min(0).max(100).default(0),
+    }),
+  ),
+  payments: z.array(paymentSchema).min(1, "At least one payment is required"),
   notes: z.string().optional(),
 });
 
@@ -65,31 +85,52 @@ const PosTerminal = ({
     resolver: zodResolver(posSaleSchema),
     defaultValues: {
       saleLines: [{ itemId: "", qty: 1, unitPrice: 0, discountPercent: 0 }],
+      payments: [{ method: "CASH", cashAccountId: "", amount: 0 }],
     },
+
+    // defaultValues: {
+    //   saleLines: [{ itemId: "", qty: 1, unitPrice: 0, discountPercent: 0 }],
+    // },
   });
+
+  // const { fields, append, remove } = useFieldArray({
+  //   control,
+  //   name: "payments",
+  //   // name: "saleLines",
+  // });
 
   const { fields, append, remove } = useFieldArray({
     control,
+
     name: "saleLines",
   });
 
-  const watchedLines = watch("saleLines");
+  const {
+    fields: paymentFields,
+    append: appendPayment,
+    remove: removePayment,
+  } = useFieldArray({
+    control,
+    name: "payments",
+  });
+
+  // const watchedLines = watch("saleLines");
   const watchedCustomerId = watch("customerId");
-  const watchedAmountPaid = watch("amountPaid") || 0;
+  // const watchedAmountPaid = watch("amountPaid") || 0;
+  const watchedLines = watch("saleLines");
+  const watchedPayments = watch("payments") || [];
   const watchedItemIds = watchedLines.map((line) => line.itemId);
 
   const { data: items } = useQuery({
     queryKey: ["pos-itemss", "FINISHED_GOODS"],
     queryFn: () =>
-      inventoryApi.getItems({ type:'FINISHED_GOODS', limit: 100 }),
+      inventoryApi.getItems({ type: "FINISHED_GOODS", limit: 100 }),
   });
-
 
   const { data: customersWithBalances } = useQuery({
     queryKey: ["customers-with-balances"],
     queryFn: () => posApi.getCustomersWithBalances(),
   });
-  // console.log("Customers with balances:", customersWithBalances);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-info-for-receipt"],
@@ -102,7 +143,7 @@ const PosTerminal = ({
   });
 
   const filteredAccounts = cashAccounts?.accounts?.filter(
-    (account: any) => account.name !== "Memo Clearing"
+    (account: any) => account.name !== "Memo Clearing",
   );
 
   useEffect(() => {
@@ -111,50 +152,30 @@ const PosTerminal = ({
 
       const selectedItem = items.items.find((it: any) => it.id === line.itemId);
       const customer = customersWithBalances?.customers?.find(
-        (c: any) => c.id === watchedCustomerId
+        (c: any) => c.id === watchedCustomerId,
       );
 
       if (!selectedItem) return;
 
-      // Default price
-      // let unitPrice =  0;
+      if (selectedItem && selectedCustomer) {
+        // find the matching price for this customer's group
+        const customerGroup = selectedCustomer.customerGroupName;
+        const groupPrice = selectedItem.priceList?.find(
+          (priceObj: any) => priceObj.customerGroup === customerGroup,
+        );
+        // console.log("selected customer", selectedCustomer);
+        // console.log("selected item", selectedItem);
+        // fallback if no group-specific price found
+        const unitPrice = groupPrice
+          ? groupPrice.price
+          : selectedItem.defaultPrice || 0;
 
-      // if (customer?.customerGroupName) {
-      //   switch (customer.customerGroupName) {
-      //     case "Bulk":
-      //       unitPrice = selectedItem.sellingPriceBulk ?? unitPrice;
-      //       break;
-
-      //     case "Retail":
-      //       unitPrice = selectedItem.sellingPriceOrdinary ?? unitPrice;
-      //       break;
-
-      //     default:
-      //       unitPrice = selectedItem.sellingPriceWIC ?? unitPrice;
-      //   }
-      // }
-
-       if (selectedItem && selectedCustomer) {
-          // find the matching price for this customer's group
-          const customerGroup = selectedCustomer.customerGroupName; 
-          const groupPrice = selectedItem.priceList?.find(
-            (priceObj: any) => priceObj.customerGroup === customerGroup
-          );
-          console.log("selected customer", selectedCustomer);
-          console.log("selected item", selectedItem);
-          // fallback if no group-specific price found
-          const unitPrice = groupPrice
-            ? groupPrice.price
-            : selectedItem.defaultPrice || 0;
-
-          
-            setValue(`saleLines.${index}.unitPrice`, unitPrice, {
-              shouldDirty: true,
-              shouldValidate: true,
-              shouldTouch: true,
-            });
-          }
-
+        setValue(`saleLines.${index}.unitPrice`, unitPrice, {
+          shouldDirty: true,
+          shouldValidate: true,
+          shouldTouch: true,
+        });
+      }
     });
   }, [
     watchedCustomerId,
@@ -162,73 +183,33 @@ const PosTerminal = ({
     customersWithBalances,
     watchedLines.map((l) => l.itemId).join(","),
     setValue,
+    selectedCustomer,
+    watchedLines,
   ]);
-
-  // React.useEffect(() => {
-  //   watchedLines.forEach((line, index) => {
-  //     if (line.itemId && items?.items) {
-  //       const selectedItem = items.items.find(
-  //         (item: any) => item.id === line.itemId
-  //       );
-  //       const customer = customersWithBalances?.customers?.find(
-  //         (c: any) => c.id === watchedCustomerId
-  //       );
-
-  //       if (selectedItem) {
-  //         let unitPrice = selectedItem.sellingPriceWIC ?? 0; // fallback
-
-  //         if (customer) {
-  //           switch (customer.CustomerGroup) {
-  //             case "Bulk":
-  //               unitPrice = selectedItem.sellingPriceBulk ?? unitPrice;
-  //               break;
-  //             case "Retail":
-  //               unitPrice = selectedItem.sellingPriceOrdinary ?? unitPrice;
-  //               break;
-  //             default:
-  //               unitPrice = selectedItem.sellingPriceWIC ?? unitPrice;
-  //           }
-  //           // console.log("Auto price:", unitPrice, "for", selectedItem.name, "group:", customer?.CustomerGroup);
-  //         }
-
-  //         setValue(`saleLines.${index}.unitPrice`, unitPrice, {
-  //           shouldDirty: true,
-  //           shouldValidate: true,
-  //           shouldTouch: true,
-  //         });
-  //       }
-  //     }
-  //   });
-  // }, [
-  //   watchedCustomerId,
-  //   items,
-  //   customersWithBalances,
-  //   setValue,
-  //   watchedLines.map((l) => l.itemId).join(","),
-  // ]);
-
-  // Update selected customer when customerId changes
-  // React.useEffect(() => {
-  //   if (watchedCustomerId) {
-  //     const customer = customersWithBalances?.customers?.find(
-  //       (c: any) => c.id === watchedCustomerId
-  //     );
-  //     setSelectedCustomer(customer);
-  //   } else {
-  //     setSelectedCustomer(null);
-  //   }
-  // }, [watchedCustomerId, customersWithBalances]);
 
   useEffect(() => {
     if (watchedCustomerId) {
       const customer = customersWithBalances?.customers?.find(
-        (c: any) => c.id === watchedCustomerId
+        (c: any) => c.id === watchedCustomerId,
       );
       setSelectedCustomer(customer);
     } else {
       setSelectedCustomer(null);
     }
   }, [watchedCustomerId, customersWithBalances]);
+
+  const subtotal = watchedLines.reduce((sum, l) => {
+    const total = l.qty * l.unitPrice;
+    const discount = (total * (l.discountPercent || 0)) / 100;
+    return sum + (total - discount);
+  }, 0);
+
+  const totalPaid = watchedPayments.reduce(
+    (sum, p) => sum + (p.amount || 0),
+    0,
+  );
+
+  const changeAmount = Math.max(0, totalPaid - subtotal);
 
   const calculateTotals = () => {
     const subtotal = watchedLines.reduce((sum, line) => {
@@ -244,51 +225,77 @@ const PosTerminal = ({
     }, 0);
 
     const totalAmount = subtotal + taxAmount;
-    const changeAmount = Math.max(0, watchedAmountPaid - totalAmount);
+    const changeAmount = Math.max(0, watchedPayments - totalAmount);
 
     return { subtotal, taxAmount, discountAmount, totalAmount, changeAmount };
   };
 
-  const { subtotal, taxAmount, discountAmount, totalAmount, changeAmount } =
-    calculateTotals();
+  // const { subtotal, taxAmount, discountAmount, totalAmount, changeAmount } =
+  //   calculateTotals();
+  const { discountAmount, totalAmount } = calculateTotals();
+
+  // const onSubmit = async (data: PosSaleFormData) => {
+  //   try {
+  //     const saleData = {
+  //       sessionId: session.id,
+  //       customerId: data.customerId,
+  //       cashAccountId: data.cashAccountId,
+  //       saleLines: data.saleLines.map((line) => ({
+  //         itemId: line.itemId,
+  //         qty: line.qty,
+  //         unitPrice: line.unitPrice,
+  //         discountPercent: line.discountPercent || 0,
+  //       })),
+  //       subtotal,
+  //       taxAmount,
+  //       discountAmount,
+  //       totalAmount,
+  //       amountPaid: data.amountPaid,
+  //       changeAmount,
+  //       paymentMethod: data.paymentMethod,
+  //       notes: data.notes,
+  //     };
+
+  //     const result = await posApi.createSale(saleData);
+
+  //     // Print receipt
+
+  //     toast.success("Sale completed successfully");
+  //     onSaleComplete();
+  //   } catch (error) {
+  //     console.error("Create POS sale error:", error);
+  //   }
+  // };
 
   const onSubmit = async (data: PosSaleFormData) => {
     try {
-      const saleData = {
+      const result = await posApi.createSale({
         sessionId: session.id,
         customerId: data.customerId,
-        cashAccountId: data.cashAccountId,
-        saleLines: data.saleLines.map((line) => ({
-          itemId: line.itemId,
-          qty: line.qty,
-          unitPrice: line.unitPrice,
-          discountPercent: line.discountPercent || 0,
-        })),
+        saleLines: data.saleLines,
         subtotal,
-        taxAmount,
-        discountAmount,
-        totalAmount,
-        amountPaid: data.amountPaid,
+        totalAmount: totalAmount,
+        payments: data.payments,
+        totalPaid,
         changeAmount,
-        paymentMethod: data.paymentMethod,
         notes: data.notes,
-      };
+      });
+      // console.log("POS Sale result:", result.id);
 
-      const result = await posApi.createSale(saleData);
-
-      // Print receipt
       await handlePrintReceipt(result.id);
 
-      toast.success("Sale completed successfully");
+      toast.success("Sale completed");
       onSaleComplete();
-    } catch (error) {
-      console.error("Create POS sale error:", error);
+    } catch (err) {
+      console.error("POS Sale error:", err);
+      toast.error("Failed to complete sale");
     }
   };
 
   const handlePrintReceipt = async (saleId: string) => {
     try {
       const printData = await posApi.printReceipt(saleId);
+      console.log("Print data:", printData);
       const printerWidth = localStorage.getItem("printerWidth") || "80"; // default to 80mm
       const paperWidth = `${printerWidth}mm`;
 
@@ -298,7 +305,7 @@ const PosTerminal = ({
       const receiptHTML = `
       <html>
         <head>
-          <title>Receipt - ${printData.printData.documentNo}</title>
+          <title>Receipt - ${printData.documentNo}</title>
           <style>
             @page {
               size: ${paperWidth} auto;
@@ -364,18 +371,18 @@ const PosTerminal = ({
           </div>
           <div style="text-align: center; margin-bottom: 15px;">
             <h1>SALES RECEIPT</h1>
-            <h2>${printData.printData.documentNo}</h2>
-            <p>${new Date(printData.printData.date).toLocaleString()}</p>
+            <h2>${printData.documentNo}</h2>
+            <p>${new Date(printData.date).toLocaleString()}</p>
           </div>
 
           ${
-            printData.printData.customer
+            printData.customer
               ? `
             <div style="margin-bottom: 10px; font-size: 12px;">
               <strong>Customer:</strong> ${
-                printData.printData.customer.name
+                printData.customer.name
               }<br>
-              <strong>Outstanding Balance:</strong> ₦${printData.outstandingBalance.toLocaleString()}
+              <strong>Code:</strong> ${printData.customer.code}
             </div>
           `
               : ""
@@ -391,16 +398,16 @@ const PosTerminal = ({
               </tr>
             </thead>
             <tbody>
-              ${printData.printData.lines
+              ${printData.items
                 .map(
-                  (line: any) => `
+                  (item: any) => `
                 <tr>
-                  <td>${line.item.name}</td>
-                  <td>${line.qty}</td>
-                  <td>₦${line.unitPrice.toLocaleString()}</td>
-                  <td>₦${line.lineTotal.toLocaleString()}</td>
+                  <td>${item.name}</td>
+                  <td>${item.qty}</td>
+                  <td>₦${item.unitPrice.toLocaleString()}</td>
+                  <td>₦${item.lineTotal.toLocaleString()}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -408,32 +415,40 @@ const PosTerminal = ({
 
           <div class="totals">
             <div style="display: flex; justify-content: space-between;">
-              <span>Subtotal:</span> <span>₦${printData.printData.subtotal.toLocaleString()}</span>
+              <span>Subtotal:</span> <span>₦${printData.totals.subtotal.toLocaleString()}</span>
             </div>
             ${
-              printData.printData.discountAmount > 0
+              printData.totals.discountAmount > 0
                 ? `
               <div style="display: flex; justify-content: space-between;">
-                <span>Discount:</span> <span>-₦${printData.printData.discountAmount.toLocaleString()}</span>
+                <span>Discount:</span> <span>-₦${printData.totals.discountAmount.toLocaleString()}</span>
               </div>
             `
                 : ""
             }
             <div style="display: flex; justify-content: space-between; font-weight: bold;">
-              <span>Total:</span> <span>₦${printData.printData.total.toLocaleString()}</span>
+              <span>Total:</span> <span>₦${printData.totals.totalAmount.toLocaleString()}</span>
             </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span>Paid (${printData.printData.paymentMethod}):</span>
-              <span>₦${printData.printData.amountPaid.toLocaleString()}</span>
-            </div>
+             ${
+               printData.payments
+                 ?.map(
+                   (payment: any) => `
+              <div style="display: flex; justify-content: space-between;">
+                <span>Paid (${payment.method}):</span>
+                <span>₦${payment.amount.toLocaleString()}</span>
+              </div>
+            `,
+                 )
+                 .join("") || ""
+             }
             <div style="display: flex; justify-content: space-between;">
               <span>Change:</span>
-              <span>₦${printData.printData.changeAmount.toLocaleString()}</span>
+              <span>₦${printData.totals.changeAmount.toLocaleString()}</span>
             </div>
           </div>
 
           <div class="footer">
-            Cashier: ${printData.printData.cashier}<br>
+            Cashier: ${printData.cashier.name}<br>
             Thank you for your business!<br>
             ProfitPilot ERP System
           </div>
@@ -480,7 +495,7 @@ const PosTerminal = ({
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Customer Selection */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Customer (Optional)
@@ -493,22 +508,92 @@ const PosTerminal = ({
                     }
                     error={errors.customerId?.message}
                   />
-
-                  {/* <select
-                    {...register('customerId')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="" disabled selected>Select Walk-in Customer</option>
-                    {customersWithBalances?.customers?.map((customer: any) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.code} - {customer.name} 
-                        {customer.outstandingBalance > 0 && ` (Owes: ₦${customer.outstandingBalance.toLocaleString()})`}
-                      </option>
-                    ))}
-                  </select> */}
                 </div>
-
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Notes
+                  </label>
+                  <textarea
+                    {...register("notes")}
+                    rows={2}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Sale notes"
+                  />
+                </div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="text-md font-medium text-green-900 mb-3">
+                  Payments
+                </h4>
+
+                <div className="space-y-4">
+                  {paymentFields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-1 sm:grid-cols-4 gap-3"
+                    >
+                      {/* Method */}
+                      <select
+                        {...register(`payments.${index}.method`)}
+                        className="border rounded px-2 py-2 focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      >
+                        <option value="CASH">Cash</option>
+                        <option value="TRANSFER">Transfer</option>
+                        <option value="CARD">Card</option>
+                      </select>
+
+                      {/* Account */}
+                      <select
+                        {...register(`payments.${index}.cashAccountId`)}
+                        className="border rounded px-2 py-2 focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      >
+                        <option value="">Select Account</option>
+                        {filteredAccounts?.map((acc: any) => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.code} - {acc.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Amount */}
+                      <input
+                        {...register(`payments.${index}.amount`, {
+                          valueAsNumber: true,
+                        })}
+                        type="number"
+                        step="0.01"
+                        className="border rounded px-2 py-2 focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        placeholder="Amount"
+                      />
+
+                      {/* Remove */}
+                      {paymentFields.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removePayment(index)}
+                          className="text-red-600"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      appendPayment({
+                        method: "CASH",
+                        cashAccountId: "",
+                        amount: 0,
+                      })
+                    }
+                    className="flex items-center text-sm text-blue-600"
+                  >
+                    <Plus className="mr-1" size={16} /> Add Payment Method
+                  </button>
+                </div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Payment Method
                   </label>
@@ -542,7 +627,7 @@ const PosTerminal = ({
                       {errors.cashAccountId.message}
                     </p>
                   )}
-                </div>
+                </div> */}
               </div>
 
               {/* Customer Outstanding Balance */}
@@ -593,32 +678,14 @@ const PosTerminal = ({
                             Item *
                           </label>
                           <ItemSelect
-                           // items={items?.items || []}
+                            // items={items?.items || []}
                             value={watch(`saleLines.${index}.itemId`)}
                             typeFilter="FINISHED_GOODS"
                             onChange={(val) =>
                               setValue(`saleLines.${index}.itemId`, val)
-                              
                             }
                             error={errors.saleLines?.[index]?.itemId?.message}
                           />
-
-                          {/* <select
-                            {...register(`saleLines.${index}.itemId`)}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          >
-                            <option value="">Select item</option>
-                            {items?.items?.map((item: any) => (
-                              <option key={item.id} value={item.id}>
-                                {item.sku} - {item.name} (Stock: {item.stockQty || 0})
-                              </option>
-                            ))}
-                          </select>
-                          {errors.saleLines?.[index]?.itemId && (
-                            <p className="mt-1 text-sm text-red-600">
-                              {errors.saleLines[index]?.itemId?.message}
-                            </p>
-                          )} */}
                         </div>
 
                         <div>
@@ -630,7 +697,7 @@ const PosTerminal = ({
                               valueAsNumber: true,
                             })}
                             type="number"
-                            step="0.001"
+                            step="0.1"
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             placeholder="1"
                           />
@@ -736,21 +803,23 @@ const PosTerminal = ({
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Amount Paid *
+                        Total Paid *
                       </label>
                       <input
-                        {...register("amountPaid", { valueAsNumber: true })}
+                        // {...register("amountPaid", { valueAsNumber: true })}
+                        disabled
+                        //value={`₦${totalPaid.toLocaleString()}`}
                         type="number"
                         step="0.01"
-                        min={totalAmount}
+                        min={totalPaid}
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        placeholder={totalAmount.toFixed(2)}
+                        placeholder={totalPaid.toFixed(2).toLocaleString()}
                       />
-                      {errors.amountPaid && (
+                      {/* {errors.totalPaid && (
                         <p className="mt-1 text-sm text-red-600">
-                          {errors.amountPaid.message}
+                          {errors.totalPaid.message}
                         </p>
-                      )}
+                      )} */}
                     </div>
 
                     {changeAmount > 0 && (
@@ -767,18 +836,6 @@ const PosTerminal = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Notes
-                </label>
-                <textarea
-                  {...register("notes")}
-                  rows={2}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Sale notes"
-                />
-              </div>
-
               <div className="flex justify-end space-x-3 pt-4 border-t">
                 <button
                   type="button"
@@ -789,7 +846,7 @@ const PosTerminal = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || watchedAmountPaid < totalAmount}
+                  disabled={isSubmitting || totalPaid < totalAmount}
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
