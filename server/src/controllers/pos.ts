@@ -643,6 +643,10 @@ export class PosController {
                 refId: posSale.id,
                 userId: req.user!.id,
                 preparedBy: req.user!.id,
+                authorizedBy: req.user!.id,
+                approvedBy: req.user!.id,
+                paidBy: req.user!.id,
+                status: "PAID",
               },
             });
 
@@ -1220,6 +1224,10 @@ export class PosController {
               refId: newReturn.id,
               userId: req.user!.id,
               preparedBy: req.user!.id,
+              authorizedBy: req.user!.id,
+              approvedBy: req.user!.id,
+              paidBy: req.user!.id,
+              status: "PAID",
             },
           });
         }
@@ -1305,7 +1313,7 @@ export class PosController {
   async printReceipt(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      console.log("PRINT RECEIPT PARAMS:", req.params);
+      // console.log("PRINT RECEIPT PARAMS:", req.params);
 
       if (!id) {
         return res.status(400).json({ error: "Sale ID is required" });

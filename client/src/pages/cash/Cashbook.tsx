@@ -1,18 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Download, Filter, X, DollarSign, TrendingUp, TrendingDown, Calendar, Upload, Package, Eye, Edit, Printer, Truck, FileText, MailboxIcon, Trash2, Receipt } from 'lucide-react';
-import { cashApi, managementApi } from '../../lib/api';
-import { CashTransaction } from '../../types/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import CreateCashTransactionModal from './CreateCashTransactionModal';
-import BankReconciliationModal from './BankReconciliationModal';
-import ImportBankStatementModal from './ImportBankStatementModal';
-import toast from 'react-hot-toast';
-import { useAuthStore } from '../../store/authStore';
-import EditCashTransactionModal from './EditCashTransactionModal';
-import ViewCashTransactionModal from './ViewCashTransactionModal';
-import  QRCode  from 'qrcode';
+import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Plus,
+  Download,
+  Filter,
+  X,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  Upload,
+  Package,
+  Eye,
+  Edit,
+  Printer,
+  Truck,
+  FileText,
+  MailboxIcon,
+  Trash2,
+  Receipt,
+} from "lucide-react";
+import { cashApi, managementApi } from "../../lib/api";
+import { CashTransaction } from "../../types/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import CreateCashTransactionModal from "./CreateCashTransactionModal";
+import BankReconciliationModal from "./BankReconciliationModal";
+import ImportBankStatementModal from "./ImportBankStatementModal";
+import toast from "react-hot-toast";
+import { useAuthStore } from "../../store/authStore";
+import EditCashTransactionModal from "./EditCashTransactionModal";
+import ViewCashTransactionModal from "./ViewCashTransactionModal";
+import QRCode from "qrcode";
 
 // interface CashTransaction {
 //   id: string;
@@ -43,153 +62,161 @@ import  QRCode  from 'qrcode';
 
 const Cashbook = () => {
   const [page, setPage] = useState(1);
-  const [cashAccountFilter, setCashAccountFilter] = useState('');
-  const [dateFromFilter, setDateFromFilter] = useState('');
-  const [dateToFilter, setDateToFilter] = useState('');
+  const [cashAccountFilter, setCashAccountFilter] = useState("");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedCashTransaction, setselectedCashTransaction] = useState<CashTransaction | null>(null);
+  const [selectedCashTransaction, setselectedCashTransaction] =
+    useState<CashTransaction | null>(null);
   const { user } = useAuthStore();
 
-  const canPerformActions = user?.roles.includes('Accountant') || user?.roles.includes('General Manager');
+  const canPerformActions =
+    user?.roles.includes("Accountant") ||
+    user?.roles.includes("General Manager");
 
-//   useEffect(() => {
-//   console.log('Current page:', page);
-// }, [page]);
+  //   useEffect(() => {
+  //   console.log('Current page:', page);
+  // }, [page]);
 
-const handleEditCashTransaction = () => {
+  const handleEditCashTransaction = () => {
     refetch();
     setShowEditModal(false);
     setselectedCashTransaction(null);
   };
-const handleViewCashTransaction = () => {
+  const handleViewCashTransaction = () => {
     refetch();
     setShowDetailsModal(false);
     setselectedCashTransaction(null);
   };
-  const { data: cashTransactions, isLoading, refetch } = useQuery({
-    queryKey: ['cashTransactions', { 
-      page, 
-      cashAccountId: cashAccountFilter,
-       startDate: dateFromFilter,
-       endDate: dateToFilter,
-      excludeRefund:true
-      //  transactionType:transactionTypeFilter
-    }],
-queryFn: () => {
-      // console.log('Fetching page:', page);  
-      return cashApi.getCashTransactions({ 
+  const {
+    data: cashTransactions,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: [
+      "cashTransactions",
+      {
+        page,
+        cashAccountId: cashAccountFilter,
+        startDate: dateFromFilter,
+        endDate: dateToFilter,
+        excludeRefund: true,
+        //  transactionType:transactionTypeFilter
+      },
+    ],
+    queryFn: () => {
+      // console.log('Fetching page:', page);
+      return cashApi.getCashTransactions({
         page,
         limit: 10,
         ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
         ...(dateFromFilter && { startDate: dateFromFilter }),
         ...(dateToFilter && { endDate: dateToFilter }),
-        excludeRefund: 'true',
+        excludeRefund: "true",
       });
-    }
+    },
   });
 
   // console.log(cashTransactions)
- 
 
-//   const { data, isLoading, refetch } = useQuery({
-//     queryKey: ['cashTransactions', { 
-//       page, 
-//       cashAccountId: cashAccountFilter,
-//       dateFrom: dateFromFilter,
-//       dateTo: dateToFilter
-//     }],
-//     queryFn: () => cashApi.getCashTransactions({ 
-//       page, 
-//       limit: 20,
-//       ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
-//       ...(dateFromFilter && { dateFrom: dateFromFilter }),
-//       ...(dateToFilter && { dateTo: dateToFilter }),
-//     })
-//   });
+  //   const { data, isLoading, refetch } = useQuery({
+  //     queryKey: ['cashTransactions', {
+  //       page,
+  //       cashAccountId: cashAccountFilter,
+  //       dateFrom: dateFromFilter,
+  //       dateTo: dateToFilter
+  //     }],
+  //     queryFn: () => cashApi.getCashTransactions({
+  //       page,
+  //       limit: 20,
+  //       ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+  //       ...(dateFromFilter && { dateFrom: dateFromFilter }),
+  //       ...(dateToFilter && { dateTo: dateToFilter }),
+  //     })
+  //   });
 
-// // Debug logs
-// console.log('isLoading:', isLoading);
-// // console.log('error:', error);
-// console.log('raw data:', data);
-// console.log('data type:', typeof data);
-// console.log('data.data:', data?.data);
+  // // Debug logs
+  // console.log('isLoading:', isLoading);
+  // // console.log('error:', error);
+  // console.log('raw data:', data);
+  // console.log('data type:', typeof data);
+  // console.log('data.data:', data?.data);
 
-// // Try to access the transactions
-// const cashTransactions = data?.data || [];
-// console.log('cashTransactions:', cashTransactions);
-// console.log('cashTransactions length:', cashTransactions.length);
+  // // Try to access the transactions
+  // const cashTransactions = data?.data || [];
+  // console.log('cashTransactions:', cashTransactions);
+  // console.log('cashTransactions length:', cashTransactions.length);
 
-// // Filter out refunds
-// const filteredTransactions = cashTransactions.filter(
-//   transaction => transaction.transactionType !== 'REFUND'
-// );
-// console.log('filtered transactions:', filteredTransactions);
-// console.log('filtered length:', filteredTransactions.length);
+  // // Filter out refunds
+  // const filteredTransactions = cashTransactions.filter(
+  //   transaction => transaction.transactionType !== 'REFUND'
+  // );
+  // console.log('filtered transactions:', filteredTransactions);
+  // console.log('filtered length:', filteredTransactions.length);
 
+  // const { data, isLoading, refetch } = useQuery({
+  //     queryKey: ['cashTransactions', {
+  //       page,
+  //       cashAccountId: cashAccountFilter,
+  //       dateFrom: dateFromFilter,
+  //       dateTo: dateToFilter
+  //     }],
+  //     queryFn: () => cashApi.getCashTransactions({
+  //       page,
+  //       limit: 20,
+  //       ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+  //       ...(dateFromFilter && { dateFrom: dateFromFilter }),
+  //       ...(dateToFilter && { dateTo: dateToFilter }),
+  //     })
+  // });
 
-// const { data, isLoading, refetch } = useQuery({
-//     queryKey: ['cashTransactions', { 
-//       page, 
-//       cashAccountId: cashAccountFilter,
-//       dateFrom: dateFromFilter,
-//       dateTo: dateToFilter
-//     }],
-//     queryFn: () => cashApi.getCashTransactions({ 
-//       page, 
-//       limit: 20,
-//       ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
-//       ...(dateFromFilter && { dateFrom: dateFromFilter }),
-//       ...(dateToFilter && { dateTo: dateToFilter }),
-//     })
-// });
+  // // Get the transactions array from the response
+  // const filteredTransactions = data?.data || [];
 
-// // Get the transactions array from the response
-// const filteredTransactions = data?.data || [];
+  // // Filter out REFUND transactions
+  // const cashTransactions = filteredTransactions.filter(
+  //   transaction => transaction.transactionType !== 'REFUND'
+  // );
 
-// // Filter out REFUND transactions
-// const cashTransactions = filteredTransactions.filter(
-//   transaction => transaction.transactionType !== 'REFUND'
-// );
-
-// const { data:cashTransactions, isLoading, refetch } = useQuery({
-//     queryKey: ['cashTransactions', { 
-//       page, 
-//       cashAccountId: cashAccountFilter,
-//       dateFrom: dateFromFilter,
-//       dateTo: dateToFilter,
-//       // excludeRefunds: true 
-//     }],
-//     queryFn: async () => {
-//  await cashApi.getCashTransactions({ 
-//     page, 
-//     limit: 20,
-//     ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
-//     ...(dateFromFilter && { dateFrom: dateFromFilter }),
-//     ...(dateToFilter && { dateTo: dateToFilter }),
-//   });
+  // const { data:cashTransactions, isLoading, refetch } = useQuery({
+  //     queryKey: ['cashTransactions', {
+  //       page,
+  //       cashAccountId: cashAccountFilter,
+  //       dateFrom: dateFromFilter,
+  //       dateTo: dateToFilter,
+  //       // excludeRefunds: true
+  //     }],
+  //     queryFn: async () => {
+  //  await cashApi.getCashTransactions({
+  //     page,
+  //     limit: 20,
+  //     ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
+  //     ...(dateFromFilter && { dateFrom: dateFromFilter }),
+  //     ...(dateToFilter && { dateTo: dateToFilter }),
+  //   });
 
   // return res.data.filter(t => t.transactionType !== 'REFUND');
-//}
-//});
+  //}
+  //});
 
-// const cashTransactions = data?.data || [];
-// console.log(cashTransactions)
+  // const cashTransactions = data?.data || [];
+  // console.log(cashTransactions)
 
   // const { data: cashBookData = [] } = useQuery({
-  //   queryKey: ['cashbook', { 
-  //     page, 
+  //   queryKey: ['cashbook', {
+  //     page,
   //     cashAccountId: cashAccountFilter,
   //     dateFrom: dateFromFilter,
   //     dateTo: dateToFilter
   //   }],
-  //   queryFn: () => cashApi.getCashbook({ 
-      
-  //     page, 
+  //   queryFn: () => cashApi.getCashbook({
+
+  //     page,
   //     limit: 20,
   //     ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
   //     ...(dateFromFilter && { dateFrom: dateFromFilter }),
@@ -197,41 +224,39 @@ queryFn: () => {
   //   })
   // });
 
-//const cashbookData = (cashbookDataRaw.transactions).filter(entry => entry.glAccountId);
-
+  //const cashbookData = (cashbookDataRaw.transactions).filter(entry => entry.glAccountId);
 
   //  console.log(cashbookDataRaw)
 
   const { data: cashAccounts } = useQuery({
-    queryKey: ['cash-accounts-for-filter'],
-    queryFn: () => cashApi.getCashAccounts()
+    queryKey: ["cash-accounts-for-filter"],
+    queryFn: () => cashApi.getCashAccounts(),
   });
 
-
-  const{data:companyInformations} = useQuery({
-          queryKey: ['company-info-for-receipt'],
-          queryFn:  () => managementApi.getCompanySettings()
-        });
-
+  const { data: companyInformations } = useQuery({
+    queryKey: ["company-info-for-receipt"],
+    queryFn: () => managementApi.getCompanySettings(),
+  });
 
   const columns = [
     {
-      key: 'transactionDate',
-      header: 'Date',
-      cell: (transaction: CashTransaction) => new Date(transaction.transactionDate).toLocaleDateString(),
-      width: 'w-24'
+      key: "transactionDate",
+      header: "Date",
+      cell: (transaction: CashTransaction) =>
+        new Date(transaction.transactionDate).toLocaleDateString(),
+      width: "w-24",
     },
     {
-      key: 'transactionNo',
-      header: 'Transaction No',
-      width: 'w-32'
+      key: "transactionNo",
+      header: "Transaction No",
+      width: "w-32",
     },
-    
+
     // {
-    //   key: 'reference',
-    //   header: 'Reference',
-    //   cell: (transaction: CashTransaction) => transaction.reference || '-',
-    //   width: 'w-32'
+    //   key: "reference",
+    //   header: "Reference",
+    //   cell: (transaction: CashTransaction) => transaction.reference || "-",
+    //   width: "w-32",
     // },
     // {
     //   key: 'glAccount',
@@ -245,32 +270,50 @@ queryFn: () => {
     //   width: 'w-48'
     // },
     {
-      key: 'cashAccount',
-      header: 'Cash Account',
-      cell: (transaction: CashTransaction) => 
+      key: "cashAccount",
+      header: "Cash Account",
+      cell: (transaction: CashTransaction) =>
         transaction.cashAccount ? (
           <div>
             <div className="font-medium">{transaction.cashAccount.code}</div>
-            <div className="text-xs text-gray-500">{transaction.cashAccount.name}</div>
+            <div className="text-xs text-gray-500">
+              {transaction.cashAccount.name}
+            </div>
           </div>
-        ) : '-',
-      width: 'w-48'
+        ) : (
+          "-"
+        ),
+      width: "w-48",
     },
     {
-      key: 'transactionType',
-      header: 'Transaction Type',
-      width: 'w-32'
+      key: "transactionType",
+      header: "Transaction Type",
+      width: "w-32",
     },
-    
+
     {
-      key: 'amount',
-      header: 'Amount',
+      key: "refType",
+      header: "Reference Type",
+      cell: (transaction: CashTransaction) => transaction.refType || "-",
+      width: "w-32",
+    },
+
+    {
+      key: "amount",
+      header: "Amount",
       cell: (transaction: CashTransaction) => (
-        <span className={transaction.transactionType === 'RECEIPT' ? 'text-green-600' : 'text-red-600'}>
-          {transaction.transactionType === 'RECEIPT' ? '+' : '-'}₦{Number(transaction.amount).toLocaleString()}
+        <span
+          className={
+            transaction.transactionType === "RECEIPT"
+              ? "text-green-600"
+              : "text-red-600"
+          }
+        >
+          {transaction.transactionType === "RECEIPT" ? "+" : "-"}₦
+          {Number(transaction.amount).toLocaleString()}
         </span>
       ),
-      width: 'w-32'
+      width: "w-32",
     },
     // {
     //   key: 'runningBalance',
@@ -283,31 +326,31 @@ queryFn: () => {
     //   width: 'w-32'
     // },
     {
-      key: 'preparer.name',
-      header: 'Prepared By',
-      width: 'w-32'
+      key: "preparer.name",
+      header: "Prepared By",
+      width: "w-32",
     },
     {
-      key: 'approver.name',
-      header: 'Approved By',
-      width: 'w-32'
+      key: "approver.name",
+      header: "Approved By",
+      width: "w-32",
     },
     {
-      key: 'authorizer.name',
-      header: 'Authorized By',
-      width: 'w-32'
+      key: "authorizer.name",
+      header: "Authorized By",
+      width: "w-32",
     },
     {
-      key: 'payer.name',
-      header: 'Paid By',
-      width: 'w-32'
-    }
+      key: "payer.name",
+      header: "Paid By",
+      width: "w-32",
+    },
   ];
 
   const clearAllFilters = () => {
-    setCashAccountFilter('');
-    setDateFromFilter('');
-    setDateToFilter('');
+    setCashAccountFilter("");
+    setDateFromFilter("");
+    setDateToFilter("");
   };
 
   const hasActiveFilters = cashAccountFilter || dateFromFilter || dateToFilter;
@@ -317,14 +360,14 @@ queryFn: () => {
       const filters = {
         ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
         ...(dateFromFilter && { dateFrom: dateFromFilter }),
-        ...(dateToFilter && { dateTo: dateToFilter })
+        ...(dateToFilter && { dateTo: dateToFilter }),
       };
 
       await cashApi.exportCashbook(filters);
-      toast.success('Cashbook exported successfully');
+      toast.success("Cashbook exported successfully");
     } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export cashbook');
+      console.error("Export error:", error);
+      toast.error("Failed to export cashbook");
     }
   };
 
@@ -344,43 +387,45 @@ queryFn: () => {
   };
 
   const handleApproveTransaction = async (cashTransaction: CashTransaction) => {
-      try {
-        await cashApi.approveCashTransaction(cashTransaction.id);
-        toast.success('Cash Transaction approved successfully');
-        refetch();
-      } catch (error) {
-        console.error('Cash Transaction approval:', error);
-      }
-    };
-  const handleAuthorizeTransaction = async (cashTransaction: CashTransaction) => {
-      try {
-        await cashApi.authorizeCashTransaction(cashTransaction.id);
-        toast.success('Cash Transaction authorized successfully');
-        refetch();
-      } catch (error) {
-        console.error('Cash Transaction authorize:', error);
-      }
-    };
+    try {
+      await cashApi.approveCashTransaction(cashTransaction.id);
+      toast.success("Cash Transaction approved successfully");
+      refetch();
+    } catch (error) {
+      console.error("Cash Transaction approval:", error);
+    }
+  };
+  const handleAuthorizeTransaction = async (
+    cashTransaction: CashTransaction,
+  ) => {
+    try {
+      await cashApi.authorizeCashTransaction(cashTransaction.id);
+      toast.success("Cash Transaction authorized successfully");
+      refetch();
+    } catch (error) {
+      console.error("Cash Transaction authorize:", error);
+    }
+  };
   const handlePayTransaction = async (cashTransaction: CashTransaction) => {
-      try {
-        await cashApi.payCashTransaction(cashTransaction.id);
-        toast.success('Cash Transaction paid successfully');
-        refetch();
-      } catch (error) {
-        console.error('Cash Transaction pay:', error);
-      }
-    };
-  const handleDeleteCashTransaction = async (cashTransaction: CashTransaction) => {
-      try {
-        await cashApi.deleteCashTransaction(cashTransaction.id);
-        toast.success('Cash Transaction deleted successfully');
-        refetch();
-      } catch (error) {
-        console.error('Cash Transaction Delete:', error);
-      }
-    };
-
-    
+    try {
+      await cashApi.payCashTransaction(cashTransaction.id);
+      toast.success("Cash Transaction paid successfully");
+      refetch();
+    } catch (error) {
+      console.error("Cash Transaction pay:", error);
+    }
+  };
+  const handleDeleteCashTransaction = async (
+    cashTransaction: CashTransaction,
+  ) => {
+    try {
+      await cashApi.deleteCashTransaction(cashTransaction.id);
+      toast.success("Cash Transaction deleted successfully");
+      refetch();
+    } catch (error) {
+      console.error("Cash Transaction Delete:", error);
+    }
+  };
 
   // Calculate summary statistics
   // const totalReceipts = cashBookData?.transactions
@@ -394,22 +439,25 @@ queryFn: () => {
   // const netCashFlow = totalReceipts - totalPayments;
 
   const actions = (cashTransaction: CashTransaction) => (
-      <div className="flex space-x-2">
-        <button
-          onClick={() => {
-            setselectedCashTransaction(cashTransaction);
-            setShowDetailsModal(true);
-          }}
-          className="text-blue-600 hover:text-blue-900"
-          title="View Details"
-        >
-          <Eye className="h-4 w-4" />
-        </button>
-        {['PREPARED', 'AUTHORIZED', 'APPROVED'].includes(cashTransaction.status) && canPerformActions && (
+    <div className="flex space-x-2">
+      <button
+        onClick={() => {
+          setselectedCashTransaction(cashTransaction);
+          setShowDetailsModal(true);
+        }}
+        className="text-blue-600 hover:text-blue-900"
+        title="View Details"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+      {["PREPARED", "AUTHORIZED", "APPROVED"].includes(
+        cashTransaction.status,
+      ) &&
+        canPerformActions && (
           <button
             onClick={() => {
-             setselectedCashTransaction(cashTransaction);
-            setShowEditModal(true);
+              setselectedCashTransaction(cashTransaction);
+              setShowEditModal(true);
             }}
             className="text-blue-600 hover:text-blue-900"
             title="Edit CashTransaction"
@@ -417,79 +465,79 @@ queryFn: () => {
             <Edit className="h-4 w-4" />
           </button>
         )}
-        {['PREPARED'].includes(cashTransaction.status) && canPerformActions && (
-          <button
-            onClick={() => handleDeleteCashTransaction(cashTransaction)}
-            className="text-red-600 hover:text-red-900"
-            title="Delete CashTransaction"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
-        {[ 'PAID'].includes(cashTransaction.status) && (
-          <button
-            onClick={() => handlePrintReceipt(cashTransaction)}
-            className="text-purple-600 hover:text-purple-900"
-            title="Print Invoice"
-          >
-            <Printer className="h-4 w-4" />
-          </button>
-        )}
-        {cashTransaction.status === 'PREPARED' && canPerformActions && (
-          <button
-            onClick={() => {
-             handleApproveTransaction(cashTransaction)
-            }}
-            className="text-green-600 hover:text-green-900"
-            title="Approve"
-          >
-            <DollarSign className="h-4 w-4" />
-          </button>
-        )}
-        {cashTransaction.status === 'APPROVED' && canPerformActions && (
-          <button
-            onClick={() => handleAuthorizeTransaction(cashTransaction)}
-            className="text-purple-600 hover:text-purple-900"
-            title="Authorize"
-          >
-            <DollarSign className="h-4 w-4" />
-          </button>
-        )}
-        {cashTransaction.status === 'AUTHORIZED' && canPerformActions && (
-          <button
-            onClick={() => handlePayTransaction(cashTransaction)}
-            className="text-purple-600 hover:text-purple-900"
-            title="Pay"
-          >
-            <DollarSign className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-    );
+      {["PREPARED"].includes(cashTransaction.status) && canPerformActions && (
+        <button
+          onClick={() => handleDeleteCashTransaction(cashTransaction)}
+          className="text-red-600 hover:text-red-900"
+          title="Delete CashTransaction"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+      {["PAID"].includes(cashTransaction.status) && (
+        <button
+          onClick={() => handlePrintReceipt(cashTransaction)}
+          className="text-purple-600 hover:text-purple-900"
+          title="Print Invoice"
+        >
+          <Printer className="h-4 w-4" />
+        </button>
+      )}
+      {cashTransaction.status === "PREPARED" && canPerformActions && (
+        <button
+          onClick={() => {
+            handleApproveTransaction(cashTransaction);
+          }}
+          className="text-green-600 hover:text-green-900"
+          title="Approve"
+        >
+          <DollarSign className="h-4 w-4" />
+        </button>
+      )}
+      {cashTransaction.status === "APPROVED" && canPerformActions && (
+        <button
+          onClick={() => handleAuthorizeTransaction(cashTransaction)}
+          className="text-purple-600 hover:text-purple-900"
+          title="Authorize"
+        >
+          <DollarSign className="h-4 w-4" />
+        </button>
+      )}
+      {cashTransaction.status === "AUTHORIZED" && canPerformActions && (
+        <button
+          onClick={() => handlePayTransaction(cashTransaction)}
+          className="text-purple-600 hover:text-purple-900"
+          title="Pay"
+        >
+          <DollarSign className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
 
-    const handlePrintReceipt = async (cashTransaction: CashTransaction) => {
-      try {
-        const printData = await cashApi.printCashReceipt(cashTransaction.id);
-    
-        const company = companyInformations;
-        const receipt = printData.printData;
-        console.log(printData)
-    
-        // Generate QR Code using receipt document number
-        const qrData = await QRCode.toDataURL(`Receipt:${receipt.documentNo}`);
-    
-        // Logo from backend or fallback
-        //const logoUrl = company.logoUrl || "/logo.png";
-    
-        // Open browser print window
-        const printWindow = window.open("", "_blank", "width=900,height=1000");
-    
-        if (!printWindow) {
-          toast.error("Unable to open print window");
-          return;
-        }
-    
-        printWindow.document.write(`
+  const handlePrintReceipt = async (cashTransaction: CashTransaction) => {
+    try {
+      const printData = await cashApi.printCashReceipt(cashTransaction.id);
+
+      const company = companyInformations;
+      const receipt = printData.printData;
+      console.log(printData);
+
+      // Generate QR Code using receipt document number
+      const qrData = await QRCode.toDataURL(`Receipt:${receipt.documentNo}`);
+
+      // Logo from backend or fallback
+      //const logoUrl = company.logoUrl || "/logo.png";
+
+      // Open browser print window
+      const printWindow = window.open("", "_blank", "width=900,height=1000");
+
+      if (!printWindow) {
+        toast.error("Unable to open print window");
+        return;
+      }
+
+      printWindow.document.write(`
           <html>
           <head>
             <title>Receipt - ${receipt.documentNo}</title>
@@ -619,7 +667,7 @@ queryFn: () => {
                     <td style="text-align:right;">₦${Number(line.lineAmount).toLocaleString()}</td>
                     <td style="text-align:right;">${line.description}</td>
                   </tr>
-                `
+                `,
                   )
                   .join("")}
               </tbody>
@@ -659,18 +707,18 @@ queryFn: () => {
           </body>
           </html>
         `);
-    
-        printWindow.document.close();
-    
-        // Auto-print when window loads
-        printWindow.onload = () => {
-          printWindow.focus();
-          printWindow.print();
-        };
-      } catch (error) {
-        console.error("Print receipt error:", error);
-      }
-    };
+
+      printWindow.document.close();
+
+      // Auto-print when window loads
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+    } catch (error) {
+      console.error("Print receipt error:", error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -678,15 +726,17 @@ queryFn: () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Cashbook</h1>
-          <p className="text-gray-600">Comprehensive cash and bank management</p>
+          <p className="text-gray-600">
+            Comprehensive cash and bank management
+          </p>
         </div>
         <div className="flex space-x-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              showFilters 
-                ? 'border-blue-500 text-blue-700 bg-blue-50' 
-                : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+              showFilters
+                ? "border-blue-500 text-blue-700 bg-blue-50"
+                : "border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
             }`}
           >
             <Filter className="h-4 w-4 mr-2" />
@@ -731,7 +781,9 @@ queryFn: () => {
       {showFilters && (
         <div className="bg-white p-6 rounded-lg shadow border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Filter Options</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              Filter Options
+            </h3>
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
@@ -742,7 +794,7 @@ queryFn: () => {
               </button>
             )}
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -761,7 +813,7 @@ queryFn: () => {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date From
@@ -773,7 +825,7 @@ queryFn: () => {
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date To
@@ -790,7 +842,9 @@ queryFn: () => {
           {/* Export Options */}
           <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between">
-              <h4 className="text-md font-medium text-gray-900">Export Options</h4>
+              <h4 className="text-md font-medium text-gray-900">
+                Export Options
+              </h4>
               <div className="flex space-x-2">
                 <button
                   onClick={handleExport}
@@ -901,20 +955,30 @@ queryFn: () => {
               <div key={account.id} className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium text-gray-900">{account.name}</div>
+                    <div className="font-medium text-gray-900">
+                      {account.name}
+                    </div>
                     <div className="text-sm text-gray-500">{account.code}</div>
-                    <div className="text-xs text-gray-400">{account.accountType}</div>
+                    <div className="text-xs text-gray-400">
+                      {account.accountType}
+                    </div>
                     {account.bankName && (
-                      <div className="text-xs text-gray-400">{account.bankName}</div>
+                      <div className="text-xs text-gray-400">
+                        {account.bankName}
+                      </div>
                     )}
                   </div>
                   <div className="text-right">
-                    <div className={`text-lg font-semibold ${
-                      account.balance >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <div
+                      className={`text-lg font-semibold ${
+                        account.balance >= 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
                       ₦{Number(account.balance).toLocaleString()}
                     </div>
-                    <StatusBadge status={account.isActive ? 'Active' : 'Inactive'} />
+                    <StatusBadge
+                      status={account.isActive ? "Active" : "Inactive"}
+                    />
                   </div>
                 </div>
               </div>
@@ -923,15 +987,25 @@ queryFn: () => {
         </div>
       </div>
 
-{/* Stats */}
+      {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        {['PREPARED',  'APPROVED','AUTHORIZED', 'PAID'].map(status => {
-          const count = cashTransactions?.data.filter((p: data) => p.status === status).length || 0;
-          const total = cashTransactions?.data.filter((p: data) => p.status === status)
-            .reduce((sum: number, p: CashTransaction) => sum + Number(p.amount), 0) || 0;
+        {["PREPARED", "APPROVED", "AUTHORIZED", "PAID"].map((status) => {
+          const count =
+            cashTransactions?.data.filter((p: data) => p.status === status)
+              .length || 0;
+          const total =
+            cashTransactions?.data
+              .filter((p: data) => p.status === status)
+              .reduce(
+                (sum: number, p: CashTransaction) => sum + Number(p.amount),
+                0,
+              ) || 0;
 
           return (
-            <div key={status} className="bg-white overflow-hidden shadow rounded-lg">
+            <div
+              key={status}
+              className="bg-white overflow-hidden shadow rounded-lg"
+            >
               <div className="p-5">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -962,14 +1036,12 @@ queryFn: () => {
         data={cashTransactions?.data || []}
         columns={columns}
         loading={isLoading}
-        pagination={cashTransactions?.pagination }
+        pagination={cashTransactions?.pagination}
         onPageChange={setPage}
-       //currentPage={page}
+        //currentPage={page}
         actions={actions}
       />
 
-
-      
       {/* Modals */}
       {showCreateModal && (
         <CreateCashTransactionModal
@@ -998,8 +1070,6 @@ queryFn: () => {
           onSuccess={handleEditCashTransaction}
         />
       )}
-
-
 
       {showReconciliationModal && (
         <BankReconciliationModal
