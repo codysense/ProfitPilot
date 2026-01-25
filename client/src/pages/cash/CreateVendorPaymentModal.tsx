@@ -24,7 +24,7 @@ const createVendorPaymentSchema = z.object({
         glAccountId: z.string().min(1, "GL Account is required"),
         lineAmount: z.coerce.number().positive("Amount must be positive"),
         description: z.string().optional(),
-      })
+      }),
     )
     .min(1, "At least one payment line is required"),
 });
@@ -56,6 +56,7 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: Props) => {
 
   const selectedVendorId = watch("vendorId");
   const watchedLines = watch("lines");
+  const selectedCashAccountId = watch("cashAccountId");
 
   /* ------------------------- QUERIES -------------------------- */
   const { data: vendors } = useQuery({
@@ -117,6 +118,22 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: Props) => {
   const calculateTotal = () => {
     return watchedLines.reduce((sum, line) => sum + (line.lineAmount || 0), 0);
   };
+
+  // const totalAmount = watchedLines.reduce(
+  //   (sum, line) => sum + (line.lineAmount || 0),
+  //   0
+  // );
+
+  //Get selected cash account balance
+  const selectedCashAccount = cashAccounts?.accounts.find(
+    (acc: any) => String(acc.id) === String(selectedCashAccountId),
+  );
+
+  const hasInsufficientBalance =
+    selectedCashAccount &&
+    calculateTotal() > Number(selectedCashAccount.balance);
+
+  /* ------------------------ SUBMIT ---------------------------- */
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -201,6 +218,20 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: Props) => {
                       </option>
                     ))}
                   </select>
+                  {/* Zod error */}
+                  {errors.cashAccountId && (
+                    <p className="text-red-600 text-sm">
+                      {errors.cashAccountId.message}
+                    </p>
+                  )}
+
+                  {/* Insufficient balance error */}
+                  {hasInsufficientBalance && (
+                    <p className="text-red-600 text-sm mt-1">
+                      Insufficient balance. Available: ₦
+                      {Number(selectedCashAccount.balance).toLocaleString()}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -261,11 +292,11 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: Props) => {
                                 {
                                   shouldDirty: true,
                                   shouldValidate: true,
-                                }
+                                },
                               );
 
                               const purchase = vendorPurchases?.purchases?.find(
-                                (p: any) => String(p.id) === String(purchaseId)
+                                (p: any) => String(p.id) === String(purchaseId),
                               );
 
                               if (purchase) {
@@ -277,7 +308,7 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: Props) => {
                                   {
                                     shouldDirty: true,
                                     shouldValidate: true,
-                                  }
+                                  },
                                 );
                               } else {
                                 // Optional: reset amount if no purchase selected
@@ -375,7 +406,7 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: Props) => {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || hasInsufficientBalance}
                   className="px-4 py-2 rounded-md bg-red-600 text-white disabled:opacity-50"
                 >
                   {isSubmitting ? "Recording..." : "Record Payment"}

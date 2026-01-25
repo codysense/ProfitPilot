@@ -1,29 +1,36 @@
-import React, { useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { X, Plus } from 'lucide-react';
-import { inventoryApi, salesApi } from '../../lib/api';
-import toast from 'react-hot-toast';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { X, Plus } from "lucide-react";
+import { inventoryApi, salesApi } from "../../lib/api";
+import toast from "react-hot-toast";
+import { useQuery } from "@tanstack/react-query";
 
-// ✅ Schema (same as CreateItemModal)
+// Schema
 const editItemSchema = z.object({
   id: z.string().optional(),
-  sku: z.string().min(1, 'SKU is required'),
-  name: z.string().min(1, 'Name is required'),
+  sku: z.string().min(1, "SKU is required"),
+  name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  type: z.enum(['RAW_MATERIAL', 'WORK_IN_PROGRESS', 'FINISHED_GOODS', 'CONSUMABLE']),
-  uom: z.string().default('QTY'),
-  costingMethod: z.enum(['GLOBAL', 'FIFO', 'WEIGHTED_AVG']).default('GLOBAL'),
+  type: z.enum([
+    "RAW_MATERIAL",
+    "WORK_IN_PROGRESS",
+    "FINISHED_GOODS",
+    "CONSUMABLE",
+  ]),
+  uom: z.string().default("QTY"),
+  costingMethod: z.enum(["GLOBAL", "FIFO", "WEIGHTED_AVG"]).default("GLOBAL"),
   standardCost: z.number().optional(),
-  priceList: z.array(
-    z.object({
-      id: z.string().optional(),
-      customerGroup: z.string().min(1, 'Customer group is required'),
-      price: z.number().positive('Price must be positive')
-    })
-  ).optional(),
+  priceList: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        customerGroup: z.string().min(1, "Customer group is required"),
+        price: z.number().positive("Price must be positive"),
+      }),
+    )
+    .optional(),
 });
 
 type EditItemFormData = z.infer<typeof editItemSchema>;
@@ -41,41 +48,60 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
     control,
     setValue,
     reset,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
   } = useForm<EditItemFormData>({
     resolver: zodResolver(editItemSchema),
-    defaultValues: item
+    defaultValues: {
+      ...item,
+      priceList: item.priceList ?? [],
+    },
   });
+  // console.log("Item Props", item);
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'priceList'
+    name: "priceList",
   });
 
-  // ✅ Fetch customer groups for the priceList dropdown
+  //  Fetch customer groups for the priceList dropdown
   const { data: groupsData, isLoading: isGroupsLoading } = useQuery({
-    queryKey: ['customerGroups'],
+    queryKey: ["customerGroups"],
     queryFn: () => salesApi.getCustomerGroups({ page: 1, limit: 100 }),
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
   });
 
   const groups = groupsData?.groups || [];
 
-  // ✅ Reset form when `item` changes
+  //  Reset form when `item` changes
   useEffect(() => {
+    if (!item) return;
+    if (isGroupsLoading) return;
     if (item) reset(item);
-  }, [item, reset]);
+  }, [item, isGroupsLoading, reset]);
 
-  // ✅ Submit handler
+  //   useEffect(() => {
+  //   if (!item) return;
+  //   if (isGroupsLoading) return;
+
+  //   reset({
+  //     ...item,
+  //     priceList: item.priceList?.map(pl => ({
+  //       ...pl,
+  //       customerGroup: pl.customerGroup,
+  //     })),
+  //   });
+  // }, [item, isGroupsLoading, reset]);
+
+  // Submit handler
   const onSubmit = async (data: EditItemFormData) => {
     try {
       await inventoryApi.createItem(data);
-      toast.success('Item updated successfully');
+      toast.success("Item updated successfully");
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Update item error:', error);
-      toast.error('Failed to update item');
+      console.error("Update item error:", error);
+      toast.error("Failed to update item");
     }
   };
 
@@ -90,7 +116,10 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">Edit Item</h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
@@ -99,9 +128,11 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
               {/* === BASIC FIELDS === */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">SKU *</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    SKU *
+                  </label>
                   <input
-                    {...register('sku')}
+                    {...register("sku")}
                     className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
                     placeholder="e.g., RM-001"
                   />
@@ -111,9 +142,11 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Type *</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Type *
+                  </label>
                   <select
-                    {...register('type')}
+                    {...register("type")}
                     className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
                   >
                     <option value="RAW_MATERIAL">Raw Material</option>
@@ -125,18 +158,24 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Name *</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Name *
+                </label>
                 <input
-                  {...register('name')}
+                  {...register("name")}
                   className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
                 />
-                {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
+                {errors.name && (
+                  <p className="text-sm text-red-600">{errors.name.message}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Description
+                </label>
                 <textarea
-                  {...register('description')}
+                  {...register("description")}
                   rows={2}
                   className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
                 />
@@ -144,18 +183,22 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Standard Cost</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Standard Cost
+                  </label>
                   <input
-                    {...register('standardCost', { valueAsNumber: true })}
+                    {...register("standardCost", { valueAsNumber: true })}
                     type="number"
                     step="0.01"
                     className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">UOM</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    UOM
+                  </label>
                   <input
-                    {...register('uom')}
+                    {...register("uom")}
                     className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
                     placeholder="QTY"
                   />
@@ -165,10 +208,12 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
               {/* === PRICE LIST === */}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-md font-medium text-gray-900">Price List</h4>
+                  <h4 className="text-md font-medium text-gray-900">
+                    Price List
+                  </h4>
                   <button
                     type="button"
-                    onClick={() => append({ customerGroup: '', price: 0 })}
+                    onClick={() => append({ customerGroup: "", price: 0 })}
                     className="inline-flex items-center px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-50"
                   >
                     <Plus className="h-4 w-4 mr-1" /> Add Price
@@ -177,7 +222,10 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
 
                 <div className="space-y-3">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-5 gap-4 items-end">
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-5 gap-4 items-end"
+                    >
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700">
                           Customer Group *
@@ -200,9 +248,13 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                       </div>
 
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">Price *</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Price *
+                        </label>
                         <input
-                          {...register(`priceList.${index}.price`, { valueAsNumber: true })}
+                          {...register(`priceList.${index}.price`, {
+                            valueAsNumber: true,
+                          })}
                           type="number"
                           step="0.01"
                           className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
@@ -234,7 +286,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                   disabled={isSubmitting}
                   className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Updating...' : 'Update Item'}
+                  {isSubmitting ? "Updating..." : "Update Item"}
                 </button>
               </div>
             </form>
