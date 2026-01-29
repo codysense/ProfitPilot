@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import {
   createPurchaseSchema,
   receivePurchaseSchema,
@@ -16,7 +16,13 @@ const glService = new GeneralLedgerService();
 export class PurchaseController {
   async getPurchases(req: AuthRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, status, vendorId, paymentStatus } = req.query;
+      const {
+        page = 1,
+        limit = 10,
+        status,
+        vendorId,
+        paymentStatus,
+      } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
@@ -70,13 +76,26 @@ export class PurchaseController {
       const validatedData = createPurchaseSchema.parse(req.body);
 
       // Calculate orderNo outside transaction
-      const count = await prisma.purchase.count();
-      const orderNo = `PO${String(count + 1).padStart(6, "0")}`;
+
+      const lastPurchase = await prisma.purchase.findFirst({
+        orderBy: { createdAt: "desc" },
+      });
+
+      let nextNumber = 1;
+      if (lastPurchase) {
+        const match = lastPurchase.orderNo.match(/\d+$/);
+        if (match) nextNumber = parseInt(match[0], 10) + 1;
+      }
+
+      const orderNo = `PO${String(nextNumber).padStart(6, "0")}`;
+
+      // const count = await prisma.purchase.count();
+      // const orderNo = `PO${String(count + 1).padStart(6, "0")}`;
 
       // Calculate total
       const totalAmount = validatedData.purchaseLines.reduce(
         (sum, line) => sum + line.qty * line.unitPrice,
-        0
+        0,
       );
 
       const purchase = await prisma.$transaction(
@@ -87,6 +106,7 @@ export class PurchaseController {
               orderNo,
               vendorId: validatedData.vendorId,
               orderDate: new Date(validatedData.orderDate),
+              orderType: validatedData.orderType,
               totalAmount,
               amountPaid: 0,
               balanceAmount: totalAmount,
@@ -95,15 +115,37 @@ export class PurchaseController {
             },
           });
 
+          // validatedData.purchaseLines.forEach((line) => {
+          //   if (validatedData.orderType === "INVENTORY" && !line.itemId) {
+          //     throw new Error("Inventory order requires itemId");
+          //   }
+
+          //   if (validatedData.orderType === "ASSET" && !line.assetName) {
+          //     throw new Error("Asset order requires assetName");
+          //   }
+          // });
+
           // Create purchase lines in bulk
           await tx.purchaseLine.createMany({
-            data: validatedData.purchaseLines.map((line) => ({
-              purchaseId: newPurchase.id,
-              itemId: line.itemId,
-              qty: line.qty,
-              unitPrice: line.unitPrice,
-              lineTotal: line.qty * line.unitPrice,
-            })),
+            data: validatedData.purchaseLines.map((line) => {
+              const itemId =
+                typeof line.itemId === "string" && line.itemId.trim() !== ""
+                  ? line.itemId
+                  : null;
+
+              return {
+                purchaseId: newPurchase.id,
+                itemId,
+                assetName:
+                  typeof line.assetName === "string" &&
+                  line.assetName.trim() !== ""
+                    ? line.assetName
+                    : null,
+                qty: Number(line.qty),
+                unitPrice: Number(line.unitPrice),
+                lineTotal: Number(line.qty) * Number(line.unitPrice),
+              };
+            }),
           });
 
           return newPurchase;
@@ -111,7 +153,7 @@ export class PurchaseController {
         {
           maxWait: 5000, // 5s wait for connection
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       res.status(201).json(purchase);
@@ -149,7 +191,7 @@ export class PurchaseController {
           const purchaseLine = purchaseLineMap.get(receiptLine.purchaseLineId);
           if (!purchaseLine) {
             throw new Error(
-              `Purchase line ${receiptLine.purchaseLineId} not found`
+              `Purchase line ${receiptLine.purchaseLineId} not found`,
             );
           }
 
@@ -172,7 +214,7 @@ export class PurchaseController {
           receiptLine.unitCost,
           "PURCHASE",
           id,
-          req.user!.id
+          req.user!.id,
         );
       }
 
@@ -202,7 +244,7 @@ export class PurchaseController {
             },
           ],
           `Purchase receipt: ${purchase.orderNo}`,
-          req.user!.id
+          req.user!.id,
         );
       }
 
@@ -227,7 +269,7 @@ export class PurchaseController {
         {
           maxWait: 5000, // 5s wait for connection
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       // Outside transaction: GL posting
@@ -249,7 +291,7 @@ export class PurchaseController {
           },
         ],
         `Purchase invoice: ${purchase.orderNo}`,
-        req.user!.id
+        req.user!.id,
       );
 
       res.json({ message: "Purchase invoiced successfully" });

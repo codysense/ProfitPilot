@@ -27,7 +27,7 @@ export class ReportsService {
             "EQUITY",
           ],
         },
-        name: { notIn: ["Memo Cash Clearing"] },
+        name: { notIn: ["Memo Cash Clearing", "Asset Clearing Account"] },
       },
       include: {
         journalLines: {
@@ -346,7 +346,13 @@ export class ReportsService {
     const balanceSheetAccounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
-        name: { notIn: ["Memo Cash Clearing", "Cash and Bank"] },
+        name: {
+          notIn: [
+            "Memo Cash Clearing",
+            "Cash and Bank",
+            "Asset Clearing Account",
+          ],
+        },
         accountType: {
           in: [
             "EQUITY",
@@ -392,7 +398,7 @@ export class ReportsService {
     const incomeExpenseAccounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
-        name: { notIn: ["Memo Cash Clearing"] },
+        name: { notIn: ["Memo Cash Clearing", "Asset Clearing Account"] },
         accountType: {
           notIn: [
             "EQUITY",

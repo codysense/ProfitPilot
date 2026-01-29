@@ -13,12 +13,14 @@ import CreateItemModal from "../inventory/CreateItemModal";
 
 const createPurchaseSchema = z.object({
   vendorId: z.string().min(1, "Vendor is required"),
+  orderType: z.enum(["INVENTORY", "ASSET"]),
   orderDate: z.string().min(1, "Order date is required"),
   notes: z.string().optional(),
   purchaseLines: z
     .array(
       z.object({
-        itemId: z.string().min(1, "Item is required"),
+        itemId: z.string().nullable().optional(), // inventory
+        assetName: z.string().nullable().optional(), // asset
         qty: z.number().positive("Quantity must be positive"),
         unitPrice: z.number().positive("Unit price must be positive"),
       }),
@@ -47,8 +49,9 @@ const CreatePurchaseModal = ({
   } = useForm<CreatePurchaseFormData>({
     resolver: zodResolver(createPurchaseSchema),
     defaultValues: {
+      orderType: "INVENTORY",
       orderDate: new Date().toISOString().split("T")[0],
-      purchaseLines: [{ itemId: "", qty: 1, unitPrice: 0 }],
+      purchaseLines: [{ itemId: "", assetName: "", qty: 1, unitPrice: 0 }],
     },
   });
 
@@ -60,6 +63,7 @@ const CreatePurchaseModal = ({
   const [createItemModal, setCreateItemModal] = useState(false);
 
   const watchedLines = watch("purchaseLines");
+  const orderType = watch("orderType");
 
   const { data: vendors } = useQuery({
     queryKey: ["vendors-for-purchase"],
@@ -82,8 +86,30 @@ const CreatePurchaseModal = ({
 
   // console.log("purchaseData", purchaseData);
 
+  //Normalize line item based on order type
+  useEffect(() => {
+    if (orderType === "INVENTORY") {
+      setValue(
+        "purchaseLines",
+        watchedLines.map((line) => ({
+          ...line,
+          assetName: null,
+        })),
+      );
+    } else {
+      setValue(
+        "purchaseLines",
+        watchedLines.map((line) => ({
+          ...line,
+          itemId: null,
+        })),
+      );
+    }
+  }, [orderType, setValue]);
+
   //fetch last purchase for a selected item
   useEffect(() => {
+    if (orderType !== "INVENTORY") return;
     if (!purchaseData?.purchases?.length) return;
     if (!watchedLines.length) return;
 
@@ -172,7 +198,8 @@ const CreatePurchaseModal = ({
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Header Information */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {/* Vendor */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Vendor *
@@ -185,14 +212,9 @@ const CreatePurchaseModal = ({
                     }
                     error={errors.vendorId?.message}
                   />
-
-                  {errors.vendorId && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.vendorId.message}
-                    </p>
-                  )}
                 </div>
 
+                {/* Order Date */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Order Date *
@@ -200,13 +222,22 @@ const CreatePurchaseModal = ({
                   <input
                     {...register("orderDate")}
                     type="date"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
-                  {errors.orderDate && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.orderDate.message}
-                    </p>
-                  )}
+                </div>
+
+                {/* Order Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Order Type *
+                  </label>
+                  <select
+                    {...register("orderType")}
+                    className="mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="INVENTORY">Inventory Order</option>
+                    <option value="ASSET">Asset Order</option>
+                  </select>
                 </div>
               </div>
 
@@ -223,26 +254,31 @@ const CreatePurchaseModal = ({
               </div>
 
               {/* Purchase Lines */}
+
               <div>
-                <div className="flex items-center justify-start space-x-8 mb-4">
-                  <h4 className="text-md font-medium text-gray-900">Items</h4>
-                  <button
-                    type="button"
-                    onClick={() => setCreateItemModal(true)}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Item
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => append({ itemId: "", qty: 1, unitPrice: 0 })}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </button>
-                </div>
+                {orderType === "INVENTORY" && (
+                  <div className="flex items-center justify-start space-x-8 mb-4">
+                    <h4 className="text-md font-medium text-gray-900">Items</h4>
+                    <button
+                      type="button"
+                      onClick={() => setCreateItemModal(true)}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Item
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        append({ itemId: "", qty: 1, unitPrice: 0 })
+                      }
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Item
+                    </button>
+                  </div>
+                )}
 
                 {errors.purchaseLines && (
                   <p className="mb-4 text-sm text-red-600">
@@ -256,18 +292,29 @@ const CreatePurchaseModal = ({
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
                         <div className="sm:col-span-2">
                           <label className="block text-sm font-medium text-gray-700">
-                            Item *
+                            {orderType === "ASSET" ? "Asset Name *" : "Item *"}
                           </label>
-                          <ItemSelect
-                            items={items?.items || []}
-                            value={watch(`purchaseLines.${index}.itemId`)}
-                            onChange={(val) =>
-                              setValue(`purchaseLines.${index}.itemId`, val)
-                            }
-                            error={
-                              errors.purchaseLines?.[index]?.itemId?.message
-                            }
-                          />
+
+                          {orderType === "INVENTORY" ? (
+                            <ItemSelect
+                              items={items?.items || []}
+                              value={watch(`purchaseLines.${index}.itemId`)}
+                              onChange={(val) =>
+                                setValue(`purchaseLines.${index}.itemId`, val, {
+                                  shouldDirty: true,
+                                })
+                              }
+                              error={
+                                errors.purchaseLines?.[index]?.itemId?.message
+                              }
+                            />
+                          ) : (
+                            <input
+                              {...register(`purchaseLines.${index}.assetName`)}
+                              placeholder="Enter asset name"
+                              className="mt-1 block w-full border rounded-md px-3 py-2"
+                            />
+                          )}
 
                           {errors.purchaseLines?.[index]?.itemId && (
                             <p className="mt-1 text-sm text-red-600">

@@ -1,92 +1,107 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Eye, Package, FileText, Edit, Trash2, Printer } from 'lucide-react';
-import { managementApi, purchaseApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { Purchase } from '../../types/api';
-import CreatePurchaseModal from './CreatePurchaseModal';
-import EditPurchaseModal from './EditPurchaseModal';
-import PurchaseDetailsModal from './PurchaseDetailsModal';
-import ReceivePurchaseModal from './ReceivePurchaseModal';
-import { useAuthStore } from '../../store/authStore';
-import { ReportExporter } from '../../utils/reportExport';
-import toast from 'react-hot-toast';
- import QRCode from "qrcode";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Plus,
+  Eye,
+  Package,
+  FileText,
+  Edit,
+  Trash2,
+  Printer,
+} from "lucide-react";
+import { managementApi, purchaseApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { Purchase } from "../../types/api";
+import CreatePurchaseModal from "./CreatePurchaseModal";
+import EditPurchaseModal from "./EditPurchaseModal";
+import PurchaseDetailsModal from "./PurchaseDetailsModal";
+import ReceivePurchaseModal from "./ReceivePurchaseModal";
+import { useAuthStore } from "../../store/authStore";
+import { ReportExporter } from "../../utils/reportExport";
+import toast from "react-hot-toast";
+import QRCode from "qrcode";
 
 const PurchaseOrders = () => {
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(
+    null,
+  );
   const { user } = useAuthStore();
-  
+
   // Check if user can perform actions (CFO or GM only)
-  const canPerformActions = user?.roles.includes('CFO') || user?.roles.includes('General Manager');
+  const canPerformActions =
+    user?.roles.includes("CFO") || user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['purchases', { page, status: statusFilter }],
-    queryFn: () => purchaseApi.getPurchases({ 
-      page, 
-      limit: 10, 
-      ...(statusFilter && { status: statusFilter })
-    })
+    queryKey: ["purchases", { page, status: statusFilter }],
+    queryFn: () =>
+      purchaseApi.getPurchases({
+        page,
+        limit: 10,
+        ...(statusFilter && { status: statusFilter }),
+      }),
   });
+  // console.log("Purchases data:", data);
 
-   const{data:companyInformations} = useQuery({
-        queryKey: ['company-info-for-receipt'],
-        queryFn:  () => managementApi.getCompanySettings()
-      });
-      
+  const { data: companyInformations } = useQuery({
+    queryKey: ["company-info-for-receipt"],
+    queryFn: () => managementApi.getCompanySettings(),
+  });
 
   const columns = [
     {
-      key: 'orderNo',
-      header: 'Order No',
-      width: 'w-32'
+      key: "orderNo",
+      header: "Order No",
+      width: "w-32",
     },
     {
-      key: 'vendor.name',
-      header: 'Vendor',
-      width: 'w-48'
+      key: "vendor.name",
+      header: "Vendor",
+      width: "w-48",
     },
     {
-      key: 'orderDate',
-      header: 'Order Date',
-      cell: (purchase: Purchase) => new Date(purchase.orderDate).toLocaleDateString(),
-      width: 'w-32'
+      key: "orderDate",
+      header: "Order Date",
+      cell: (purchase: Purchase) =>
+        new Date(purchase.orderDate).toLocaleDateString(),
+      width: "w-32",
     },
     {
-      key: 'totalAmount',
-      header: 'Total Amount',
+      key: "totalAmount",
+      header: "Total Amount",
       cell: (purchase: Purchase) => `₦${purchase.totalAmount.toLocaleString()}`,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'balanceAmount',
-      header: 'Balance Amount',
-      cell: (purchase: Purchase) => `₦${purchase.balanceAmount.toLocaleString()}`,
-      width: 'w-32'
+      key: "balanceAmount",
+      header: "Balance Amount",
+      cell: (purchase: Purchase) =>
+        `₦${purchase.balanceAmount.toLocaleString()}`,
+      width: "w-32",
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       cell: (purchase: Purchase) => <StatusBadge status={purchase.status} />,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'purchaseLines',
-      header: 'Items',
+      key: "purchaseLines",
+      header: "Items",
       cell: (purchase: Purchase) => (
         <div className="text-sm text-gray-600">
-          {purchase.purchaseLines.length} item{purchase.purchaseLines.length !== 1 ? 's' : ''}
+          {purchase.purchaseLines.length} item
+          {purchase.purchaseLines.length !== 1 ? "s" : ""}
         </div>
       ),
-      width: 'w-24'
-    }
+      width: "w-24",
+    },
   ];
 
   const handleCreatePurchase = () => {
@@ -109,48 +124,53 @@ const PurchaseOrders = () => {
   const handleInvoicePurchase = async (purchase: Purchase) => {
     try {
       await purchaseApi.invoicePurchase(purchase.id);
-      toast.success('Purchase order invoiced successfully');
+      toast.success("Purchase order invoiced successfully");
       refetch();
     } catch (error) {
-      toast.error('Invoice purchase error:', error);
+      toast.error("Invoice purchase error:", error);
     }
   };
 
   const handleDeletePurchase = async (purchase: Purchase) => {
-    if (confirm(`Are you sure you want to delete purchase order ${purchase.orderNo}?`)) {
+    if (
+      confirm(
+        `Are you sure you want to delete purchase order ${purchase.orderNo}?`,
+      )
+    ) {
       try {
         await purchaseApi.deletePurchase(purchase.id);
-        toast.success('Purchase order deleted successfully');
+        toast.success("Purchase order deleted successfully");
         refetch();
       } catch (error) {
-        console.error('Delete purchase error:', error);
+        console.error("Delete purchase error:", error);
       }
     }
   };
 
+  const handlePrintPurchaseOrder = async (purchase: Purchase) => {
+    try {
+      const printData = await purchaseApi.printPurchaseOrder(purchase.id);
 
-const handlePrintPurchaseOrder = async (purchase: Purchase) => {
-  try {
-    const printData = await purchaseApi.printPurchaseOrder(purchase.id);
+      const company = companyInformations;
+      const orderInfo = printData.printData;
 
-    const company = companyInformations;
-    const orderInfo = printData.printData;
+      // Generate QR Code with document number
+      const qrData = await QRCode.toDataURL(
+        `PurchaseOrder:${orderInfo.documentNo}`,
+      );
 
-    // Generate QR Code with document number
-    const qrData = await QRCode.toDataURL(`PurchaseOrder:${orderInfo.documentNo}`);
+      // Logo from backend or fallback image
+      // const logoUrl = company.logoUrl || "/logo.png";
 
-    // Logo from backend or fallback image
-    // const logoUrl = company.logoUrl || "/logo.png";
+      // Open browser print window
+      const printWindow = window.open("", "_blank", "width=900,height=1000");
 
-    // Open browser print window
-    const printWindow = window.open("", "_blank", "width=900,height=1000");
+      if (!printWindow) {
+        toast.error("Unable to open print window");
+        return;
+      }
 
-    if (!printWindow) {
-      toast.error("Unable to open print window");
-      return;
-    }
-
-    printWindow.document.write(`
+      printWindow.document.write(`
       <html>
       <head>
         <title>Purchase Order - ${orderInfo.documentNo}</title>
@@ -283,7 +303,7 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
                 <td style="text-align:right;">₦${Number(line.unitPrice).toLocaleString()}</td>
                 <td style="text-align:right;">₦${Number(line.lineTotal).toLocaleString()}</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -324,24 +344,22 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
       </html>
     `);
 
-    printWindow.document.close();
+      printWindow.document.close();
 
-    // Auto print when fully loaded
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-  } catch (error) {
-    console.error("Print purchase order error:", error);
-  }
-};
-
- 
+      // Auto print when fully loaded
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+    } catch (error) {
+      console.error("Print purchase order error:", error);
+    }
+  };
 
   // const handlePrintPurchaseOrder = async (purchase: Purchase) => {
   //   try {
   //     const printData = await purchaseApi.printPurchaseOrder(purchase.id);
-      
+
   //     // Create a temporary div for PDF generation
   //     const printContent = document.createElement('div');
   //     printContent.id = 'purchase-order-print';
@@ -351,7 +369,7 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
   //           <h1 style="color: #1f2937; margin-bottom: 10px;">PURCHASE ORDER</h1>
   //           <h2 style="color: #6b7280;">${printData.printData.documentNo}</h2>
   //         </div>
-          
+
   //         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
   //           <div>
   //             <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Vendor:</h3>
@@ -365,7 +383,7 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
   //             <p><strong>Status:</strong> ${purchase.status}</p>
   //           </div>
   //         </div>
-          
+
   //         <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
   //           <thead>
   //             <tr style="background-color: #f9fafb;">
@@ -395,21 +413,21 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
   //             </tr>
   //           </tfoot>
   //         </table>
-          
+
   //         <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
   //           Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
   //         </div>
   //       </div>
   //     `;
-      
+
   //     document.body.appendChild(printContent);
-      
+
   //     await ReportExporter.exportToPDF(
   //       'purchase-order-print',
   //       `purchase-order-${purchase.orderNo}.pdf`,
   //       `Purchase Order - ${purchase.orderNo}`
   //     );
-      
+
   //     document.body.removeChild(printContent);
   //     toast.success('Purchase order exported successfully');
   //   } catch (error) {
@@ -417,71 +435,108 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
   //   }
   // };
 
-  const actions = (purchase: Purchase) => (
-    <div className="flex space-x-2">
-      <button
-        onClick={() => {
-          setSelectedPurchase(purchase);
-          setShowDetailsModal(true);
-        }}
-        className="text-blue-600 hover:text-blue-900"
-        title="View Details"
-      >
-        <Eye className="h-4 w-4" />
-      </button>
-      {['DRAFT', 'ORDERED'].includes(purchase.status) && canPerformActions && (
-        <button
-          onClick={() => {
-            setSelectedPurchase(purchase);
-            setShowEditModal(true);
-          }}
-          className="text-blue-600 hover:text-blue-900"
-          title="Edit Purchase"
-        >
-          <Edit className="h-4 w-4" />
-        </button>
-      )}
-      {['DRAFT', 'ORDERED'].includes(purchase.status) && canPerformActions && (
-        <button
-          onClick={() => handleDeletePurchase(purchase)}
-          className="text-red-600 hover:text-red-900"
-          title="Delete Purchase"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      )}
-      {!['DRAFT'].includes(purchase.status) && (
-        <button
-          onClick={() => handlePrintPurchaseOrder(purchase)}
-          className="text-purple-600 hover:text-purple-900"
-          title="Print Purchase Order"
-        >
-          <Printer className="h-4 w-4" />
-        </button>
-      )}
-      {purchase.status === 'ORDERED' && canPerformActions && (
-        <button
-          onClick={() => {
-            setSelectedPurchase(purchase);
-            setShowReceiveModal(true);
-          }}
-          className="text-green-600 hover:text-green-900"
-          title="Receive"
-        >
-          <Package className="h-4 w-4" />
-        </button>
-      )}
-      {purchase.status === 'RECEIVED' && canPerformActions && (
-        <button
-          onClick={() => handleInvoicePurchase(purchase)}
-          className="text-purple-600 hover:text-purple-900"
-          title="Invoice"
-        >
-          <FileText className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  );
+  const actions = (purchase: Purchase) => {
+    const isAssetPO = purchase.orderType === "ASSET";
+    const isInventoryPO = purchase.orderType === "INVENTORY";
+
+    return (
+      <div className="flex space-x-2">
+        {/* View – only for inventory POs */}
+        {isInventoryPO && (
+          <button
+            onClick={() => {
+              setSelectedPurchase(purchase);
+              setShowDetailsModal(true);
+            }}
+            className="text-blue-600 hover:text-blue-900"
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* ================= ASSET PO ================= */}
+        {canPerformActions &&
+          ["DRAFT", "ORDERED"].includes(purchase.status) && (
+            <button
+              onClick={() => handleDeletePurchase(purchase)}
+              className="text-red-600 hover:text-red-900"
+              title="Delete Purchase"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+
+        {/* ================= INVENTORY PO ================= */}
+        {isInventoryPO && (
+          <>
+            {/* Edit */}
+            {["DRAFT", "ORDERED"].includes(purchase.status) &&
+              canPerformActions && (
+                <button
+                  onClick={() => {
+                    setSelectedPurchase(purchase);
+                    setShowEditModal(true);
+                  }}
+                  className="text-blue-600 hover:text-blue-900"
+                  title="Edit Purchase"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+              )}
+
+            {/* Delete */}
+            {["DRAFT", "ORDERED"].includes(purchase.status) &&
+              canPerformActions && (
+                <button
+                  onClick={() => handleDeletePurchase(purchase)}
+                  className="text-red-600 hover:text-red-900"
+                  title="Delete Purchase"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+
+            {/* Print */}
+            {!["DRAFT"].includes(purchase.status) && (
+              <button
+                onClick={() => handlePrintPurchaseOrder(purchase)}
+                className="text-purple-600 hover:text-purple-900"
+                title="Print Purchase Order"
+              >
+                <Printer className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Receive */}
+            {purchase.status === "ORDERED" && canPerformActions && (
+              <button
+                onClick={() => {
+                  setSelectedPurchase(purchase);
+                  setShowReceiveModal(true);
+                }}
+                className="text-green-600 hover:text-green-900"
+                title="Receive"
+              >
+                <Package className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Invoice */}
+            {purchase.status === "RECEIVED" && canPerformActions && (
+              <button
+                onClick={() => handleInvoicePurchase(purchase)}
+                className="text-purple-600 hover:text-purple-900"
+                title="Invoice"
+              >
+                <FileText className="h-4 w-4" />
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -526,36 +581,48 @@ const handlePrintPurchaseOrder = async (purchase: Purchase) => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-5">
-        {['ORDERED', 'RECEIVED', 'INVOICED', 'PARTIALLY_PAID', 'PAID'].map(status => {
-          const count = data?.purchases?.filter((p: Purchase) => p.status === status).length || 0;
-          const total = data?.purchases?.filter((p: Purchase) => p.status === status)
-            .reduce((sum: number, p: Purchase) => sum + Number(p.totalAmount), 0) || 0;
+        {["ORDERED", "RECEIVED", "INVOICED", "PARTIALLY_PAID", "PAID"].map(
+          (status) => {
+            const count =
+              data?.purchases?.filter((p: Purchase) => p.status === status)
+                .length || 0;
+            const total =
+              data?.purchases
+                ?.filter((p: Purchase) => p.status === status)
+                .reduce(
+                  (sum: number, p: Purchase) => sum + Number(p.totalAmount),
+                  0,
+                ) || 0;
 
-          return (
-            <div key={status} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Package className="h-6 w-6 text-gray-400" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        {status}
-                      </dt>
-                      <dd className="text-lg font-semibold text-gray-900">
-                        {count} orders
-                      </dd>
-                      <dd className="text-sm text-gray-500">
-                        ₦{total.toLocaleString()}
-                      </dd>
-                    </dl>
+            return (
+              <div
+                key={status}
+                className="bg-white overflow-hidden shadow rounded-lg"
+              >
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <Package className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">
+                          {status}
+                        </dt>
+                        <dd className="text-lg font-semibold text-gray-900">
+                          {count} orders
+                        </dd>
+                        <dd className="text-sm text-gray-500">
+                          ₦{total.toLocaleString()}
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          },
+        )}
       </div>
 
       {/* Data Table */}

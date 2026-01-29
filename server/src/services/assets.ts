@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
-import { GeneralLedgerService } from './gl';
+import { PrismaClient } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
+import { GeneralLedgerService } from "./gl";
 
 const prisma = new PrismaClient();
 const glService = new GeneralLedgerService();
@@ -12,10 +12,12 @@ export class AssetsService {
       include: {
         glAssetAccount: { select: { code: true, name: true } },
         glDepreciationAccount: { select: { code: true, name: true } },
-        glAccumulatedDepreciationAccount: { select: { code: true, name: true } },
-        _count: { select: { assets: true } }
+        glAccumulatedDepreciationAccount: {
+          select: { code: true, name: true },
+        },
+        _count: { select: { assets: true } },
       },
-      orderBy: { code: 'asc' }
+      orderBy: { code: "asc" },
     });
   }
 
@@ -25,65 +27,64 @@ export class AssetsService {
       include: {
         glAssetAccount: { select: { code: true, name: true } },
         glDepreciationAccount: { select: { code: true, name: true } },
-        glAccumulatedDepreciationAccount: { select: { code: true, name: true } }
-      }
+        glAccumulatedDepreciationAccount: {
+          select: { code: true, name: true },
+        },
+      },
     });
   }
 
-
   async updateAssetCategory(categoryId: string, data: any) {
-  // 1. Check if any asset exists in this category
-  const assetCount = await prisma.asset.count({
-    where: { categoryId },
-  });
+    // 1. Check if any asset exists in this category
+    const assetCount = await prisma.asset.count({
+      where: { categoryId },
+    });
 
-  if (assetCount > 0) {
-    throw new Error(
-      "Cannot update asset category. Assets already exist under this category."
-    );
-  }
+    if (assetCount > 0) {
+      throw new Error(
+        "Cannot update asset category. Assets already exist under this category.",
+      );
+    }
 
-  // 2. Update category
-  return await prisma.assetCategory.update({
-    where: { id: categoryId },
-    data,
-    include: {
-      glAssetAccount: { select: { code: true, name: true } },
-      glDepreciationAccount: { select: { code: true, name: true } },
-      glAccumulatedDepreciationAccount: {
-        select: { code: true, name: true },
+    // 2. Update category
+    return await prisma.assetCategory.update({
+      where: { id: categoryId },
+      data,
+      include: {
+        glAssetAccount: { select: { code: true, name: true } },
+        glDepreciationAccount: { select: { code: true, name: true } },
+        glAccumulatedDepreciationAccount: {
+          select: { code: true, name: true },
+        },
       },
-    },
-  });
-}
-
-
-async deleteAssetCategory(categoryId: string) {
-  // 1. Check if any asset exists in this category
-  const assetCount = await prisma.asset.count({
-    where: { categoryId },
-  });
-
-  if (assetCount > 0) {
-    throw new Error(
-      "Cannot delete asset category. Assets already exist under this category."
-    );
+    });
   }
 
-  // 2. Delete category
-  return await prisma.assetCategory.delete({
-    where: { id: categoryId },
-  });
-}
+  async deleteAssetCategory(categoryId: string) {
+    // 1. Check if any asset exists in this category
+    const assetCount = await prisma.asset.count({
+      where: { categoryId },
+    });
 
+    if (assetCount > 0) {
+      throw new Error(
+        "Cannot delete asset category. Assets already exist under this category.",
+      );
+    }
+
+    // 2. Delete category
+    return await prisma.assetCategory.delete({
+      where: { id: categoryId },
+    });
+  }
 
   // Assets
   async getAssets(filters: any = {}) {
     let { page = 1, limit = 10, categoryId, status, locationId } = filters;
 
     // ensure page & limit are numbers
-  page = parseInt(page, 10) || 1;
-  limit = parseInt(limit, 10) || 10;
+    page = parseInt(page, 10) || 1;
+    limit = parseInt(limit, 10) || 10;
 
     const skip = (page - 1) * limit;
 
@@ -98,15 +99,17 @@ async deleteAssetCategory(categoryId: string) {
         skip,
         take: limit,
         include: {
-          category: { select: { code: true, name: true, depreciationMethod: true } },
+          category: {
+            select: { code: true, name: true, depreciationMethod: true },
+          },
           location: { select: { code: true, name: true } },
           createdByUser: { select: { name: true } },
           purchaseOrder: { select: { orderNo: true } },
-          _count: { select: { depreciationEntries: true } }
+          _count: { select: { depreciationEntries: true } },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       }),
-      prisma.asset.count({ where })
+      prisma.asset.count({ where }),
     ]);
 
     return {
@@ -115,8 +118,8 @@ async deleteAssetCategory(categoryId: string) {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -124,7 +127,7 @@ async deleteAssetCategory(categoryId: string) {
     return await prisma.$transaction(async (tx) => {
       // Generate asset number
       const count = await tx.asset.count();
-      const assetNo = `AST${String(count + 1).padStart(6, '0')}`;
+      const assetNo = `AST${String(count + 1).padStart(6, "0")}`;
 
       // Get category defaults if not provided
       // const category = await tx.assetCategory.findUnique({
@@ -155,54 +158,59 @@ async deleteAssetCategory(categoryId: string) {
       // });
 
       const category = await tx.assetCategory.findUnique({
-  where: { id: data.categoryId },
-  include: { glAssetAccount: true }
-});
+        where: { id: data.categoryId },
+        include: { glAssetAccount: true },
+      });
 
-if (!category) {
-  throw new Error('Asset category not found');
-}
+      if (!category) {
+        throw new Error("Asset category not found");
+      }
 
-const asset = await tx.asset.create({
-  data: {
-    assetNo,
-    name: data.name,
-    description: data.description,
-    categoryId: data.categoryId,
-    acquisitionDate: new Date(data.acquisitionDate),
-    acquisitionCost: new Decimal(data.acquisitionCost),
-    residualValue: new Decimal(
-      data.residualValue ??
-      (Number(data.acquisitionCost) * Number(category.residualValue) / 100)
-    ),
-    usefulLife: data.usefulLife || category.usefulLife,
-    depreciationMethod: data.depreciationMethod || category.depreciationMethod,
-    locationId: data.locationId,
-    serialNumber: data.serialNumber,
-    supplier: data.supplier,
-    purchaseOrderId: data.purchaseOrderId,
-    createdBy: userId
-  }
-});
-
+      const asset = await tx.asset.create({
+        data: {
+          assetNo,
+          name: data.name,
+          description: data.description,
+          categoryId: data.categoryId,
+          acquisitionDate: new Date(data.acquisitionDate),
+          acquisitionCost: new Decimal(data.acquisitionCost),
+          residualValue: new Decimal(
+            data.residualValue ??
+              (Number(data.acquisitionCost) * Number(category.residualValue)) /
+                100,
+          ),
+          usefulLife: data.usefulLife || category.usefulLife,
+          depreciationMethod:
+            data.depreciationMethod || category.depreciationMethod,
+          locationId: data.locationId,
+          serialNumber: data.serialNumber,
+          supplier: data.supplier,
+          purchaseOrderId: data.purchaseOrderId,
+          createdBy: userId,
+        },
+      });
 
       // Post capitalization to GL
-      await glService.postJournal([
-        { 
-          accountCode: category.glAssetAccount.code, 
-          debit: data.acquisitionCost, 
-          credit: 0, 
-          refType: 'ASSET_CAPITALIZATION', 
-          refId: asset.id 
-        },
-        { 
-          accountCode: '1100', // Cash/Bank - will be updated based on payment method
-          debit: 0, 
-          credit: data.acquisitionCost, 
-          refType: 'ASSET_CAPITALIZATION', 
-          refId: asset.id 
-        }
-      ], `Asset capitalization: ${asset.name}`, userId);
+      await glService.postJournal(
+        [
+          {
+            accountCode: category.glAssetAccount.code,
+            debit: data.acquisitionCost,
+            credit: 0,
+            refType: "ASSET_CAPITALIZATION",
+            refId: asset.id,
+          },
+          {
+            accountCode: "1100", // Cash/Bank - will be updated based on payment method
+            debit: 0,
+            credit: data.acquisitionCost,
+            refType: "ASSET_CAPITALIZATION",
+            refId: asset.id,
+          },
+        ],
+        `Asset capitalization: ${asset.name}`,
+        userId,
+      );
 
       return asset;
     });
@@ -217,27 +225,27 @@ const asset = await tx.asset.create({
         categoryId: data.categoryId,
         locationId: data.locationId,
         serialNumber: data.serialNumber,
-        supplier: data.supplier
+        supplier: data.supplier,
       },
       include: {
         category: { select: { code: true, name: true } },
-        location: { select: { code: true, name: true } }
-      }
+        location: { select: { code: true, name: true } },
+      },
     });
   }
 
   async deleteAsset(assetId: string) {
     // Check if asset has depreciation entries
     const depreciationCount = await prisma.assetDepreciation.count({
-      where: { assetId }
+      where: { assetId },
     });
 
     if (depreciationCount > 0) {
-      throw new Error('Cannot delete asset with depreciation entries');
+      throw new Error("Cannot delete asset with depreciation entries");
     }
 
     return await prisma.asset.delete({
-      where: { id: assetId }
+      where: { id: assetId },
     });
   }
 
@@ -246,26 +254,28 @@ const asset = await tx.asset.create({
     return await prisma.$transaction(async (tx) => {
       const purchase = await tx.purchase.findUnique({
         where: { id: data.purchaseOrderId },
-        include: { vendor: true }
+        include: { vendor: true },
       });
 
       if (!purchase) {
-        throw new Error('Purchase order not found');
+        throw new Error("Purchase order not found");
       }
 
       const createdAssets = [];
 
       for (const assetData of data.assets) {
         const count = await tx.asset.count();
-        const assetNo = `AST${String(count + 1).padStart(6, '0')}`;
+        const assetNo = `AST${String(count + 1).padStart(6, "0")}`;
 
         const category = await tx.assetCategory.findUnique({
           where: { id: assetData.categoryId },
-          include: { glAssetAccount: true }
+          include: { glAssetAccount: true },
         });
 
         if (!category) {
-          throw new Error(`Asset category not found for asset: ${assetData.name}`);
+          throw new Error(
+            `Asset category not found for asset: ${assetData.name}`,
+          );
         }
 
         const asset = await tx.asset.create({
@@ -275,64 +285,99 @@ const asset = await tx.asset.create({
             categoryId: assetData.categoryId,
             acquisitionDate: purchase.orderDate,
             acquisitionCost: new Decimal(assetData.acquisitionCost),
-            residualValue: new Decimal(Number(assetData.acquisitionCost) * Number(category.residualValue) / 100),
+            residualValue: new Decimal(
+              (Number(assetData.acquisitionCost) *
+                Number(category.residualValue)) /
+                100,
+            ),
             usefulLife: category.usefulLife,
             depreciationMethod: category.depreciationMethod,
             locationId: assetData.locationId,
             serialNumber: assetData.serialNumber,
             supplier: purchase.vendor.name,
             purchaseOrderId: data.purchaseOrderId,
-            createdBy: userId
-          }
+            createdBy: userId,
+          },
         });
 
         createdAssets.push(asset);
 
         // Post capitalization to GL
-        await glService.postJournal([
-          { 
-            accountCode: category.glAssetAccount.code, 
-            debit: assetData.acquisitionCost, 
-            credit: 0, 
-            refType: 'ASSET_CAPITALIZATION', 
-            refId: asset.id 
-          },
-          { 
-            accountCode: '2000', // Accounts Payable
-            debit: 0, 
-            credit: assetData.acquisitionCost, 
-            refType: 'ASSET_CAPITALIZATION', 
-            refId: asset.id 
-          }
-        ], `Asset capitalization from PO ${purchase.orderNo}: ${asset.name}`, userId);
+        await glService.postJournal(
+          [
+            {
+              accountCode: "1510", //Asset Clearing Account
+              debit: assetData.acquisitionCost,
+              credit: 0,
+              refType: "ASSET_CAPITALIZATION",
+              refId: asset.id,
+            },
+            {
+              accountCode: "2000", // Accounts Payable
+              debit: 0,
+              credit: assetData.acquisitionCost,
+              refType: "ASSET_CAPITALIZATION",
+              refId: asset.id,
+            },
+            {
+              accountCode: category.glAssetAccount.code,
+              debit: assetData.acquisitionCost,
+              credit: 0,
+              refType: "ASSET_CAPITALIZATION",
+              refId: asset.id,
+            },
+            {
+              accountCode: "1510", // Asset Clearing Account
+              debit: 0,
+              credit: assetData.acquisitionCost,
+              refType: "ASSET_CAPITALIZATION",
+              refId: asset.id,
+            },
+          ],
+          `Asset capitalization from PO ${purchase.orderNo}: ${asset.name}`,
+          userId,
+        );
       }
+
+      await tx.purchase.update({
+        where: { id: data.purchaseOrderId },
+        data: { status: "INVOICED" },
+      });
 
       return createdAssets;
     });
   }
 
   // Depreciation Calculations
-  async calculateDepreciation(assetId: string, periodYear: number, periodMonth: number) {
+  async calculateDepreciation(
+    assetId: string,
+    periodYear: number,
+    periodMonth: number,
+  ) {
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
       include: {
         depreciationEntries: {
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
-      }
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
     });
 
-    if (!asset || asset.status !== 'ACTIVE') {
-      throw new Error('Asset not found or not active');
+    if (!asset || asset.status !== "ACTIVE") {
+      throw new Error("Asset not found or not active");
     }
 
     const acquisitionDate = new Date(asset.acquisitionDate);
     const currentDate = new Date(periodYear, periodMonth - 1, 1);
-    
+
     // Check if asset was acquired before the depreciation period
     if (acquisitionDate > currentDate) {
-      return { depreciationAmount: 0, accumulatedDepreciation: 0, netBookValue: Number(asset.acquisitionCost) };
+      return {
+        depreciationAmount: 0,
+        accumulatedDepreciation: 0,
+        netBookValue: Number(asset.acquisitionCost),
+      };
     }
 
     const acquisitionCost = Number(asset.acquisitionCost);
@@ -344,272 +389,291 @@ const asset = await tx.asset.create({
 
     // Get previous accumulated depreciation
     if (asset.depreciationEntries.length > 0) {
-      accumulatedDepreciation = Number(asset.depreciationEntries[0].accumulatedDepreciation);
+      accumulatedDepreciation = Number(
+        asset.depreciationEntries[0].accumulatedDepreciation,
+      );
     }
 
-    if (asset.depreciationMethod === 'STRAIGHT_LINE') {
+    if (asset.depreciationMethod === "STRAIGHT_LINE") {
       // Straight-line: (Cost - Residual) / Useful Life / 12 months
       const monthlyDepreciation = depreciableAmount / asset.usefulLife / 12;
       depreciationAmount = monthlyDepreciation;
     } else {
       // Reducing balance: Rate = (1 - (Residual/Cost)^(1/Life)) * 100
-      const rate = (1 - Math.pow(residualValue / acquisitionCost, 1 / asset.usefulLife)) * 100;
+      const rate =
+        (1 - Math.pow(residualValue / acquisitionCost, 1 / asset.usefulLife)) *
+        100;
       const currentBookValue = acquisitionCost - accumulatedDepreciation;
-      depreciationAmount = (currentBookValue * rate / 100) / 12;
+      depreciationAmount = (currentBookValue * rate) / 100 / 12;
     }
 
     // Ensure we don't depreciate below residual value
-    const newAccumulatedDepreciation = accumulatedDepreciation + depreciationAmount;
+    const newAccumulatedDepreciation =
+      accumulatedDepreciation + depreciationAmount;
     if (newAccumulatedDepreciation > depreciableAmount) {
       depreciationAmount = depreciableAmount - accumulatedDepreciation;
     }
 
-    const finalAccumulatedDepreciation = accumulatedDepreciation + depreciationAmount;
+    const finalAccumulatedDepreciation =
+      accumulatedDepreciation + depreciationAmount;
     const netBookValue = acquisitionCost - finalAccumulatedDepreciation;
 
     return {
       depreciationAmount: Math.max(0, depreciationAmount),
       accumulatedDepreciation: finalAccumulatedDepreciation,
-      netBookValue: Math.max(residualValue, netBookValue)
+      netBookValue: Math.max(residualValue, netBookValue),
     };
   }
 
   async runDepreciation(data: any, userId: string) {
     const { periodYear, periodMonth, assetIds } = data;
 
-    return await prisma.$transaction(async (tx) => {
-      // Get assets to depreciate
-      const where: any = { status: 'ACTIVE' };
-      if (assetIds && assetIds.length > 0) {
-        where.id = { in: assetIds };
-      }
-
-      const assets = await tx.asset.findMany({
-        where,
-        include: {
-          category: {
-            include: {
-              glDepreciationAccount: true,
-              glAccumulatedDepreciationAccount: true
-            }
-          }
+    return await prisma.$transaction(
+      async (tx) => {
+        // Get assets to depreciate
+        const where: any = { status: "ACTIVE" };
+        if (assetIds && assetIds.length > 0) {
+          where.id = { in: assetIds };
         }
-      });
 
-      const depreciationEntries = [];
-      let totalDepreciation = 0;
-
-      for (const asset of assets) {
-        // Check if depreciation already exists for this period
-        const existingEntry = await tx.assetDepreciation.findUnique({
-          where: {
-            assetId_periodYear_periodMonth: {
-              assetId: asset.id,
-              periodYear,
-              periodMonth
-            }
-          }
+        const assets = await tx.asset.findMany({
+          where,
+          include: {
+            category: {
+              include: {
+                glDepreciationAccount: true,
+                glAccumulatedDepreciationAccount: true,
+              },
+            },
+          },
         });
 
-        if (existingEntry) {
-          continue; // Skip if already calculated
-        }
+        const depreciationEntries = [];
+        let totalDepreciation = 0;
 
-        const calculation = await this.calculateDepreciation(asset.id, periodYear, periodMonth);
-
-        if (calculation.depreciationAmount > 0) {
-          const entry = await tx.assetDepreciation.create({
-            data: {
-              assetId: asset.id,
-              periodYear,
-              periodMonth,
-              depreciationAmount: new Decimal(calculation.depreciationAmount),
-              accumulatedDepreciation: new Decimal(calculation.accumulatedDepreciation),
-              netBookValue: new Decimal(calculation.netBookValue)
-            }
+        for (const asset of assets) {
+          // Check if depreciation already exists for this period
+          const existingEntry = await tx.assetDepreciation.findUnique({
+            where: {
+              assetId_periodYear_periodMonth: {
+                assetId: asset.id,
+                periodYear,
+                periodMonth,
+              },
+            },
           });
 
-          depreciationEntries.push(entry);
-          totalDepreciation += calculation.depreciationAmount;
+          if (existingEntry) {
+            continue; // Skip if already calculated
+          }
+
+          const calculation = await this.calculateDepreciation(
+            asset.id,
+            periodYear,
+            periodMonth,
+          );
+
+          if (calculation.depreciationAmount > 0) {
+            const entry = await tx.assetDepreciation.create({
+              data: {
+                assetId: asset.id,
+                periodYear,
+                periodMonth,
+                depreciationAmount: new Decimal(calculation.depreciationAmount),
+                accumulatedDepreciation: new Decimal(
+                  calculation.accumulatedDepreciation,
+                ),
+                netBookValue: new Decimal(calculation.netBookValue),
+              },
+            });
+
+            depreciationEntries.push(entry);
+            totalDepreciation += calculation.depreciationAmount;
+          }
         }
-      }
 
-      // Post consolidated depreciation journal entry
-      if (totalDepreciation > 0) {
-        const journalId = await glService.postJournal([
-          { 
-            accountCode: '6300', // Depreciation Expense (will be updated per category)
-            debit: totalDepreciation, 
-            credit: 0, 
-            refType: 'DEPRECIATION', 
-            refId: `${periodYear}-${periodMonth}` 
-          },
-          { 
-            accountCode: '1600', // Accumulated Depreciation (will be updated per category)
-            debit: 0, 
-            credit: totalDepreciation, 
-            refType: 'DEPRECIATION', 
-            refId: `${periodYear}-${periodMonth}` 
-          }
-        ], `Depreciation for ${periodYear}-${String(periodMonth).padStart(2, '0')}`, userId);
+        // Post consolidated depreciation journal entry
+        if (totalDepreciation > 0) {
+          const journalId = await glService.postJournal(
+            [
+              {
+                accountCode: "6300", // Depreciation Expense (will be updated per category)
+                debit: totalDepreciation,
+                credit: 0,
+                refType: "DEPRECIATION",
+                refId: `${periodYear}-${periodMonth}`,
+              },
+              {
+                accountCode: "1600", // Accumulated Depreciation (will be updated per category)
+                debit: 0,
+                credit: totalDepreciation,
+                refType: "DEPRECIATION",
+                refId: `${periodYear}-${periodMonth}`,
+              },
+            ],
+            `Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}`,
+            userId,
+          );
 
-        // Mark entries as posted
-        await tx.assetDepreciation.updateMany({
-          where: {
-            id: { in: depreciationEntries.map(e => e.id) }
-          },
-          data: {
-            isPosted: true,
-            postedAt: new Date(),
-            journalId
-          }
-        });
-      }
+          // Mark entries as posted
+          await tx.assetDepreciation.updateMany({
+            where: {
+              id: { in: depreciationEntries.map((e) => e.id) },
+            },
+            data: {
+              isPosted: true,
+              postedAt: new Date(),
+              journalId,
+            },
+          });
+        }
 
-      return {
-        processedAssets: depreciationEntries.length,
-        totalDepreciation,
-        entries: depreciationEntries
-      };
-    },
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-  );
+        return {
+          processedAssets: depreciationEntries.length,
+          totalDepreciation,
+          entries: depreciationEntries,
+        };
+      },
+      {
+        maxWait: 5000, // 5s wait for connection
+        timeout: 20000, // 20s max runtime
+      },
+    );
   }
 
   // Asset Disposal
   async disposeAsset(assetId: string, data: any, userId: string) {
-    return await prisma.$transaction(async (tx) => {
-      const asset = await tx.asset.findUnique({
-        where: { id: assetId },
-        include: {
-          category: {
-            include: {
-              glAssetAccount: true,
-              glAccumulatedDepreciationAccount: true
-            }
+    return await prisma.$transaction(
+      async (tx) => {
+        const asset = await tx.asset.findUnique({
+          where: { id: assetId },
+          include: {
+            category: {
+              include: {
+                glAssetAccount: true,
+                glAccumulatedDepreciationAccount: true,
+              },
+            },
+            depreciationEntries: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
           },
-          depreciationEntries: {
-            orderBy: { createdAt: 'desc' },
-            take: 1
+        });
+
+        if (!asset) {
+          throw new Error("Asset not found");
+        }
+
+        if (asset.status !== "ACTIVE") {
+          throw new Error("Asset is not active");
+        }
+
+        // Calculate current book value
+        const acquisitionCost = Number(asset.acquisitionCost);
+        const accumulatedDepreciation =
+          asset.depreciationEntries.length > 0
+            ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
+            : 0;
+        const netBookValue = acquisitionCost - accumulatedDepreciation;
+        const disposalAmount = Number(data.disposalAmount);
+        const gainLoss = disposalAmount - netBookValue;
+
+        // Create disposal record
+        const disposal = await tx.assetDisposal.create({
+          data: {
+            assetId,
+            disposalDate: new Date(data.disposalDate),
+            disposalAmount: new Decimal(disposalAmount),
+            disposalMethod: data.disposalMethod,
+            buyerDetails: data.buyerDetails,
+            gainLoss: new Decimal(gainLoss),
+            notes: data.notes,
+            disposedBy: userId,
+          },
+        });
+
+        // Update asset status
+        await tx.asset.update({
+          where: { id: assetId },
+          data: {
+            status: data.disposalMethod === "SALE" ? "SOLD" : "DISPOSED",
+            disposalDate: new Date(data.disposalDate),
+            disposalAmount: new Decimal(disposalAmount),
+            disposalMethod: data.disposalMethod,
+          },
+        });
+
+        // Post disposal to GL
+        const journalEntries = [
+          // Debit Cash/Bank for disposal proceeds
+          {
+            accountCode: "1100",
+            debit: disposalAmount,
+            credit: 0,
+            refType: "ASSET_DISPOSAL",
+            refId: disposal.id,
+          },
+          // Debit Accumulated Depreciation
+          {
+            accountCode: asset.category.glAccumulatedDepreciationAccount.code,
+            debit: accumulatedDepreciation,
+            credit: 0,
+            refType: "ASSET_DISPOSAL",
+            refId: disposal.id,
+          },
+          // Credit Asset Account
+          {
+            accountCode: asset.category.glAssetAccount.code,
+            debit: 0,
+            credit: acquisitionCost,
+            refType: "ASSET_DISPOSAL",
+            refId: disposal.id,
+          },
+        ];
+
+        // Add gain/loss entry
+        if (gainLoss !== 0) {
+          if (gainLoss > 0) {
+            // Gain on disposal
+            journalEntries.push({
+              accountCode: "4700",
+              debit: 0,
+              credit: Math.abs(gainLoss),
+              refType: "ASSET_DISPOSAL",
+              refId: disposal.id,
+            });
+          } else {
+            // Loss on disposal
+            journalEntries.push({
+              accountCode: "6400",
+              debit: Math.abs(gainLoss),
+              credit: 0,
+              refType: "ASSET_DISPOSAL",
+              refId: disposal.id,
+            });
           }
         }
-      });
 
-      if (!asset) {
-        throw new Error('Asset not found');
-      }
+        const journalId = await glService.postJournal(
+          journalEntries,
+          `Asset disposal: ${asset.name} - ${data.disposalMethod}`,
+          userId,
+        );
 
-      if (asset.status !== 'ACTIVE') {
-        throw new Error('Asset is not active');
-      }
+        // Update disposal with journal reference
+        await tx.assetDisposal.update({
+          where: { id: disposal.id },
+          data: { journalId },
+        });
 
-      // Calculate current book value
-      const acquisitionCost = Number(asset.acquisitionCost);
-      const accumulatedDepreciation = asset.depreciationEntries.length > 0 
-        ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
-        : 0;
-      const netBookValue = acquisitionCost - accumulatedDepreciation;
-      const disposalAmount = Number(data.disposalAmount);
-      const gainLoss = disposalAmount - netBookValue;
-
-      // Create disposal record
-      const disposal = await tx.assetDisposal.create({
-        data: {
-          assetId,
-          disposalDate: new Date(data.disposalDate),
-          disposalAmount: new Decimal(disposalAmount),
-          disposalMethod: data.disposalMethod,
-          buyerDetails: data.buyerDetails,
-          gainLoss: new Decimal(gainLoss),
-          notes: data.notes,
-          disposedBy: userId
-        }
-      });
-
-      // Update asset status
-      await tx.asset.update({
-        where: { id: assetId },
-        data: {
-          status: data.disposalMethod === 'SALE' ? 'SOLD' : 'DISPOSED',
-          disposalDate: new Date(data.disposalDate),
-          disposalAmount: new Decimal(disposalAmount),
-          disposalMethod: data.disposalMethod
-        }
-      });
-
-      // Post disposal to GL
-      const journalEntries = [
-        // Debit Cash/Bank for disposal proceeds
-        { 
-          accountCode: '1100', 
-          debit: disposalAmount, 
-          credit: 0, 
-          refType: 'ASSET_DISPOSAL', 
-          refId: disposal.id 
-        },
-        // Debit Accumulated Depreciation
-        { 
-          accountCode: asset.category.glAccumulatedDepreciationAccount.code, 
-          debit: accumulatedDepreciation, 
-          credit: 0, 
-          refType: 'ASSET_DISPOSAL', 
-          refId: disposal.id 
-        },
-        // Credit Asset Account
-        { 
-          accountCode: asset.category.glAssetAccount.code, 
-          debit: 0, 
-          credit: acquisitionCost, 
-          refType: 'ASSET_DISPOSAL', 
-          refId: disposal.id 
-        }
-      ];
-
-      // Add gain/loss entry
-      if (gainLoss !== 0) {
-        if (gainLoss > 0) {
-          // Gain on disposal
-          journalEntries.push({
-            accountCode: '4700',
-            debit: 0,
-            credit: Math.abs(gainLoss),
-            refType: 'ASSET_DISPOSAL',
-            refId: disposal.id
-          });
-        } else {
-          // Loss on disposal
-          journalEntries.push({
-            accountCode: '6400',
-            debit: Math.abs(gainLoss),
-            credit: 0,
-            refType: 'ASSET_DISPOSAL',
-            refId: disposal.id
-          });
-        }
-      }
-
-      const journalId = await glService.postJournal(
-        journalEntries,
-        `Asset disposal: ${asset.name} - ${data.disposalMethod}`,
-        userId
-      );
-
-      // Update disposal with journal reference
-      await tx.assetDisposal.update({
-        where: { id: disposal.id },
-        data: { journalId }
-      });
-
-      return disposal;
-    },
-  {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-  );
+        return disposal;
+      },
+      {
+        maxWait: 5000, // 5s wait for connection
+        timeout: 20000, // 20s max runtime
+      },
+    );
   }
 
   // Asset Register Report
@@ -624,36 +688,43 @@ const asset = await tx.asset.create({
     const assets = await prisma.asset.findMany({
       where,
       include: {
-        category: { select: { code: true, name: true, depreciationMethod: true } },
+        category: {
+          select: { code: true, name: true, depreciationMethod: true },
+        },
         location: { select: { code: true, name: true } },
         depreciationEntries: {
-          where: asOfDate ? {
-            OR: [
-              { periodYear: { lt: new Date(asOfDate).getFullYear() } },
-              {
-                AND: [
-                  { periodYear: new Date(asOfDate).getFullYear() },
-                  { periodMonth: { lte: new Date(asOfDate).getMonth() + 1 } }
-                ]
+          where: asOfDate
+            ? {
+                OR: [
+                  { periodYear: { lt: new Date(asOfDate).getFullYear() } },
+                  {
+                    AND: [
+                      { periodYear: new Date(asOfDate).getFullYear() },
+                      {
+                        periodMonth: { lte: new Date(asOfDate).getMonth() + 1 },
+                      },
+                    ],
+                  },
+                ],
               }
-            ]
-          } : undefined,
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
+            : undefined,
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
-      orderBy: [{ category: { code: 'asc' } }, { assetNo: 'asc' }]
+      orderBy: [{ category: { code: "asc" } }, { assetNo: "asc" }],
     });
 
-    return assets.map(asset => {
-      const accumulatedDepreciation = asset.depreciationEntries.length > 0 
-        ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
-        : 0;
-      
+    return assets.map((asset) => {
+      const accumulatedDepreciation =
+        asset.depreciationEntries.length > 0
+          ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
+          : 0;
+
       return {
         ...asset,
         accumulatedDepreciation,
-        netBookValue: Number(asset.acquisitionCost) - accumulatedDepreciation
+        netBookValue: Number(asset.acquisitionCost) - accumulatedDepreciation,
       };
     });
   }
@@ -664,18 +735,18 @@ const asset = await tx.asset.create({
       where: { id: assetId },
       include: {
         depreciationEntries: {
-          orderBy: [{ periodYear: 'asc' }, { periodMonth: 'asc' }]
-        }
-      }
+          orderBy: [{ periodYear: "asc" }, { periodMonth: "asc" }],
+        },
+      },
     });
 
     if (!asset) {
-      throw new Error('Asset not found');
+      throw new Error("Asset not found");
     }
 
     return {
       asset,
-      schedule: asset.depreciationEntries
+      schedule: asset.depreciationEntries,
     };
   }
 
@@ -687,8 +758,8 @@ const asset = await tx.asset.create({
 
     const assets = await prisma.asset.findMany({
       where: {
-        status: 'ACTIVE',
-        acquisitionDate: { lte: cutoffDate }
+        status: "ACTIVE",
+        acquisitionDate: { lte: cutoffDate },
       },
       include: {
         category: { select: { code: true, name: true } },
@@ -699,26 +770,27 @@ const asset = await tx.asset.create({
               {
                 AND: [
                   { periodYear: cutoffYear },
-                  { periodMonth: { lte: cutoffMonth } }
-                ]
-              }
-            ]
+                  { periodMonth: { lte: cutoffMonth } },
+                ],
+              },
+            ],
           },
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
-      }
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
     });
 
     let totalCost = 0;
     let totalAccumulatedDepreciation = 0;
     let totalNetBookValue = 0;
 
-    const valuation = assets.map(asset => {
+    const valuation = assets.map((asset) => {
       const cost = Number(asset.acquisitionCost);
-      const accumulated = asset.depreciationEntries.length > 0 
-        ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
-        : 0;
+      const accumulated =
+        asset.depreciationEntries.length > 0
+          ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
+          : 0;
       const netBook = cost - accumulated;
 
       totalCost += cost;
@@ -731,7 +803,7 @@ const asset = await tx.asset.create({
         category: asset.category,
         acquisitionCost: cost,
         accumulatedDepreciation: accumulated,
-        netBookValue: netBook
+        netBookValue: netBook,
       };
     });
 
@@ -741,9 +813,9 @@ const asset = await tx.asset.create({
         totalCost,
         totalAccumulatedDepreciation,
         totalNetBookValue,
-        assetCount: assets.length
+        assetCount: assets.length,
       },
-      asOfDate: cutoffDate
+      asOfDate: cutoffDate,
     };
   }
 }

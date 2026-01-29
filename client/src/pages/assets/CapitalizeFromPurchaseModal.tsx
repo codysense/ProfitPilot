@@ -62,6 +62,7 @@ const CapitalizeFromPurchaseModal = ({ onClose, onSuccess }: CapitalizeFromPurch
   });
 
   const selectedPurchase = purchaseOrders?.purchases?.find((po: any) => po.id === selectedPurchaseId);
+  // console.log('Selected Purchase:', selectedPurchase);
 
   const onSubmit = async (data: CapitalizeFromPurchaseFormData) => {
     try {
@@ -135,6 +136,14 @@ const CapitalizeFromPurchaseModal = ({ onClose, onSuccess }: CapitalizeFromPurch
                     <div>
                       <span className="text-blue-700">Status:</span>
                       <div className="font-medium">{selectedPurchase.status}</div>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Order Type:</span>
+                      <div className="font-medium">{selectedPurchase.orderType}</div>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Asset Name:</span>
+                      <div className="font-medium">{selectedPurchase.purchaseLines[0].assetName}</div>
                     </div>
                   </div>
                 </div>

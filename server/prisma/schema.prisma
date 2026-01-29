@@ -419,11 +419,14 @@ model Customer {
   @@map("customers")
 }
 
+
+
 model Purchase {
   id                 String              @id @default(cuid())
   orderNo            String              @unique
   vendorId           String
   orderDate          DateTime
+  orderType          PurchaseOrderType   @default(INVENTORY)
   status             PurchaseStatus      @default(DRAFT)
   totalAmount        Decimal             @db.Decimal(15, 2)
   notes              String?
@@ -441,14 +444,20 @@ model Purchase {
   @@map("purchases")
 }
 
+enum PurchaseOrderType {
+  INVENTORY
+  ASSET
+}
+
 model PurchaseLine {
   id         String   @id @default(cuid())
   purchaseId String
-  itemId     String
+  itemId     String?
+  assetName  String?
   qty        Decimal  @db.Decimal(15, 4)
   unitPrice  Decimal  @db.Decimal(15, 4)
   lineTotal  Decimal  @db.Decimal(15, 4)
-  item       Item     @relation(fields: [itemId], references: [id])
+  item       Item?     @relation(fields: [itemId], references: [id])
   purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@map("purchase_lines")
