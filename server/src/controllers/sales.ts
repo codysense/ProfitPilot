@@ -69,7 +69,7 @@ export class SalesController {
               outstandingBalance: Number(balanceResult[0]?.balance || 0),
             },
           };
-        })
+        }),
       );
 
       res.json({
@@ -90,6 +90,7 @@ export class SalesController {
   async createSale(req: AuthRequest, res: Response) {
     try {
       const validatedData = createSaleSchema.parse(req.body);
+      console.log("Creating sale with data:", validatedData);
 
       const sale = await prisma.$transaction(
         async (tx) => {
@@ -133,7 +134,7 @@ export class SalesController {
         {
           maxWait: 5000, // 5s wait for connection
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       res.status(201).json(sale);
@@ -147,7 +148,7 @@ export class SalesController {
     try {
       const { id } = req.params;
       const validatedData = deliverSaleSchema.parse(req.body);
-    //  console.log("Delivering sale with data:", id, validatedData);
+      //  console.log("Delivering sale with data:", id, validatedData);
 
       await prisma.$transaction(
         async (tx) => {
@@ -175,7 +176,7 @@ export class SalesController {
               deliveryLine.qtyDelivered,
               "SALE",
               id,
-              req.user!.id
+              req.user!.id,
             );
           }
 
@@ -186,10 +187,9 @@ export class SalesController {
           });
 
           if (sale) {
-           
             const totalCogs = await calculateCogs(
               sale.saleLines,
-              validatedData.deliveryLines
+              validatedData.deliveryLines,
             );
 
             console.log("Total COGS:", totalCogs);
@@ -227,14 +227,14 @@ export class SalesController {
                 },
               ],
               `Sale delivery: ${sale.orderNo}`,
-              req.user!.id
+              req.user!.id,
             );
           }
         },
         {
           maxWait: 5000, // 5s wait for connection
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       res.json({ message: "Sale delivered successfully" });
@@ -302,7 +302,7 @@ export class SalesController {
             ...customer,
             outstandingBalance: Number(balanceResult[0]?.balance || 0),
           };
-        })
+        }),
       );
 
       res.json({
@@ -534,7 +534,7 @@ export class SalesController {
         {
           maxWait: 5000, // 5s wait for connection
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       res.json(sale);
@@ -618,11 +618,11 @@ export class SalesController {
 // Helper function for COGS calculation
 async function calculateCogs(
   saleLines: any[],
-  deliveryLines: any[]
+  deliveryLines: any[],
 ): Promise<number> {
   let totalCogs = 0;
-  console.log("Calculating COGS for delivery lines:", deliveryLines);
-  console.log("Against sale lines:", saleLines);
+  // console.log("Calculating COGS for delivery lines:", deliveryLines);
+  // console.log("Against sale lines:", saleLines);
 
   for (const deliveryLine of deliveryLines) {
     const saleLine = saleLines.find((sl) => sl.id === deliveryLine.saleLineId);
@@ -630,9 +630,9 @@ async function calculateCogs(
       // Get current inventory value for COGS calculation
       const inventoryValue = await costingService.getInventoryValue(
         saleLine.itemId,
-        deliveryLine.warehouseId
+        deliveryLine.warehouseId,
       );
-      console.log("Inventory value for item", saleLine.itemId, ":", inventoryValue);
+      // console.log("Inventory value for item", saleLine.itemId, ":", inventoryValue);
       totalCogs += deliveryLine.qtyDelivered * inventoryValue.avgCost;
     }
   }

@@ -82,32 +82,60 @@ export class AssetsService {
   async getAssets(filters: any = {}) {
     let { page = 1, limit = 10, categoryId, status, locationId } = filters;
 
-    // ensure page & limit are numbers
-    page = parseInt(page, 10) || 1;
-    limit = parseInt(limit, 10) || 10;
+    page = Number(page) || 1;
+    limit = Number(limit) || 10;
 
     const skip = (page - 1) * limit;
 
+    // const tests = {
+    //   categoryOnly: await prisma.asset.count({
+    //     where: { categoryId },
+    //   }),
+    //   statusOnly: await prisma.asset.count({
+    //     where: { status },
+    //   }),
+    //   locationOnly: await prisma.asset.count({
+    //     where: { locationId },
+    //   }),
+    //   categoryAndStatus: await prisma.asset.count({
+    //     where: { categoryId, status },
+    //   }),
+    //   allThree: await prisma.asset.count({
+    //     where: { categoryId, status, locationId },
+    //   }),
+    // };
+
+    // console.log("FILTER TEST RESULTS:", tests);
+
     const where: any = {};
-    if (categoryId) where.categoryId = categoryId;
-    if (status) where.status = status;
-    if (locationId) where.locationId = locationId;
+
+    if (categoryId && categoryId !== "ALL") {
+      where.categoryId = categoryId;
+    }
+
+    if (status && status !== "ALL") {
+      where.status = status.toUpperCase();
+    }
+
+    if (locationId && locationId !== "ALL") {
+      where.locationId = locationId;
+    }
+
+    // console.log("Final WHERE:", where);
 
     const [assets, total] = await Promise.all([
       prisma.asset.findMany({
         where,
         skip,
         take: limit,
+        orderBy: { createdAt: "desc" },
         include: {
-          category: {
-            select: { code: true, name: true, depreciationMethod: true },
-          },
+          category: { select: { code: true, name: true } },
           location: { select: { code: true, name: true } },
           createdByUser: { select: { name: true } },
           purchaseOrder: { select: { orderNo: true } },
           _count: { select: { depreciationEntries: true } },
         },
-        orderBy: { createdAt: "desc" },
       }),
       prisma.asset.count({ where }),
     ]);
@@ -122,6 +150,52 @@ export class AssetsService {
       },
     };
   }
+
+  // async getAssets(filters: any = {}) {
+  //   let { page = 1, limit = 10, categoryId, status, locationId } = filters;
+
+  //   console.log("Filters received in service:", filters);
+
+  //   // ensure page & limit are numbers
+  //   page = parseInt(page, 10) || 1;
+  //   limit = parseInt(limit, 10) || 10;
+
+  //   const skip = (page - 1) * limit;
+
+  //   const where: any = {};
+  //   if (categoryId) where.categoryId = categoryId;
+  //   if (status) where.status = status;
+  //   if (locationId) where.locationId = locationId;
+
+  //   const [assets, total] = await Promise.all([
+  //     prisma.asset.findMany({
+  //       where,
+  //       skip,
+  //       take: limit,
+  //       include: {
+  //         category: {
+  //           select: { code: true, name: true, depreciationMethod: true },
+  //         },
+  //         location: { select: { code: true, name: true } },
+  //         createdByUser: { select: { name: true } },
+  //         purchaseOrder: { select: { orderNo: true } },
+  //         _count: { select: { depreciationEntries: true } },
+  //       },
+  //       orderBy: { createdAt: "desc" },
+  //     }),
+  //     prisma.asset.count({ where }),
+  //   ]);
+
+  //   return {
+  //     assets,
+  //     pagination: {
+  //       page,
+  //       limit,
+  //       total,
+  //       pages: Math.ceil(total / limit),
+  //     },
+  //   };
+  // }
 
   async createAsset(data: any, userId: string) {
     return await prisma.$transaction(async (tx) => {

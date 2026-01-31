@@ -173,7 +173,7 @@ export class CashController {
             (sum, line) => {
               return sum + Number(line.lineAmount);
             },
-            0
+            0,
           );
 
           // Create cash transaction with PREPARED status
@@ -211,7 +211,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.status(201).json(cashTransaction);
@@ -257,7 +257,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.json({ message: "Cash transaction approved successfully" });
@@ -303,7 +303,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.json({ message: "Cash transaction authorized successfully" });
@@ -442,7 +442,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.json({ message: "Cash transaction paid successfully" });
@@ -488,7 +488,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.json({ message: "Cash transaction reconciled successfully" });
@@ -532,7 +532,7 @@ export class CashController {
             (sum, line) => {
               return sum + Number(line.lineAmount);
             },
-            0
+            0,
           );
 
           // Update cash transaction
@@ -564,7 +564,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.json(cashTransaction);
@@ -605,7 +605,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.json({ message: "Cash transaction deleted successfully" });
@@ -1205,6 +1205,7 @@ export class CashController {
   async createCustomerPayment(req, res) {
     try {
       const data = req.body;
+      console.log("Create Customer Payment Data:", data);
 
       const payment = await prisma.$transaction(async (tx) => {
         // Generate number
@@ -1213,7 +1214,7 @@ export class CashController {
 
         const totalAmount = data.lines.reduce(
           (sum, l) => sum + Number(l.lineAmount),
-          0
+          0,
         );
 
         // Staged - create PREPARED
@@ -1396,7 +1397,7 @@ export class CashController {
 
             const previouslyPaid = sale.salesReceipts.reduce(
               (s, r) => s + Number(r.amountReceived),
-              0
+              0,
             );
 
             if (
@@ -1577,7 +1578,7 @@ export class CashController {
         // Calculate new total
         const totalAmount = data.lines.reduce(
           (sum, l) => sum + Number(l.lineAmount),
-          0
+          0,
         );
 
         // Update header
@@ -1761,7 +1762,7 @@ export class CashController {
           if (sale) {
             const totalReceived = sale.salesReceipts.reduce(
               (sum, r) => sum + Number(r.amountReceived),
-              0
+              0,
             );
             const totalRefunded = await tx.salesRefund.aggregate({
               _sum: { amountRefunded: true },
@@ -1785,7 +1786,7 @@ export class CashController {
           const cashTransactionCount = await tx.cashTransaction.count();
           const transactionNo = `CT${String(cashTransactionCount + 1).padStart(
             6,
-            "0"
+            "0",
           )}`;
 
           const tradeReceivablesAccount = await tx.chartOfAccount.findFirst({
@@ -1793,7 +1794,7 @@ export class CashController {
           });
           if (!tradeReceivablesAccount) {
             throw new Error(
-              "Trade Receivables account not found. Please create one first."
+              "Trade Receivables account not found. Please create one first.",
             );
           }
 
@@ -1897,7 +1898,7 @@ export class CashController {
         {
           maxWait: 5000,
           timeout: 20000,
-        }
+        },
       );
 
       res.status(201).json(result);
@@ -2084,7 +2085,7 @@ export class CashController {
 
         const totalAmount = data.lines.reduce(
           (s, l) => s + Number(l.lineAmount),
-          0
+          0,
         );
 
         // Create PREPARED payment
@@ -2305,7 +2306,7 @@ export class CashController {
         // Calculate total amount again
         const totalAmount = data.lines.reduce(
           (sum, l) => sum + Number(l.lineAmount),
-          0
+          0,
         );
 
         // Update main record
@@ -2611,7 +2612,7 @@ export class CashController {
           const cashTransactionCount = await tx.cashTransaction.count();
           const transactionNo = `CT${String(cashTransactionCount + 1).padStart(
             6,
-            "0"
+            "0",
           )}`;
 
           // Get Trade Payables GL account
@@ -2623,7 +2624,7 @@ export class CashController {
 
           if (!tradePayablesAccount) {
             throw new Error(
-              "No Trade Payables account found. Please create one in Chart of Accounts first."
+              "No Trade Payables account found. Please create one in Chart of Accounts first.",
             );
           }
 
@@ -2709,7 +2710,7 @@ export class CashController {
         {
           maxWait: 5000, // 5s wait
           timeout: 20000, // 20s max runtime
-        }
+        },
       );
 
       res.status(201).json(result);

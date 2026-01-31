@@ -1,23 +1,32 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, Building, Package, Edit, Trash2, TrendingDown, FileText } from 'lucide-react';
-import { assetsApi, inventoryApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { Asset } from '../../types/api';
-import CreateAssetModal from './CreateAssetModal';
-import EditAssetModal from './EditAssetModal';
-import DisposeAssetModal from './DisposeAssetModal';
-import DepreciationScheduleModal from './DepreciationScheduleModal';
-import { useAuthStore } from '../../store/authStore';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Plus,
+  Search,
+  Building,
+  Package,
+  Edit,
+  Trash2,
+  TrendingDown,
+  FileText,
+} from "lucide-react";
+import { assetsApi, inventoryApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { Asset } from "../../types/api";
+import CreateAssetModal from "./CreateAssetModal";
+import EditAssetModal from "./EditAssetModal";
+import DisposeAssetModal from "./DisposeAssetModal";
+import DepreciationScheduleModal from "./DepreciationScheduleModal";
+import { useAuthStore } from "../../store/authStore";
+import toast from "react-hot-toast";
 
 const AssetRegister = () => {
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDisposeModal, setShowDisposeModal] = useState(false);
@@ -25,107 +34,118 @@ const AssetRegister = () => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const { user } = useAuthStore();
 
-  const canManageAssets = user?.roles.includes('CFO') || user?.roles.includes('General Manager');
+  const canManageAssets =
+    user?.roles.includes("CFO") || user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['assets', { 
-      page, 
-      categoryId: categoryFilter, 
-      status: statusFilter,
-      locationId: locationFilter 
-    }],
-    queryFn: () => assetsApi.getAssets({ 
-      page, 
-      limit: 10,
-      ...(categoryFilter && { categoryId: categoryFilter }),
-      ...(statusFilter && { status: statusFilter }),
-      ...(locationFilter && { locationId: locationFilter })
-    })
+    queryKey: [
+      "assets",
+      {
+        page,
+        categoryId: categoryFilter,
+        status: statusFilter,
+        locationId: locationFilter,
+      },
+    ],
+    queryFn: () =>
+      assetsApi.getAssets({
+        page,
+        limit: 10,
+        ...(categoryFilter && { categoryId: categoryFilter }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(locationFilter && { locationId: locationFilter }),
+      }),
   });
-  
- 
+  console.log("Assets data ", data);
 
   const { data: categories } = useQuery({
-    queryKey: ['asset-categories'],
-    queryFn: () => assetsApi.getAssetCategories()
+    queryKey: ["asset-categories"],
+    queryFn: () => assetsApi.getAssetCategories(),
   });
 
   const { data: registerData } = useQuery({
-      queryKey: ['asset-register-summary'],
-      queryFn: () => assetsApi.getAssetRegister()
-    });
-    console.log("Assest register ", registerData)
-
+    queryKey: ["asset-register-summary"],
+    queryFn: () => assetsApi.getAssetRegister(),
+  });
+  console.log("Assest register ", registerData);
 
   //console.log("Assets ", categories);
 
   const { data: locations } = useQuery({
-    queryKey: ['locations-for-assets'],
-    queryFn: () => inventoryApi.getLocations({ limit: 100 })
+    queryKey: ["locations-for-assets"],
+    queryFn: () => inventoryApi.getLocations({ limit: 100 }),
   });
 
   const columns = [
     {
-      key: 'assetNo',
-      header: 'Asset No',
-      width: 'w-32'
+      key: "assetNo",
+      header: "Asset No",
+      width: "w-32",
     },
     {
-      key: 'name',
-      header: 'Asset Name',
-      width: 'w-48'
+      key: "name",
+      header: "Asset Name",
+      width: "w-48",
     },
     {
-      key: 'category.name',
-      header: 'Category',
+      key: "category.name",
+      header: "Category",
       cell: (asset: Asset) => (
         <div>
           <div className="font-medium">{asset.category?.name}</div>
-          <div className="text-xs text-gray-500">{asset.category?.depreciationMethod.replace('_', ' ')}</div>
+          <div className="text-xs text-gray-500">
+            {asset.depreciationMethod}
+          </div>
         </div>
       ),
-      width: 'w-40'
+      width: "w-40",
     },
     {
-      key: 'acquisitionDate',
-      header: 'Acquisition Date',
-      cell: (asset: Asset) => new Date(asset.acquisitionDate).toLocaleDateString(),
-      width: 'w-32'
+      key: "acquisitionDate",
+      header: "Acquisition Date",
+      cell: (asset: Asset) =>
+        new Date(asset.acquisitionDate).toLocaleDateString(),
+      width: "w-32",
     },
     {
-      key: 'acquisitionCost',
-      header: 'Cost',
-      cell: (asset: Asset) => `₦${Number(asset.acquisitionCost).toLocaleString()}`,
-      width: 'w-32'
+      key: "acquisitionCost",
+      header: "Cost",
+      cell: (asset: Asset) =>
+        `₦${Number(asset.acquisitionCost).toLocaleString()}`,
+      width: "w-32",
     },
     {
-      key: 'accumulatedDepreciation',
-      header: 'Accumulated Depreciation',
-      cell: (asset: Asset) => `₦${(Number(asset.accumulatedDepreciation) || 0).toLocaleString()}`,
-      width: 'w-40'
+      key: "accumulatedDepreciation",
+      header: "Accumulated Depreciation",
+      cell: (asset: Asset) =>
+        `₦${(Number(asset.accumulatedDepreciation) || 0).toLocaleString()}`,
+      width: "w-40",
     },
     {
-      key: 'netBookValue',
-      header: 'Net Book Value',
+      key: "netBookValue",
+      header: "Net Book Value",
       cell: (asset: Asset) => (
         <span className="font-semibold text-blue-600">
-          ₦{(asset.netBookValue|| Number(asset.acquisitionCost)).toLocaleString()}
+          ₦
+          {(
+            asset.netBookValue || Number(asset.acquisitionCost)
+          ).toLocaleString()}
         </span>
       ),
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'location.name',
-      header: 'Location',
-      cell: (asset: Asset) => asset.location?.name || '-',
-      width: 'w-32'
+      key: "location.name",
+      header: "Location",
+      cell: (asset: Asset) => asset.location?.name || "-",
+      width: "w-32",
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       cell: (asset: Asset) => <StatusBadge status={asset.status} />,
-      width: 'w-24'
-    }
+      width: "w-24",
+    },
   ];
 
   const handleCreateAsset = () => {
@@ -149,10 +169,10 @@ const AssetRegister = () => {
     if (confirm(`Are you sure you want to delete asset ${asset.assetNo}?`)) {
       try {
         await assetsApi.deleteAsset(asset.id);
-        toast.success('Asset deleted successfully');
+        toast.success("Asset deleted successfully");
         refetch();
       } catch (error) {
-        console.error('Delete asset error:', error);
+        console.error("Delete asset error:", error);
       }
     }
   };
@@ -169,7 +189,7 @@ const AssetRegister = () => {
       >
         <FileText className="h-4 w-4" />
       </button>
-      {asset.status === 'ACTIVE' && canManageAssets && (
+      {asset.status === "ACTIVE" && canManageAssets && (
         <button
           onClick={() => {
             setSelectedAsset(asset);
@@ -181,7 +201,7 @@ const AssetRegister = () => {
           <Edit className="h-4 w-4" />
         </button>
       )}
-      {asset.status === 'ACTIVE' && canManageAssets && (
+      {asset.status === "ACTIVE" && canManageAssets && (
         <button
           onClick={() => {
             setSelectedAsset(asset);
@@ -314,7 +334,8 @@ const AssetRegister = () => {
                     Active Assets
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.assets?.filter((a: Asset) => a.status === 'ACTIVE').length || 0}
+                    {data?.assets?.filter((a: Asset) => a.status === "ACTIVE")
+                      .length || 0}
                   </dd>
                 </dl>
               </div>
@@ -334,7 +355,14 @@ const AssetRegister = () => {
                     Total Cost
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{data?.assets?.reduce((sum: number, a: Asset) => Number(sum) + Number(a.acquisitionCost), 0).toLocaleString() || '0'}
+                    ₦
+                    {data?.assets
+                      ?.reduce(
+                        (sum: number, a: Asset) =>
+                          Number(sum) + Number(a.acquisitionCost),
+                        0,
+                      )
+                      .toLocaleString() || "0"}
                   </dd>
                 </dl>
               </div>
@@ -354,7 +382,15 @@ const AssetRegister = () => {
                     Net Book Value
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{registerData?.register?.reduce((sum: number, a: Asset) => sum + (Number(a.netBookValue) || Number(a.acquisitionCost)), 0).toLocaleString() || '0'}
+                    ₦
+                    {registerData?.register
+                      ?.reduce(
+                        (sum: number, a: Asset) =>
+                          sum +
+                          (Number(a.netBookValue) || Number(a.acquisitionCost)),
+                        0,
+                      )
+                      .toLocaleString() || "0"}
                   </dd>
                 </dl>
               </div>
@@ -365,7 +401,7 @@ const AssetRegister = () => {
 
       {/* Data Table */}
       <DataTable
-        data={registerData?.register || []}
+        data={data?.assets || []}
         columns={columns}
         loading={isLoading}
         // pagination={data?.pagination}
