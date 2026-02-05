@@ -465,7 +465,7 @@ export class PosController {
        * ===================================================== */
       const input = createPosSaleSchema.parse(req.body);
 
-      // console.log("Validated POS sale input:", input);
+      console.log("Validated POS sale input:", input);
 
       const sale = await prisma.$transaction(
         async (tx) => {
@@ -620,11 +620,16 @@ export class PosController {
               },
             });
 
-            await tx.cashAccount.update({
+            const updatedCashAccount = await tx.cashAccount.update({
               where: { id: payment.cashAccountId },
               data: {
                 balance: { increment: amount },
               },
+            });
+
+            //Get GL account code for cash account
+            const cashAccountGL = await tx.chartOfAccount.findUnique({
+              where: { id: updatedCashAccount.glAccountId },
             });
 
             const txCount = await tx.cashTransaction.count();
@@ -650,9 +655,9 @@ export class PosController {
               },
             });
 
-            /* ---- GL Debit: Cash / Bank ---- */
+            /* ---- GL Debit: Cash / Bank account ---- */
             glEntries.push({
-              accountCode: "1100",
+              accountCode: cashAccountGL?.code ?? "1100",
               debit: amount,
               credit: 0,
               refType: "POS_SALE",

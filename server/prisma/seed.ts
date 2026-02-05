@@ -834,7 +834,7 @@ async function main() {
       create: {
         code: "9999",
         name: "Memo Clearing",
-        accountType: "CURRENT_ASSETS",
+        accountType: "EXPENSES",
         isActive: true,
       },
     }),
