@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Users, Shield, Eye, EyeOff } from 'lucide-react';
-import { userApi } from '../lib/api';
-import { DataTable } from '../components/DataTable';
-import StatusBadge from '../components/StatusBadge';
-import { useAuthStore } from '../store/authStore';
-import CreateUserModal from './CreateUserModal';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Edit, Trash2, Users, Shield, Eye, EyeOff } from "lucide-react";
+import { userApi } from "../lib/api";
+import { DataTable } from "../components/DataTable";
+import StatusBadge from "../components/StatusBadge";
+import { useAuthStore } from "../store/authStore";
+import CreateUserModal from "./CreateUserModal";
 
 interface User {
   id: string;
@@ -23,18 +23,20 @@ const UserManagement = () => {
   const { user: currentUser } = useAuthStore();
 
   // Only CFO and GM can access user management
-  const canManageUsers = currentUser?.roles.includes('CFO') || currentUser?.roles.includes('General Manager');
+  const canManageUsers =
+    currentUser?.roles.includes("Accountant") ||
+    currentUser?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['users', { page }],
+    queryKey: ["users", { page }],
     queryFn: () => userApi.getUsers({ page, limit: 10 }),
-    enabled: canManageUsers
+    enabled: canManageUsers,
   });
 
   const { data: roles } = useQuery({
-    queryKey: ['roles'],
+    queryKey: ["roles"],
     queryFn: () => userApi.getRoles(),
-    enabled: canManageUsers
+    enabled: canManageUsers,
   });
 
   if (!canManageUsers) {
@@ -42,8 +44,12 @@ const UserManagement = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Shield className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You don't have permission to access user management.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-gray-600">
+            You don't have permission to access user management.
+          </p>
         </div>
       </div>
     );
@@ -51,18 +57,18 @@ const UserManagement = () => {
 
   const columns = [
     {
-      key: 'name',
-      header: 'Name',
-      width: 'w-48'
+      key: "name",
+      header: "Name",
+      width: "w-48",
     },
     {
-      key: 'email',
-      header: 'Email',
-      width: 'w-64'
+      key: "email",
+      header: "Email",
+      width: "w-64",
     },
     {
-      key: 'roles',
-      header: 'Roles',
+      key: "roles",
+      header: "Roles",
       cell: (user: User) => (
         <div className="flex flex-wrap gap-1">
           {user.roles.map((role, index) => (
@@ -70,26 +76,29 @@ const UserManagement = () => {
           ))}
         </div>
       ),
-      width: 'w-48'
+      width: "w-48",
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       cell: (user: User) => <StatusBadge status={user.status} />,
-      width: 'w-24'
+      width: "w-24",
     },
     {
-      key: 'lastLoginAt',
-      header: 'Last Login',
-      cell: (user: User) => user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never',
-      width: 'w-32'
+      key: "lastLoginAt",
+      header: "Last Login",
+      cell: (user: User) =>
+        user.lastLoginAt
+          ? new Date(user.lastLoginAt).toLocaleDateString()
+          : "Never",
+      width: "w-32",
     },
     {
-      key: 'createdAt',
-      header: 'Created',
+      key: "createdAt",
+      header: "Created",
       cell: (user: User) => new Date(user.createdAt).toLocaleDateString(),
-      width: 'w-32'
-    }
+      width: "w-32",
+    },
   ];
 
   const handleCreateUser = () => {
@@ -97,13 +106,16 @@ const UserManagement = () => {
     setShowCreateModal(false);
   };
 
-  const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
+  const handleToggleUserStatus = async (
+    userId: string,
+    currentStatus: string,
+  ) => {
     try {
-      const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      const newStatus = currentStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE";
       await userApi.updateUserStatus(userId, newStatus);
       refetch();
     } catch (error) {
-      console.error('Toggle user status error:', error);
+      console.error("Toggle user status error:", error);
     }
   };
 
@@ -120,10 +132,14 @@ const UserManagement = () => {
       </button>
       <button
         onClick={() => handleToggleUserStatus(user.id, user.status)}
-        className={`${user.status === 'ACTIVE' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
-        title={user.status === 'ACTIVE' ? 'Deactivate User' : 'Activate User'}
+        className={`${user.status === "ACTIVE" ? "text-red-600 hover:text-red-900" : "text-green-600 hover:text-green-900"}`}
+        title={user.status === "ACTIVE" ? "Deactivate User" : "Activate User"}
       >
-        {user.status === 'ACTIVE' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        {user.status === "ACTIVE" ? (
+          <EyeOff className="h-4 w-4" />
+        ) : (
+          <Eye className="h-4 w-4" />
+        )}
       </button>
     </div>
   );
@@ -179,7 +195,8 @@ const UserManagement = () => {
                     Active Users
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.users?.filter((u: User) => u.status === 'ACTIVE').length || 0}
+                    {data?.users?.filter((u: User) => u.status === "ACTIVE")
+                      .length || 0}
                   </dd>
                 </dl>
               </div>
@@ -199,7 +216,8 @@ const UserManagement = () => {
                     CFOs
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.users?.filter((u: User) => u.roles.includes('CFO')).length || 0}
+                    {data?.users?.filter((u: User) => u.roles.includes("CFO"))
+                      .length || 0}
                   </dd>
                 </dl>
               </div>
@@ -219,7 +237,9 @@ const UserManagement = () => {
                     General Managers
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.users?.filter((u: User) => u.roles.includes('General Manager')).length || 0}
+                    {data?.users?.filter((u: User) =>
+                      u.roles.includes("General Manager"),
+                    ).length || 0}
                   </dd>
                 </dl>
               </div>

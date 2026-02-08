@@ -39,7 +39,13 @@ const Layout = ({ children }: LayoutProps) => {
       name: "Dashboard",
       href: "/",
       icon: Building2,
-      permission: null,
+      requiresRole: [
+        "General Manager",
+        "Inventory Manager",
+        "Assistant Inventory Manager",
+        "Production Manager",
+        "Accountant",
+      ],
     },
     {
       name: "Point of Sales",
@@ -61,6 +67,7 @@ const Layout = ({ children }: LayoutProps) => {
         "General Manager",
         "Inventory Manager",
         "Assistant Inventory Manager",
+        "Production Manager",
       ],
       children: [
         { name: "UOMs", href: "/inventory/uoms" },
@@ -213,7 +220,7 @@ const Layout = ({ children }: LayoutProps) => {
     (item) =>
       // (!item.permission || user?.permissions.includes(item.permission)) &&
       !item.requiresRole ||
-      item.requiresRole.some((role) => user?.roles.includes(role))
+      item.requiresRole.some((role) => user?.roles.includes(role)),
   );
 
   const NavigationItem = ({

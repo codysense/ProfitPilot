@@ -58,6 +58,23 @@ model User {
   preparedVendorPayments      VendorPayment[]          @relation("VendorPaymentPreparedBy")
   vendorPayments              VendorPayment[]          @relation("VendorPaymentCreatedBy")
 
+  // ───── Vendor / Customer creators ─────
+  vendorsCreated        Vendor[]        @relation("VendorCreatedBy")
+  customerGroupsCreated CustomerGroup[] @relation("CustomerGroupCreatedBy")
+  customersCreated      Customer[]      @relation("CustomerCreatedBy")
+
+  // ───── Sale stage actors ─────
+  salesPrepared  Sale[] @relation("SalePreparer")
+  salesDelivered Sale[] @relation("SaleDeliverer")
+  salesInvoiced  Sale[] @relation("SaleInvoicer")
+  salesPaid      Sale[] @relation("SalePayer")
+
+  // ───── Purchase stage actors ─────
+  purchasesPrepared Purchase[] @relation("PurchasePreparer")
+  purchasesReceived Purchase[] @relation("PurchaseReceiver")
+  purchasesInvoiced Purchase[] @relation("PurchaseInvoicer")
+  purchasesPaid     Purchase[] @relation("PurchasePayer")
+
   @@map("users")
 }
 
@@ -179,6 +196,7 @@ model Item {
   description           String?
   type                  ItemType
   uom                   String                  @default("EA")
+  minimumStockLevel     Decimal?                @db.Decimal(15, 4)
   costingMethod         CostingMethod           @default(WEIGHTED_AVG)
   standardCost          Decimal?                @db.Decimal(15, 4)
   taxCode               String?
@@ -366,15 +384,17 @@ model LaborTime {
 }
 
 model Vendor {
-  id                 String              @id @default(cuid())
-  code               String              @unique
-  name               String
-  address            String?
-  phone              String?
-  email              String?
-  paymentTerms       String?
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  address      String?
+  phone        String?
+  email        String?
+  paymentTerms String?
+  isActive     Boolean  @default(true)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+
   assets             Asset[]
   Memo               Memo[]
   purchasePayments   PurchasePayment[]
@@ -382,18 +402,22 @@ model Vendor {
   purchases          Purchase[]
   vendorPaymentLines VendorPaymentLine[]
   vendorPayments     VendorPayment[]
+  //relation
+  createdByUser      User?               @relation("VendorCreatedBy", fields: [createdBy], references: [id])
 
   @@map("vendors")
 }
 
 model CustomerGroup {
-  id          String     @id @default(cuid())
-  name        String     @unique
-  createdAt   DateTime   @default(now())
-  code        String?
-  description String?
-  isActive    Boolean    @default(true)
-  customers   Customer[]
+  id            String     @id @default(cuid())
+  name          String     @unique
+  createdBy     String?
+  createdAt     DateTime   @default(now())
+  code          String?
+  description   String?
+  isActive      Boolean    @default(true)
+  customers     Customer[]
+  createdByUser User?      @relation("CustomerGroupCreatedBy", fields: [createdBy], references: [id])
 }
 
 model Customer {
@@ -406,9 +430,11 @@ model Customer {
   creditLimit      Decimal?          @db.Decimal(15, 2)
   isActive         Boolean           @default(true)
   createdAt        DateTime          @default(now())
+  createdBy        String?
   customerGroupId  String?
   customerPayments CustomerPayment[]
   customerGroup    CustomerGroup?    @relation(fields: [customerGroupId], references: [id])
+  createdByUser    User?             @relation("CustomerCreatedBy", fields: [createdBy], references: [id])
   Memo             Memo[]
   posReturns       PosReturn[]
   posSales         PosSale[]
@@ -419,27 +445,50 @@ model Customer {
   @@map("customers")
 }
 
-
-
 model Purchase {
-  id                 String              @id @default(cuid())
-  orderNo            String              @unique
-  vendorId           String
-  orderDate          DateTime
-  orderType          PurchaseOrderType   @default(INVENTORY)
-  status             PurchaseStatus      @default(DRAFT)
-  totalAmount        Decimal             @db.Decimal(15, 2)
-  notes              String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  amountPaid         Decimal             @default(0)
-  balanceAmount      Decimal             @default(0) @db.Decimal(15, 2)
+  id        String   @id @default(cuid())
+  orderNo   String   @unique
+  vendorId  String
+  orderDate DateTime
+
+  orderType PurchaseOrderType @default(INVENTORY)
+  status    PurchaseStatus    @default(DRAFT)
+
+  totalAmount   Decimal @db.Decimal(15, 2)
+  amountPaid    Decimal @default(0) @db.Decimal(15, 2)
+  balanceAmount Decimal @default(0) @db.Decimal(15, 2)
+
+  notes String?
+
+  //Stage tracking
+  preparedAt DateTime?
+  preparedBy String?
+
+  receivedAt DateTime?
+  receivedBy String?
+
+  invoicedAt DateTime?
+  invoicedBy String?
+
+  paidAt DateTime?
+  paidBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
   assets             Asset[]
   purchaseLines      PurchaseLine[]
   purchasePayments   PurchasePayment[]
   PurchaseRefunds    PurchaseRefund[]
-  vendor             Vendor              @relation(fields: [vendorId], references: [id])
   vendorPaymentLines VendorPaymentLine[]
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  preparer User? @relation("PurchasePreparer", fields: [preparedBy], references: [id])
+  receiver User? @relation("PurchaseReceiver", fields: [receivedBy], references: [id])
+  invoicer User? @relation("PurchaseInvoicer", fields: [invoicedBy], references: [id])
+  payer    User? @relation("PurchasePayer", fields: [paidBy], references: [id])
 
   @@map("purchases")
 }
@@ -457,7 +506,7 @@ model PurchaseLine {
   qty        Decimal  @db.Decimal(15, 4)
   unitPrice  Decimal  @db.Decimal(15, 4)
   lineTotal  Decimal  @db.Decimal(15, 4)
-  item       Item?     @relation(fields: [itemId], references: [id])
+  item       Item?    @relation(fields: [itemId], references: [id])
   purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@map("purchase_lines")
@@ -759,20 +808,43 @@ model SalesRefund {
 }
 
 model Sale {
-  id                   String                @id @default(cuid())
-  orderNo              String                @unique
-  customerId           String
-  orderDate            DateTime
-  status               SaleStatus            @default(DRAFT)
-  totalAmount          Decimal               @db.Decimal(15, 2)
-  notes                String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  id         String   @id @default(cuid())
+  orderNo    String   @unique
+  customerId String
+  orderDate  DateTime
+
+  status      SaleStatus @default(DRAFT)
+  totalAmount Decimal    @db.Decimal(15, 2)
+  notes       String?
+
+  // ───── Stage tracking ─────
+  preparedAt DateTime?
+  preparedBy String?
+
+  deliveredAt DateTime?
+  deliveredBy String?
+
+  invoicedAt DateTime?
+  invoicedBy String?
+
+  paidAt DateTime?
+  paidBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ───── Relations ─────
   customerPaymentLines CustomerPaymentLine[]
   saleLines            SaleLine[]
-  customer             Customer              @relation(fields: [customerId], references: [id])
   salesReceipts        SalesReceipt[]
   SalesRefunds         SalesRefund[]
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  preparer  User? @relation("SalePreparer", fields: [preparedBy], references: [id])
+  deliverer User? @relation("SaleDeliverer", fields: [deliveredBy], references: [id])
+  invoicer  User? @relation("SaleInvoicer", fields: [invoicedBy], references: [id])
+  payer     User? @relation("SalePayer", fields: [paidBy], references: [id])
 
   @@map("sales")
 }
@@ -1111,14 +1183,14 @@ model PosSession {
 }
 
 model PosSalePayment {
-  id          String    @id @default(cuid())
-  posSaleId   String
+  id            String           @id @default(cuid())
+  posSaleId     String
   cashAccountId String?
-  method      PosPaymentMethod
-  amount      Decimal   @db.Decimal(15, 2)
-  createdAt   DateTime  @default(now())
+  method        PosPaymentMethod
+  amount        Decimal          @db.Decimal(15, 2)
+  createdAt     DateTime         @default(now())
 
-  posSale     PosSale   @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
+  posSale PosSale @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
 
   @@map("pos_sale_payments")
 }
@@ -1127,66 +1199,63 @@ enum PosPaymentMethod {
   CASH
   CARD
   TRANSFER
-  
 }
 
 model PosSale {
-  id             String          @id @default(cuid())
-  saleNo         String          @unique
-  sessionId      String
-  customerId     String?
-  warehouseId    String
-  cashAccountId  String?
+  id            String  @id @default(cuid())
+  saleNo        String  @unique
+  sessionId     String
+  customerId    String?
+  warehouseId   String
+  cashAccountId String?
 
-  subtotal       Decimal         @db.Decimal(15, 2)
-  taxAmount      Decimal         @default(0) @db.Decimal(15, 2)
-  discountAmount Decimal         @default(0) @db.Decimal(15, 2)
-  totalAmount    Decimal         @db.Decimal(15, 2)
-  amountPaid     Decimal         @db.Decimal(15, 2)
-  changeAmount   Decimal         @default(0) @db.Decimal(15, 2)
+  subtotal       Decimal @db.Decimal(15, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(15, 2)
+  discountAmount Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount    Decimal @db.Decimal(15, 2)
+  amountPaid     Decimal @db.Decimal(15, 2)
+  changeAmount   Decimal @default(0) @db.Decimal(15, 2)
 
-  status         PosSaleStatus   @default(COMPLETED)
-  notes          String?
-  userId         String
+  status PosSaleStatus @default(COMPLETED)
+  notes  String?
+  userId String
 
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  saleLines      PosSaleLine[]
-  payments       PosSalePayment[]
-  returns        PosReturn[]
+  saleLines PosSaleLine[]
+  payments  PosSalePayment[]
+  returns   PosReturn[]
 
-  cashAccount    CashAccount?     @relation(fields: [cashAccountId], references: [id])
-  customer       Customer?       @relation(fields: [customerId], references: [id])
-  session        PosSession      @relation(fields: [sessionId], references: [id])
-  user           User            @relation(fields: [userId], references: [id])
-  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
+  cashAccount CashAccount? @relation(fields: [cashAccountId], references: [id])
+  customer    Customer?    @relation(fields: [customerId], references: [id])
+  session     PosSession   @relation(fields: [sessionId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
 
   @@map("pos_sales")
 }
 
 model PosSaleLine {
-  id              String          @id @default(cuid())
-  posSaleId       String
-  itemId          String
+  id        String @id @default(cuid())
+  posSaleId String
+  itemId    String
 
-  qty             Decimal         @db.Decimal(15, 4)
-  unitPrice       Decimal         @db.Decimal(15, 2)
-  discountPercent Decimal         @default(0) @db.Decimal(5, 2)
-  lineTotal       Decimal         @db.Decimal(15, 2)
-  costPrice       Decimal         @default(0) @db.Decimal(15, 2)
+  qty             Decimal @db.Decimal(15, 4)
+  unitPrice       Decimal @db.Decimal(15, 2)
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal       Decimal @db.Decimal(15, 2)
+  costPrice       Decimal @default(0) @db.Decimal(15, 2)
 
+  createdAt DateTime @default(now())
 
-  createdAt       DateTime        @default(now())
-
-  item            Item            @relation(fields: [itemId], references: [id])
-  posSale         PosSale         @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
-  returnLines     PosReturnLine[]
+  item        Item            @relation(fields: [itemId], references: [id])
+  posSale     PosSale         @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
+  returnLines PosReturnLine[]
 
   @@index([posSaleId])
   @@map("pos_sale_lines")
 }
-
 
 model PosReturn {
   id             String          @id @default(cuid())

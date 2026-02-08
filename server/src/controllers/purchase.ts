@@ -43,6 +43,9 @@ export class PurchaseController {
             vendor: {
               select: { code: true, name: true },
             },
+            preparer: {
+              select: { name: true },
+            },
             purchaseLines: {
               include: {
                 item: {
@@ -112,6 +115,7 @@ export class PurchaseController {
               balanceAmount: totalAmount,
               notes: validatedData.notes,
               status: "ORDERED",
+              preparedBy: req.user!.id,
             },
           });
 
@@ -185,7 +189,11 @@ export class PurchaseController {
       await prisma.$transaction([
         prisma.purchase.update({
           where: { id },
-          data: { status: "RECEIVED" },
+          data: {
+            status: "RECEIVED",
+            receivedBy: req.user!.id,
+            receivedAt: new Date(),
+          },
         }),
         ...validatedData.receiptLines.map((receiptLine) => {
           const purchaseLine = purchaseLineMap.get(receiptLine.purchaseLineId);
@@ -264,7 +272,11 @@ export class PurchaseController {
         (tx) =>
           tx.purchase.update({
             where: { id },
-            data: { status: "INVOICED" },
+            data: {
+              status: "INVOICED",
+              invoicedBy: req.user!.id,
+              invoicedAt: new Date(),
+            },
           }),
         {
           maxWait: 5000, // 5s wait for connection
@@ -344,10 +356,20 @@ export class PurchaseController {
     try {
       const validatedData = createVendorSchema.parse(req.body);
 
+      //check if vendorcode exist before
+      const existingVendor = await prisma.vendor.findUnique({
+        where: { code: validatedData.code },
+      });
+
+      if (existingVendor) {
+        console.log("Vendor with the same code already exist");
+        throw new Error("Vendor with the same code already exist");
+      }
+
       const vendor = await prisma.vendor.upsert({
         where: { code: validatedData.code },
         update: { ...validatedData },
-        create: { ...validatedData },
+        create: { ...validatedData, createdBy: req.user!.id },
       });
 
       // const vendor = await prisma.vendor.create({

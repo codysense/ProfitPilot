@@ -38,6 +38,9 @@ export class SalesController {
             customer: {
               select: { code: true, name: true },
             },
+            preparer: {
+              select: { name: true },
+            },
             saleLines: {
               include: {
                 item: {
@@ -90,7 +93,7 @@ export class SalesController {
   async createSale(req: AuthRequest, res: Response) {
     try {
       const validatedData = createSaleSchema.parse(req.body);
-      console.log("Creating sale with data:", validatedData);
+      // console.log("Creating sale with data:", validatedData);
 
       const sale = await prisma.$transaction(
         async (tx) => {
@@ -113,6 +116,7 @@ export class SalesController {
               totalAmount,
               notes: validatedData.notes,
               status: "CONFIRMED",
+              preparedBy: req.user!.id,
             },
           });
 
@@ -155,7 +159,11 @@ export class SalesController {
           // Update sale status
           await tx.sale.update({
             where: { id },
-            data: { status: "DELIVERED" },
+            data: {
+              status: "DELIVERED",
+              deliveredBy: req.user!.id,
+              deliveredAt: new Date(),
+            },
           });
 
           // Process each delivery line
@@ -250,7 +258,11 @@ export class SalesController {
 
       await prisma.sale.update({
         where: { id },
-        data: { status: "INVOICED" },
+        data: {
+          status: "INVOICED",
+          invoicedBy: req.user!.id,
+          invoicedAt: new Date(),
+        },
       });
 
       res.json({ message: "Sale invoiced successfully" });
@@ -324,7 +336,7 @@ export class SalesController {
     try {
       const data = createCustomerGroupSchema.parse(req.body);
       const group = await prisma.customerGroup.create({
-        data,
+        data: { ...data },
       });
       res.status(201).json(group);
     } catch (error) {
@@ -448,6 +460,15 @@ export class SalesController {
       const validatedData = createCustomerSchema.parse(req.body);
 
       const { customerGroupId, ...rest } = validatedData;
+
+      // Check if customer with the same code already exists
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { code: validatedData.code },
+      });
+
+      if (existingCustomer) {
+        throw new Error("Customer with the same code already exists");
+      }
 
       const customer = await prisma.customer.upsert({
         where: { code: validatedData.code },

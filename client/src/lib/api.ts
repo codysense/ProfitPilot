@@ -13,7 +13,7 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     const { accessToken, refreshToken } = useAuthStore.getState();
@@ -104,7 +104,7 @@ class ApiClient {
   // HTTP methods
   async get<T>(
     endpoint: string,
-    p0: { params: Record<string, any> | undefined }
+    p0: { params: Record<string, any> | undefined },
   ): Promise<T> {
     return this.request<T>(endpoint, { method: "GET" });
   }
@@ -157,7 +157,7 @@ export const userApi = {
     api.get(
       `/auth/users${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createUser: (data: {
     name: string;
@@ -169,6 +169,8 @@ export const userApi = {
   updateUserStatus: (userId: string, status: string) =>
     api.patch(`/auth/users/${userId}/status`, { status }),
   getRoles: () => api.get("/auth/roles"),
+
+  updateUser: (id: string, data: any) => api.put(`/auth/users/${id}`, data),
 };
 
 // Inventory API
@@ -182,7 +184,7 @@ export const inventoryApi = {
     api.get(
       `/inventory/items?includeStock=true${
         params ? "&" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createItem: (data: any) => api.post("/inventory/items", data),
   deleteItem: (sku: string) => api.delete(`/inventory/items/${sku}`),
@@ -190,7 +192,7 @@ export const inventoryApi = {
     api.get(
       `/inventory/boms${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createBom: (data: any) => api.post("/inventory/boms", data),
   adjustInventory: (data: any) => api.post("/inventory/adjust", data),
@@ -210,24 +212,24 @@ export const inventoryApi = {
     api.get(
       `/inventory/ledger${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   exportInventoryLedger: async (
     format: "csv" | "excel" | "pdf",
-    filters: any
+    filters: any,
   ) => {
     const params = { format, ...filters };
     if (format === "csv") {
       // For CSV, download directly
       const response = await fetch(
         `${API_BASE_URL}/inventory/ledger/export?${new URLSearchParams(
-          params
+          params,
         ).toString()}`,
         {
           headers: {
             Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -248,7 +250,7 @@ export const inventoryApi = {
     } else {
       // For Excel and PDF, get JSON data and process on frontend
       const data = await api.get(
-        `/inventory/ledger/export?${new URLSearchParams(params).toString()}`
+        `/inventory/ledger/export?${new URLSearchParams(params).toString()}`,
       );
 
       if (format === "excel") {
@@ -263,11 +265,14 @@ export const inventoryApi = {
     }
   },
   getUsers: () => api.get("/auth/users?limit=100"),
-  getInventoryValuation: (params?: { warehouseId?: string; }, p0?: { type: string; } | undefined) =>
+  getInventoryValuation: (
+    params?: { warehouseId?: string },
+    p0?: { type: string } | undefined,
+  ) =>
     api.get(
       `/inventory/valuation${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   getWarehouses: () => api.get("/inventory/warehouses"),
   getWarehousesList: (params?: {
@@ -278,14 +283,14 @@ export const inventoryApi = {
     api.get(
       `/inventory/warehouses/list${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createWarehouse: (data: any) => api.post("/inventory/warehouses", data),
   getInventoryTransfers: (params?: { page?: number; limit?: number }) =>
     api.get(
       `/inventory/transfers${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   printInventoryTransfer: (id: string) =>
     api.get(`/inventory/transfers/print/${id}`),
@@ -296,7 +301,7 @@ export const inventoryApi = {
     api.get(
       `/inventory/locations${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createLocation: (data: any) => api.post("/inventory/locations", data),
   updateLocation: (id: string, data: any) =>
@@ -311,7 +316,7 @@ export const uomApi = {
     api.get(
       `/inventory/uoms${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createUOM: (data: any) => api.post("/inventory/uoms", data),
   updateUOM: (id: string, data: any) => api.put(`/inventory/uoms/${id}`, data),
@@ -328,7 +333,7 @@ export const productionApi = {
     api.get(
       `/production/orders${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createProductionOrder: (data: any) => api.post("/production/orders", data),
   updateProductionOrder: (id: string, data: any) =>
@@ -352,7 +357,7 @@ export const productionApi = {
     api.get(
       `/production/wip-summary${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
 };
 
@@ -367,7 +372,7 @@ export const purchaseApi = {
     api.get(
       `/purchase/orders${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createPurchase: (data: any) => api.post("/purchase/orders", data),
   updatePurchase: (id: string, data: any) =>
@@ -382,7 +387,7 @@ export const purchaseApi = {
     api.get(
       `/purchase/vendors${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createVendor: (data: any) => api.post("/purchase/vendors", data),
 };
@@ -398,7 +403,7 @@ export const salesApi = {
     api.get(
       `/sales/orders${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createSale: (data: any) => api.post("/sales/orders", data),
   updateSale: (id: string, data: any) => api.put(`/sales/orders/${id}`, data),
@@ -411,7 +416,7 @@ export const salesApi = {
     api.get(
       `/sales/customers${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createCustomer: (data: any) => api.post("/sales/customers", data),
 
@@ -424,7 +429,7 @@ export const salesApi = {
     api.get(
       `/sales/customer-groups${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
 
   updateCustomerGroup: (id: string, data: any) =>
@@ -449,7 +454,7 @@ export const cashApi = {
     api.get(
       `/cash/transactions${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createCashTransaction: (data: any) => api.post("/cash/transactions", data),
   approveCashTransaction: (id: string) =>
@@ -469,7 +474,7 @@ export const cashApi = {
     api.get(
       `/cash/customer-payments${
         params ? "?" + new URLSearchParams(params).toString() : ""
-      }`
+      }`,
     ),
   getCustomerPayment: (id?: string) => api.get(`/cash/customer-payments${id}`),
   approveCustomerPayment: (id: string) =>
@@ -491,7 +496,7 @@ export const cashApi = {
     api.get(
       `/cash/vendor-payments${
         params ? "?" + new URLSearchParams(params).toString() : ""
-      }`
+      }`,
     ),
   getVendorPayment: (id?: string) => api.get(`/cash/vendor-payments${id}`),
   approveVendorPayment: (id: string) =>
@@ -510,7 +515,7 @@ export const cashApi = {
     api.get(
       `/cash/vendor-refunds${
         params ? "?" + new URLSearchParams(params).toString() : ""
-      }`
+      }`,
     ),
   createSalesReceipt: (data: any) => api.post("/cash/sales-receipts", data),
   createPurchasePayment: (data: any) =>
@@ -520,19 +525,19 @@ export const cashApi = {
     api.get(
       `/cash/customer-refunds${
         params ? "?" + new URLSearchParams(params).toString() : ""
-      }`
+      }`,
     ),
   getSalesReceipts: (params?: any) =>
     api.get(
       `/cash/sales-receipts${
         params ? "?" + new URLSearchParams(params).toString() : ""
-      }`
+      }`,
     ),
   getPurchasePayments: (params?: any) =>
     api.get(
       `/cash/purchase-payments${
         params ? "?" + new URLSearchParams(params).toString() : ""
-      }`
+      }`,
     ),
 
   // Cashbook
@@ -546,18 +551,18 @@ export const cashApi = {
     api.get(
       `/cash/cashbook${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   exportCashbook: async (filters: any) => {
     const response = await fetch(
       `${API_BASE_URL}/cash/cashbook/export?${new URLSearchParams(
-        filters
+        filters,
       ).toString()}`,
       {
         headers: {
           Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
         },
-      }
+      },
     );
 
     if (response.ok) {
@@ -591,7 +596,7 @@ export const cashApi = {
 export const reportsApi = {
   // Metabase Dashboard
   getDashboardEmbed: () => api.get("/reports/metabase/dashboard"),
-  
+
   // Financial Reports
   getBalanceSheet: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/balance-sheet?${new URLSearchParams(params).toString()}`),
@@ -601,7 +606,7 @@ export const reportsApi = {
     api.get(
       `/reports/trial-balance${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   getGeneralLedger: (params: {
     dateFrom: string;
@@ -609,17 +614,17 @@ export const reportsApi = {
     accountId?: string;
   }) =>
     api.get(
-      `/reports/general-ledger?${new URLSearchParams(params as any).toString()}`
+      `/reports/general-ledger?${new URLSearchParams(params as any).toString()}`,
     ),
   getCashFlow: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/cash-flow?${new URLSearchParams(params).toString()}`),
   getVendorBalances: (params: { asOfDate: string }) =>
     api.get(
-      `/reports/vendor-balances?${new URLSearchParams(params).toString()}`
+      `/reports/vendor-balances?${new URLSearchParams(params).toString()}`,
     ),
   getCustomerBalances: (params: { asOfDate: string }) =>
     api.get(
-      `/reports/customer-balances?${new URLSearchParams(params).toString()}`
+      `/reports/customer-balances?${new URLSearchParams(params).toString()}`,
     ),
   getCustomerLedger: (params: {
     dateFrom: string;
@@ -628,8 +633,8 @@ export const reportsApi = {
   }) =>
     api.get(
       `/reports/customer-ledger?${new URLSearchParams(
-        params as any
-      ).toString()}`
+        params as any,
+      ).toString()}`,
     ),
   getVendorLedger: (params: {
     dateFrom?: string;
@@ -637,19 +642,19 @@ export const reportsApi = {
     vendorId: string;
   }) =>
     api.get(
-      `/reports/vendor-ledger?${new URLSearchParams(params as any).toString()}`
+      `/reports/vendor-ledger?${new URLSearchParams(params as any).toString()}`,
     ),
   getCashAccountBalances: (params: { dateFrom: string; dateTo: string }) =>
     api.get(
-      `/reports/cashAccount-balances?${new URLSearchParams(params).toString()}`
+      `/reports/cashAccount-balances?${new URLSearchParams(params).toString()}`,
     ),
 
   // Operational Reports
   getInventoryAging: (params: { asOfDate: string; warehouseId?: string }) =>
     api.get(
       `/reports/inventory-aging?${new URLSearchParams(
-        params as any
-      ).toString()}`
+        params as any,
+      ).toString()}`,
     ),
   getStockCard: (params: {
     itemId: string;
@@ -658,11 +663,11 @@ export const reportsApi = {
     dateTo?: string;
   }) =>
     api.get(
-      `/reports/stock-card?${new URLSearchParams(params as any).toString()}`
+      `/reports/stock-card?${new URLSearchParams(params as any).toString()}`,
     ),
   getProductionVariance: (params: { dateFrom: string; dateTo: string }) =>
     api.get(
-      `/reports/production-variance?${new URLSearchParams(params).toString()}`
+      `/reports/production-variance?${new URLSearchParams(params).toString()}`,
     ),
   getSalesByItem: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/sales-by-item?${new URLSearchParams(params).toString()}`),
@@ -674,25 +679,25 @@ export const reportsApi = {
   }) => api.get(`/reports/pos-sales?${new URLSearchParams(params).toString()}`),
   getSalesByCustomer: (params: { dateFrom: string; dateTo: string }) =>
     api.get(
-      `/reports/sales-by-customer?${new URLSearchParams(params).toString()}`
+      `/reports/sales-by-customer?${new URLSearchParams(params).toString()}`,
     ),
   getPurchasesByVendor: (params: { dateFrom: string; dateTo: string }) =>
     api.get(
-      `/reports/purchases-by-vendor?${new URLSearchParams(params).toString()}`
+      `/reports/purchases-by-vendor?${new URLSearchParams(params).toString()}`,
     ),
   getArApAging: (params: { asOfDate: string; type: "AR" | "AP" }) =>
     api.get(`/reports/ar-ap-aging?${new URLSearchParams(params).toString()}`),
   getProductionSummary: (params: { dateFrom: string; dateTo: string }) =>
     api.get(
-      `/reports/production-summary?${new URLSearchParams(params).toString()}`
+      `/reports/production-summary?${new URLSearchParams(params).toString()}`,
     ),
   getProductionReport: (params: { dateFrom: string; dateTo: string }) =>
     api.get(
-      `/reports/production-report?${new URLSearchParams(params).toString()}`
+      `/reports/production-report?${new URLSearchParams(params).toString()}`,
     ),
   getMaterialUsage: (params: { dateFrom: string; dateTo: string }) =>
     api.get(
-      `/reports/material-usage?${new URLSearchParams(params).toString()}`
+      `/reports/material-usage?${new URLSearchParams(params).toString()}`,
     ),
 };
 
@@ -717,7 +722,7 @@ export const managementApi = {
     api.get(
       `/management/fiscal-periods${
         fiscalYearId ? "?fiscalYearId=" + fiscalYearId : ""
-      }`
+      }`,
     ),
   activateFiscalPeriod: (id: string) =>
     api.patch(`/management/fiscal-periods/${id}/activate`),
@@ -732,11 +737,11 @@ export const managementApi = {
     api.get(
       `/management/approval-requests${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   processApprovalAction: (
     id: string,
-    data: { action: "APPROVE" | "REJECT"; comments?: string }
+    data: { action: "APPROVE" | "REJECT"; comments?: string },
   ) => api.post(`/management/approval-requests/${id}/action`, data),
 
   // Enhanced Role Management
@@ -756,7 +761,7 @@ export const managementApi = {
     api.get(
       `/management/users${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   updateUserRoles: (id: string, roleIds: string[]) =>
     api.put(`/management/users/${id}/roles`, { roleIds }),
@@ -825,7 +830,7 @@ export const assetsApi = {
     api.get(
       `/assets${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   createAsset: (data: any) => api.post("/assets", data),
   updateAsset: (id: string, data: any) => api.put(`/assets/${id}`, data),
@@ -854,13 +859,13 @@ export const assetsApi = {
     api.get(
       `/assets/register${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   getAssetValuation: (params?: { asOfDate?: string }) =>
     api.get(
       `/assets/valuation${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
 };
 
@@ -889,7 +894,7 @@ export const posApi = {
     api.get(
       `/pos/sales${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
   printReceipt: (saleId: string) => api.get(`/pos/sales/${saleId}/print`),
 
@@ -907,7 +912,7 @@ export const posApi = {
     api.get(
       `/pos/returns${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
 
   // Customers
@@ -928,8 +933,8 @@ export const memoApi = {
     // Remove empty/null/undefined values
     const cleaned = Object.fromEntries(
       Object.entries(params || {}).filter(
-        ([_, v]) => v !== "" && v !== null && v !== undefined
-      )
+        ([_, v]) => v !== "" && v !== null && v !== undefined,
+      ),
     );
 
     const queryString = new URLSearchParams(cleaned as any).toString();
@@ -962,7 +967,7 @@ export const journalApi = {
     api.get(
       `/journal${
         params ? "?" + new URLSearchParams(params as any).toString() : ""
-      }`
+      }`,
     ),
 };
 export const adjustmentApi = {

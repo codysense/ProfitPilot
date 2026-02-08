@@ -95,11 +95,53 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+// src/auth/rolePermissions.ts
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  "POS User": ["dashboard", "pos", "sales"],
+
+  "Inventory Manager": ["dashboard", "inventory", "purchases"],
+  "Assistant Inventory Manager": ["dashboard", "inventory", "purchases"],
+
+  "Production Manager": ["dashboard", "production", "inventory"],
+
+  "General Manager": ["*"],
+  Accountant: ["*"],
+};
+
+// function ProtectedRoute({ children }: { children: React.ReactNode }) {
+//   const { isAuthenticated } = useAuthStore();
+
+//   if (!isAuthenticated) {
+//     return <Navigate to="/login" replace />;
+//   }
+
+//   return <Layout>{children}</Layout>;
+// }
+
+function ProtectedRoute({
+  children,
+  allowedModules,
+}: {
+  children: React.ReactNode;
+  allowedModules: string[];
+}) {
+  const { isAuthenticated, user } = useAuthStore();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  const userRoles = user?.roles ?? [];
+
+  const hasAccess = userRoles.some((role) => {
+    const permissions = ROLE_PERMISSIONS[role];
+    if (!permissions) return false;
+    if (permissions.includes("*")) return true;
+    return permissions.some((p) => allowedModules.includes(p));
+  });
+
+  if (!hasAccess) {
+    return <Navigate to="/" replace />;
   }
 
   return <Layout>{children}</Layout>;
@@ -123,7 +165,7 @@ function App() {
             <Route
               path="/"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["dashboard"]}>
                   <Dashboard />
                 </ProtectedRoute>
               }
@@ -133,7 +175,7 @@ function App() {
             <Route
               path="/inventory/uoms"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <UOMs />
                 </ProtectedRoute>
               }
@@ -141,7 +183,7 @@ function App() {
             <Route
               path="/inventory/items"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <Items />
                 </ProtectedRoute>
               }
@@ -149,7 +191,7 @@ function App() {
             <Route
               path="/inventory/boms"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <BOMs />
                 </ProtectedRoute>
               }
@@ -157,7 +199,7 @@ function App() {
             <Route
               path="/inventory/locations"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <Locations />
                 </ProtectedRoute>
               }
@@ -165,7 +207,7 @@ function App() {
             <Route
               path="/inventory/warehouses"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <Warehouses />
                 </ProtectedRoute>
               }
@@ -173,7 +215,7 @@ function App() {
             <Route
               path="/inventory/transfers"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <InventoryTransfer />
                 </ProtectedRoute>
               }
@@ -181,7 +223,7 @@ function App() {
             <Route
               path="/inventory/ledger"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <InventoryLedger />
                 </ProtectedRoute>
               }
@@ -189,7 +231,7 @@ function App() {
             <Route
               path="/inventory/valuation"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "production"]}>
                   <InventoryValuation />
                 </ProtectedRoute>
               }
@@ -199,7 +241,7 @@ function App() {
             <Route
               path="/purchases/orders"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "purchases"]}>
                   <PurchaseOrders />
                 </ProtectedRoute>
               }
@@ -207,7 +249,7 @@ function App() {
             <Route
               path="/purchases/vendors"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "purchases"]}>
                   <Vendors />
                 </ProtectedRoute>
               }
@@ -215,7 +257,7 @@ function App() {
             <Route
               path="/purchases/memos"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory", "purchases"]}>
                   <Memos />
                 </ProtectedRoute>
               }
@@ -225,7 +267,7 @@ function App() {
             <Route
               path="/sales/orders"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["sales", "pos"]}>
                   <SalesOrders />
                 </ProtectedRoute>
               }
@@ -233,7 +275,7 @@ function App() {
             <Route
               path="/sales/customers"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["sales", "pos"]}>
                   <Customers />
                 </ProtectedRoute>
               }
@@ -241,7 +283,7 @@ function App() {
             <Route
               path="/sales/customergroups"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["sales", "pos"]}>
                   <CustomerGroups />
                 </ProtectedRoute>
               }
@@ -250,7 +292,7 @@ function App() {
             <Route
               path="/sales/memos"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["sales", "pos"]}>
                   <SalesMemos />
                 </ProtectedRoute>
               }
@@ -260,7 +302,7 @@ function App() {
             <Route
               path="/production/orders"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["production", "inventory"]}>
                   <ProductionOrders />
                 </ProtectedRoute>
               }
@@ -268,7 +310,7 @@ function App() {
             <Route
               path="/production/wip"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["production", "inventory"]}>
                   <WipSummary />
                 </ProtectedRoute>
               }
@@ -278,7 +320,15 @@ function App() {
             <Route
               path="/reports"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  allowedModules={[
+                    "dashboard",
+                    "inventory",
+                    "sales",
+                    "purchases",
+                    "production",
+                  ]}
+                >
                   <Reports />
                 </ProtectedRoute>
               }
@@ -286,9 +336,9 @@ function App() {
 
             {/* Metabase Dashboard Route */}
             <Route
-              path="/metabase-dashboard" 
+              path="/metabase-dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["dashboard"]}>
                   <MetabaseDashboard />
                 </ProtectedRoute>
               }
@@ -298,7 +348,7 @@ function App() {
             <Route
               path="/assets"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["assets"]}>
                   <AssetDashboard />
                 </ProtectedRoute>
               }
@@ -306,7 +356,7 @@ function App() {
             <Route
               path="/assets/register"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["assets"]}>
                   <AssetRegister />
                 </ProtectedRoute>
               }
@@ -314,7 +364,7 @@ function App() {
             <Route
               path="/assets/categories"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["assets"]}>
                   <AssetCategories />
                 </ProtectedRoute>
               }
@@ -324,7 +374,7 @@ function App() {
             <Route
               path="/pos"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["pos"]}>
                   <PosDashboard />
                 </ProtectedRoute>
               }
@@ -332,7 +382,7 @@ function App() {
             <Route
               path="/pos/sales"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["pos"]}>
                   <PosSalesHistory />
                 </ProtectedRoute>
               }
@@ -340,7 +390,7 @@ function App() {
             <Route
               path="/pos/returns"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["pos"]}>
                   <PosReturnsHistory />
                 </ProtectedRoute>
               }
@@ -350,7 +400,7 @@ function App() {
             <Route
               path="/cash/cashbook"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["cash"]}>
                   <Cashbook />
                 </ProtectedRoute>
               }
@@ -358,7 +408,7 @@ function App() {
             <Route
               path="/cash/customer-payments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["cash"]}>
                   <CustomerPayments />
                 </ProtectedRoute>
               }
@@ -366,7 +416,7 @@ function App() {
             <Route
               path="/cash/vendor-payments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["cash"]}>
                   <VendorPayments />
                 </ProtectedRoute>
               }
@@ -374,7 +424,7 @@ function App() {
             <Route
               path="/cash/vendor-refunds"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["cash"]}>
                   <VendorRefunds />
                 </ProtectedRoute>
               }
@@ -382,7 +432,7 @@ function App() {
             <Route
               path="/cash/sales-receipts"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["cash"]}>
                   <SalesReceipts />
                 </ProtectedRoute>
               }
@@ -390,7 +440,7 @@ function App() {
             <Route
               path="/cash/purchase-payments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["cash"]}>
                   <PurchasePayments />
                 </ProtectedRoute>
               }
@@ -398,7 +448,7 @@ function App() {
             <Route
               path="/cash/customer-refunds"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["cash"]}>
                   <CustomerRefunds />
                 </ProtectedRoute>
               }
@@ -408,7 +458,7 @@ function App() {
             <Route
               path="/users"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["users", "roles"]}>
                   <UserManagement />
                 </ProtectedRoute>
               }
@@ -418,7 +468,7 @@ function App() {
             <Route
               path="/management/company"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <CompanySettings />
                 </ProtectedRoute>
               }
@@ -426,7 +476,7 @@ function App() {
             <Route
               path="/management/settings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <SystemSettings />
                 </ProtectedRoute>
               }
@@ -434,7 +484,7 @@ function App() {
             <Route
               path="/management/fiscal"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <FiscalCalendar />
                 </ProtectedRoute>
               }
@@ -442,7 +492,7 @@ function App() {
             <Route
               path="/management/chart-of-accounts"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <ChartOfAccounts />
                 </ProtectedRoute>
               }
@@ -450,7 +500,7 @@ function App() {
             <Route
               path="/management/cash-accounts"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <CashAccountManagement />
                 </ProtectedRoute>
               }
@@ -458,7 +508,7 @@ function App() {
             <Route
               path="/management/approvals"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <ApprovalFlows />
                 </ProtectedRoute>
               }
@@ -466,7 +516,7 @@ function App() {
             <Route
               path="/management/roles"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["roles"]}>
                   <RoleManagement />
                 </ProtectedRoute>
               }
@@ -474,7 +524,7 @@ function App() {
             <Route
               path="/management/users"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["users"]}>
                   <EnhancedUserManagement />
                 </ProtectedRoute>
               }
@@ -482,7 +532,7 @@ function App() {
             <Route
               path="/management/audit-log"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <AuditLog />
                 </ProtectedRoute>
               }
@@ -492,7 +542,7 @@ function App() {
             <Route
               path="/memos"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["sales", "purchases"]}>
                   <Memos />
                 </ProtectedRoute>
               }
@@ -502,7 +552,7 @@ function App() {
             <Route
               path="/adjustment"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["inventory"]}>
                   <Adjustments />
                 </ProtectedRoute>
               }
@@ -511,7 +561,7 @@ function App() {
             <Route
               path="/journal"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedModules={["settings"]}>
                   <Journals />
                 </ProtectedRoute>
               }

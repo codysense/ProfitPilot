@@ -862,6 +862,7 @@ export class InventoryController {
           name: true,
           type: true,
           costingMethod: true,
+          minimumStockLevel: true,
         },
       });
 
@@ -892,6 +893,7 @@ export class InventoryController {
               type: item.type,
               costingMethod: item.costingMethod,
               qty: Number(latestEntry.runningQty),
+              minimumStockLevel: item.minimumStockLevel || 0, // Placeholder, can be updated to actual minimum stock level
               unitCost: Number(latestEntry.runningAvgCost),
               totalValue: Number(latestEntry.runningValue),
             };

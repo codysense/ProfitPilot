@@ -1,52 +1,70 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Eye, Truck, FileText, Edit, Trash2, Printer } from 'lucide-react';
-import { managementApi, salesApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { Sale } from '../../types/api';
-import CreateSaleModal from './CreateSaleModal';
-import EditSaleModal from './EditSaleModal';
-import SaleDetailsModal from './SaleDetailsModal';
-import DeliverSaleModal from './DeliverSaleModal';
-import { useAuthStore } from '../../store/authStore';
-import { ReportExporter } from '../../utils/reportExport';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Plus,
+  Eye,
+  Truck,
+  FileText,
+  Edit,
+  Trash2,
+  Printer,
+} from "lucide-react";
+import { managementApi, salesApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { Sale } from "../../types/api";
+import CreateSaleModal from "./CreateSaleModal";
+import EditSaleModal from "./EditSaleModal";
+import SaleDetailsModal from "./SaleDetailsModal";
+import DeliverSaleModal from "./DeliverSaleModal";
+import { useAuthStore } from "../../store/authStore";
+import { ReportExporter } from "../../utils/reportExport";
+import toast from "react-hot-toast";
 import QRCode from "qrcode";
 
 const SalesOrders = () => {
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeliverModal, setShowDeliverModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const { user } = useAuthStore();
-  
+
   // Check if user can perform actions (Accountant or GM only)
-  const canPerformActions = user?.roles.includes('Accountant') || user?.roles.includes('General Manager');
+  const canPerformActions =
+    user?.roles.includes("Accountant") ||
+    user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['sales', { page, status: statusFilter }],
-    queryFn: () => salesApi.getSales({ 
-      page, 
-      limit: 10, 
-      ...(statusFilter && { status: statusFilter })
-    })
+    queryKey: ["sales", { page, status: statusFilter }],
+    queryFn: () =>
+      salesApi.getSales({
+        page,
+        limit: 10,
+        ...(statusFilter && { status: statusFilter }),
+      }),
   });
 
+  console.log("Fetched sales data:", data);
 
+  //if user is not accountant or gm, filter sales to only those created by the user
+  if (data && !canPerformActions) {
+    data.sales = data.sales.filter(
+      (sale: Sale) => sale.preparer?.name === user?.name,
+    );
+  }
 
   const columns = [
     {
-      key: 'orderNo',
-      header: 'Order No',
-      width: 'w-32'
+      key: "orderNo",
+      header: "Order No",
+      width: "w-32",
     },
     {
-      key: 'customer.name',
-      header: 'Customer',
+      key: "customer.name",
+      header: "Customer",
       cell: (sale: Sale) => (
         <div>
           <div className="font-medium">{sale.customer.name}</div>
@@ -57,36 +75,44 @@ const SalesOrders = () => {
           )}
         </div>
       ),
-      width: 'w-48'
+      width: "w-48",
     },
     {
-      key: 'orderDate',
-      header: 'Order Date',
+      key: "orderDate",
+      header: "Order Date",
       cell: (sale: Sale) => new Date(sale.orderDate).toLocaleDateString(),
-      width: 'w-32'
+      width: "w-32",
     },
+
     {
-      key: 'totalAmount',
-      header: 'Total Amount',
+      key: "totalAmount",
+      header: "Total Amount",
       cell: (sale: Sale) => `₦${sale.totalAmount.toLocaleString()}`,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "preparer.name",
+      header: "Prepared By",
+      cell: (sale: Sale) => sale.preparer?.name || "N/A",
+      width: "w-32",
+    },
+
+    {
+      key: "status",
+      header: "Status",
       cell: (sale: Sale) => <StatusBadge status={sale.status} />,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'saleLines',
-      header: 'Items',
+      key: "saleLines",
+      header: "Items",
       cell: (sale: Sale) => (
         <div className="text-sm text-gray-600">
-          {sale.saleLines.length} item{sale.saleLines.length !== 1 ? 's' : ''}
+          {sale.saleLines.length} item{sale.saleLines.length !== 1 ? "s" : ""}
         </div>
       ),
-      width: 'w-24'
-    }
+      width: "w-24",
+    },
   ];
 
   const handleCreateSale = () => {
@@ -109,55 +135,54 @@ const SalesOrders = () => {
   const handleInvoiceSale = async (sale: Sale) => {
     try {
       await salesApi.invoiceSale(sale.id);
-      toast.success('Sales order invoiced successfully');
+      toast.success("Sales order invoiced successfully");
       refetch();
     } catch (error) {
-      console.error('Invoice sale error:', error);
+      console.error("Invoice sale error:", error);
     }
   };
 
-   const{data:companyInformations} = useQuery({
-        queryKey: ['company-info-for-receipt'],
-        queryFn:  () => managementApi.getCompanySettings()
-      });
-      
+  const { data: companyInformations } = useQuery({
+    queryKey: ["company-info-for-receipt"],
+    queryFn: () => managementApi.getCompanySettings(),
+  });
 
   const handleDeleteSale = async (sale: Sale) => {
-    if (confirm(`Are you sure you want to delete sales order ${sale.orderNo}?`)) {
+    if (
+      confirm(`Are you sure you want to delete sales order ${sale.orderNo}?`)
+    ) {
       try {
         await salesApi.deleteSale(sale.id);
-        toast.success('Sales order deleted successfully');
+        toast.success("Sales order deleted successfully");
         refetch();
       } catch (error) {
-        console.error('Delete sale error:', error);
+        console.error("Delete sale error:", error);
       }
     }
   };
 
-  
+  const handlePrintInvoice = async (sale: Sale) => {
+    try {
+      const printData = await salesApi.printSaleInvoice(sale.id);
 
-const handlePrintInvoice = async (sale: Sale) => {
-  try {
-    const printData = await salesApi.printSaleInvoice(sale.id);
+      const company = companyInformations;
+      const invoice = printData.printData;
 
-    const company = companyInformations;
-    const invoice = printData.printData;
+      // Generate QR Code using invoice document number
+      const qrData = await QRCode.toDataURL(`Invoice:${invoice.documentNo}`);
 
-    // Generate QR Code using invoice document number
-    const qrData = await QRCode.toDataURL(`Invoice:${invoice.documentNo}`);
+      // Logo from backend or fallback
+      //const logoUrl = company.logoUrl || "/logo.png";
 
-    // Logo from backend or fallback
-    //const logoUrl = company.logoUrl || "/logo.png";
+      // Open browser print window
+      const printWindow = window.open("", "_blank", "width=900,height=1000");
 
-    // Open browser print window
-    const printWindow = window.open("", "_blank", "width=900,height=1000");
+      if (!printWindow) {
+        toast.error("Unable to open print window");
+        return;
+      }
 
-    if (!printWindow) {
-      toast.error("Unable to open print window");
-      return;
-    }
-
-    printWindow.document.write(`
+      printWindow.document.write(`
       <html>
       <head>
         <title>Invoice - ${invoice.documentNo}</title>
@@ -290,7 +315,7 @@ const handlePrintInvoice = async (sale: Sale) => {
                 <td style="text-align:right;">₦${Number(line.unitPrice).toLocaleString()}</td>
                 <td style="text-align:right;">₦${Number(line.lineTotal).toLocaleString()}</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -331,23 +356,22 @@ const handlePrintInvoice = async (sale: Sale) => {
       </html>
     `);
 
-    printWindow.document.close();
+      printWindow.document.close();
 
-    // Auto-print when window loads
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-  } catch (error) {
-    console.error("Print invoice error:", error);
-  }
-};
-
+      // Auto-print when window loads
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+    } catch (error) {
+      console.error("Print invoice error:", error);
+    }
+  };
 
   // const handlePrintInvoice = async (sale: Sale) => {
   //   try {
   //     const printData = await salesApi.printSaleInvoice(sale.id);
-      
+
   //     // Create a temporary div for PDF generation
   //     const printContent = document.createElement('div');
   //     printContent.id = 'sales-invoice-print';
@@ -357,7 +381,7 @@ const handlePrintInvoice = async (sale: Sale) => {
   //           <h1 style="color: #1f2937; margin-bottom: 10px;">SALES INVOICE</h1>
   //           <h2 style="color: #6b7280;">${printData.printData.documentNo}</h2>
   //         </div>
-          
+
   //         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
   //           <div>
   //             <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Bill To:</h3>
@@ -371,7 +395,7 @@ const handlePrintInvoice = async (sale: Sale) => {
   //             <p><strong>Status:</strong> ${sale.status}</p>
   //           </div>
   //         </div>
-          
+
   //         <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
   //           <thead>
   //             <tr style="background-color: #f9fafb;">
@@ -401,21 +425,21 @@ const handlePrintInvoice = async (sale: Sale) => {
   //             </tr>
   //           </tfoot>
   //         </table>
-          
+
   //         <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px;">
   //           Generated on ${new Date().toLocaleString()} | ProfitPilot ERP System
   //         </div>
   //       </div>
   //     `;
-      
+
   //     document.body.appendChild(printContent);
-      
+
   //     await ReportExporter.exportToPDF(
   //       'sales-invoice-print',
   //       `sales-invoice-${sale.orderNo}.pdf`,
   //       `Sales Invoice - ${sale.orderNo}`
   //     );
-      
+
   //     document.body.removeChild(printContent);
   //     toast.success('Invoice exported successfully');
   //   } catch (error) {
@@ -435,7 +459,7 @@ const handlePrintInvoice = async (sale: Sale) => {
       >
         <Eye className="h-4 w-4" />
       </button>
-      {['DRAFT', 'CONFIRMED'].includes(sale.status) && canPerformActions && (
+      {["DRAFT", "CONFIRMED"].includes(sale.status) && canPerformActions && (
         <button
           onClick={() => {
             setSelectedSale(sale);
@@ -447,7 +471,7 @@ const handlePrintInvoice = async (sale: Sale) => {
           <Edit className="h-4 w-4" />
         </button>
       )}
-      {['DRAFT', 'CONFIRMED'].includes(sale.status) && canPerformActions && (
+      {["DRAFT", "CONFIRMED"].includes(sale.status) && canPerformActions && (
         <button
           onClick={() => handleDeleteSale(sale)}
           className="text-red-600 hover:text-red-900"
@@ -456,7 +480,7 @@ const handlePrintInvoice = async (sale: Sale) => {
           <Trash2 className="h-4 w-4" />
         </button>
       )}
-      {['INVOICED', 'PAID'].includes(sale.status) && (
+      {["INVOICED", "PAID"].includes(sale.status) && (
         <button
           onClick={() => handlePrintInvoice(sale)}
           className="text-purple-600 hover:text-purple-900"
@@ -465,7 +489,7 @@ const handlePrintInvoice = async (sale: Sale) => {
           <Printer className="h-4 w-4" />
         </button>
       )}
-      {sale.status === 'CONFIRMED' && canPerformActions && (
+      {sale.status === "CONFIRMED" && canPerformActions && (
         <button
           onClick={() => {
             setSelectedSale(sale);
@@ -477,7 +501,7 @@ const handlePrintInvoice = async (sale: Sale) => {
           <Truck className="h-4 w-4" />
         </button>
       )}
-      {sale.status === 'DELIVERED' && canPerformActions && (
+      {sale.status === "DELIVERED" && canPerformActions && (
         <button
           onClick={() => handleInvoiceSale(sale)}
           className="text-purple-600 hover:text-purple-900"
@@ -531,13 +555,22 @@ const handlePrintInvoice = async (sale: Sale) => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-        {['CONFIRMED', 'DELIVERED', 'INVOICED', 'PAID'].map(status => {
-          const count = data?.sales?.filter((s: Sale) => s.status === status).length || 0;
-          const total = data?.sales?.filter((s: Sale) => s.status === status)
-            .reduce((sum: number, s: Sale) => sum + Number(s.totalAmount), 0) || 0;
+        {["CONFIRMED", "DELIVERED", "INVOICED", "PAID"].map((status) => {
+          const count =
+            data?.sales?.filter((s: Sale) => s.status === status).length || 0;
+          const total =
+            data?.sales
+              ?.filter((s: Sale) => s.status === status)
+              .reduce(
+                (sum: number, s: Sale) => sum + Number(s.totalAmount),
+                0,
+              ) || 0;
 
           return (
-            <div key={status} className="bg-white overflow-hidden shadow rounded-lg">
+            <div
+              key={status}
+              className="bg-white overflow-hidden shadow rounded-lg"
+            >
               <div className="p-5">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">

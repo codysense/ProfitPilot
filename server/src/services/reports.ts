@@ -645,11 +645,12 @@ export class ReportsService {
       FROM cash_accounts ca
       LEFT JOIN cash_transactions ct
              ON ca.id = ct."cashAccountId"
+      WHERE ca.name <> 'Memo Clearing'
       GROUP BY ca.id, ca.name, ca."accountType", ca.balance
     ),
     report AS (
       SELECT
-        ROW_NUMBER() OVER (ORDER BY account_name)::INT AS "SerialNo", -- 👈 cast to INT
+        ROW_NUMBER() OVER (ORDER BY account_name)::INT AS "SerialNo", --  cast to INT
         account_name AS "AccountName",
         account_type AS "AccountType",
         (current_balance - inflows_after_start + outflows_after_start)::NUMERIC AS "OpeningBalance",
@@ -774,13 +775,13 @@ FROM (
   SELECT s."totalAmount" AS balance
   FROM sales s
   WHERE s."customerId" = $1
-    AND s."orderDate" <= $2
+    AND s."orderDate" < $2
     AND s.status != 'DRAFT'
 
   UNION ALL
 
   /* ---------------- PAYMENTS (CREDIT) ---------------- */
-  SELECT -SUM(cpl."lineAmount") AS balance
+  SELECT -SUM(ABS(cpl."lineAmount")) AS balance
   FROM customer_payments cp
   INNER JOIN customer_payment_lines cpl
       ON cpl."customerPaymentId" = cp.id
@@ -789,7 +790,7 @@ FROM (
      AND coa.code = '1200'
   WHERE cp."customerId" = $1
     AND cp.status = 'PAID'
-    AND cp."paymentDate" <= $2
+    AND cp."paymentDate" < $2
 
   UNION ALL
 
@@ -797,7 +798,7 @@ FROM (
   SELECT srr."amountRefunded" AS balance
   FROM sales_refunds srr
   WHERE srr."customerId" = $1
-    AND srr."refundDate" <= $2
+    AND srr."refundDate" < $2
 
 ) x;
     `,
@@ -837,7 +838,9 @@ FROM (
 FROM sales s
 INNER JOIN customers c ON s."customerId" = c.id
 WHERE c.id = $1
-  AND s."orderDate" BETWEEN $2 AND $3
+ AND s."orderDate" >= $2
+AND s."orderDate" < ($3 + INTERVAL '1 day')
+
   AND s.status != 'DRAFT'
 
 UNION ALL
@@ -864,7 +867,8 @@ INNER JOIN customers c
     ON cp."customerId" = c.id
 WHERE c.id = $1
   AND cp.status = 'PAID'
-  AND cp."paymentDate" BETWEEN $2 AND $3
+  AND cp."paymentDate" >= $2
+  AND cp."paymentDate" < ($3 + INTERVAL '1 day')
 
 UNION ALL
 
@@ -883,9 +887,11 @@ SELECT
 FROM sales_refunds srr
 INNER JOIN customers c ON srr."customerId" = c.id
 WHERE c.id = $1
-  AND srr."refundDate" BETWEEN $2 AND $3
+  AND srr."refundDate" >= $2
+  AND srr."refundDate" < ($3 + INTERVAL '1 day')
 
-ORDER BY date, reference;
+ORDER BY date, transaction_type, reference;
+;
     `,
       customerId,
       fromDate,
@@ -941,7 +947,7 @@ FROM (
     WHERE vp."vendorId" = $1
       AND vp.status = 'PAID'
       AND vp."paymentDate" < $2
-    GROUP BY vp.id
+  
 
     UNION ALL
 
@@ -959,7 +965,7 @@ FROM (
 
     const openingBalance = Number(opening[0]?.balance || 0);
 
-    // 🔹 Ledger entries in period
+    //  Ledger entries in period
     const entries = await prisma.$queryRawUnsafe<
       {
         type: string;
@@ -990,7 +996,8 @@ SELECT
 FROM purchases p
 INNER JOIN vendors v ON p."vendorId" = v."id"
 WHERE v."id" = $1
-  AND p."orderDate" BETWEEN $2 AND $3
+  AND p."orderDate" >= $2
+  AND p."orderDate" < ($3 + INTERVAL '1 day')
   AND p."status" != 'DRAFT'
 
 UNION ALL
@@ -1017,7 +1024,8 @@ INNER JOIN vendors v
     ON vp."vendorId" = v."id"
 WHERE v."id" = $1
   AND vp.status = 'PAID'
-  AND vp."paymentDate" BETWEEN $2 AND $3
+  AND vp."paymentDate" >= $2
+  AND vp."paymentDate" < ($3 + INTERVAL '1 day')
 GROUP BY vp.id, v."code", v."name"
 
 UNION ALL
@@ -1037,9 +1045,10 @@ SELECT
 FROM purchase_refunds pr
 INNER JOIN vendors v ON pr."vendorId" = v."id"
 WHERE v."id" = $1
-  AND pr."refundDate" BETWEEN $2 AND $3
+  AND pr."refundDate" >= $2
+  AND pr."refundDate" < ($3 + INTERVAL '1 day')
 
-ORDER BY date, reference;
+ORDER BY date, transaction_type, reference;
     `,
       vendorId,
       fromDate,
@@ -1055,6 +1064,13 @@ ORDER BY date, reference;
       (sum, e) => sum + Number(e.debit || 0),
       0,
     );
+    // const netMovement = entries.reduce(
+    //   (sum, e) => sum + Number(e.debit || 0) - Number(e.credit || 0),
+    //   0,
+    // );
+
+    // const closingBalance = openingBalance + netMovement;
+
     const closingBalance = openingBalance + totalPurchases - totalPayments;
 
     return {

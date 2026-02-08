@@ -615,71 +615,71 @@ async function main() {
 
   // console.log('✅ Items created');
 
-  // Create customers
-  // // const customers = await Promise.all([
-  // //   prisma.customer.upsert({
-  // //     where: { code: 'CUST-001' },
-  // //     update: {},
-  // //     create: {
-  // //       code: 'CUST-001',
-  // //       name: 'ABC Corporation Ltd',
-  // //       address: '123 Business District, Victoria Island, Lagos',
-  // //       phone: '+234-801-234-5678',
-  // //       email: 'procurement@abc-corp.com',
-  // //       creditLimit: 500000.00,
-  // //       paymentTerms: 'Net 30',
-  // //       isActive: true
-  // //     }
-  // //   }),
-  // //   prisma.customer.upsert({
-  // //     where: { code: 'CUST-002' },
-  // //     update: {},
-  // //     create: {
-  // //       code: 'CUST-002',
-  // //       name: 'XYZ Enterprises',
-  // //       address: '456 Industrial Layout, Ikeja, Lagos',
-  // //       phone: '+234-802-345-6789',
-  // //       email: 'orders@xyz-ent.com',
-  // //       creditLimit: 300000.00,
-  // //       paymentTerms: 'Net 15',
-  // //       isActive: true
-  // //     }
-  // //   })
-  // // ]);
+  //Create customers
+  const customers = await Promise.all([
+    prisma.customer.upsert({
+      where: { code: "CUST-001" },
+      update: {},
+      create: {
+        code: "CUST-001",
+        name: "ABC Corporation Ltd",
+        address: "123 Business District, Victoria Island, Lagos",
+        phone: "+234-801-234-5678",
+        email: "procurement@abc-corp.com",
+        creditLimit: 500000.0,
 
-  // // console.log('✅ Customers created');
+        isActive: true,
+      },
+    }),
+    prisma.customer.upsert({
+      where: { code: "CUST-002" },
+      update: {},
+      create: {
+        code: "CUST-002",
+        name: "XYZ Enterprises",
+        address: "456 Industrial Layout, Ikeja, Lagos",
+        phone: "+234-802-345-6789",
+        email: "orders@xyz-ent.com",
+        creditLimit: 300000.0,
 
-  // // Create vendors
-  // const vendors = await Promise.all([
-  //   prisma.vendor.upsert({
-  //     where: { code: 'VEND-001' },
-  //     update: {},
-  //     create: {
-  //       code: 'VEND-001',
-  //       name: 'Steel Suppliers Nigeria Ltd',
-  //       address: '789 Industrial Zone, Port Harcourt',
-  //       phone: '+234-803-456-7890',
-  //       email: 'sales@steelsuppliers.ng',
-  //       paymentTerms: 'Net 30',
-  //       isActive: true
-  //     }
-  //   }),
-  //   prisma.vendor.upsert({
-  //     where: { code: 'VEND-002' },
-  //     update: {},
-  //     create: {
-  //       code: 'VEND-002',
-  //       name: 'Aluminum Works Ltd',
-  //       address: '321 Metal Street, Kano',
-  //       phone: '+234-804-567-8901',
-  //       email: 'info@aluminumworks.ng',
-  //       paymentTerms: 'Net 45',
-  //       isActive: true
-  //     }
-  //   })
-  // ]);
+        isActive: true,
+      },
+    }),
+  ]);
 
-  // console.log('✅ Vendors created');
+  console.log("✅ Customers created");
+
+  // Create vendors
+  const vendors = await Promise.all([
+    prisma.vendor.upsert({
+      where: { code: "VEND-001" },
+      update: {},
+      create: {
+        code: "VEND-001",
+        name: "Steel Suppliers Nigeria Ltd",
+        address: "789 Industrial Zone, Port Harcourt",
+        phone: "+234-803-456-7890",
+        email: "sales@steelsuppliers.ng",
+        paymentTerms: "Net 30",
+        isActive: true,
+      },
+    }),
+    prisma.vendor.upsert({
+      where: { code: "VEND-002" },
+      update: {},
+      create: {
+        code: "VEND-002",
+        name: "Aluminum Works Ltd",
+        address: "321 Metal Street, Kano",
+        phone: "+234-804-567-8901",
+        email: "info@aluminumworks.ng",
+        paymentTerms: "Net 45",
+        isActive: true,
+      },
+    }),
+  ]);
+
+  console.log("✅ Vendors created");
 
   // Create Chart of Accounts
   const accounts = await Promise.all([
@@ -834,7 +834,7 @@ async function main() {
       create: {
         code: "9999",
         name: "Memo Clearing",
-        accountType: "EXPENSES",
+        accountType: "CURRENT_ASSETS",
         isActive: true,
       },
     }),

@@ -137,8 +137,15 @@ const CreateVendorPaymentModal = ({ onClose, onSuccess }: Props) => {
 
   const onSubmit = async (data: FormData) => {
     try {
-      console.log("Submitting vendor payment with data:", data);
-      await cashApi.createVendorPayment(data);
+      const normalized = {
+        ...data,
+        lines: data.lines.map((line) => ({
+          ...line,
+          purchaseId: line.purchaseId?.trim() || null,
+        })),
+      };
+
+      await cashApi.createVendorPayment(normalized);
       toast.success("Vendor payment recorded successfully!");
       onSuccess();
     } catch (error) {

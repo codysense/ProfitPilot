@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Shield, Users, Eye, EyeOff } from 'lucide-react';
-import { managementApi, userApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { useAuthStore } from '../../store/authStore';
-import CreateUserModal from '../CreateUserModal';
-import EditUserRolesModal from './EditUserRolesModal';
-import toast from 'react-hot-toast';
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Edit, Shield, Users, Eye, EyeOff } from "lucide-react";
+import { managementApi, userApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { useAuthStore } from "../../store/authStore";
+import CreateUserModal from "../CreateUserModal";
+import EditUserRolesModal from "./EditUserRolesModal";
+import toast from "react-hot-toast";
+import EditUserModal from "./EditUserModal";
 
 interface UserWithDetails {
   id: string;
@@ -24,39 +25,45 @@ interface UserWithDetails {
 
 const EnhancedUserManagement = () => {
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditRolesModal, setShowEditRolesModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserWithDetails | null>(null);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithDetails | null>(
+    null,
+  );
   const { user: currentUser } = useAuthStore();
   const queryClient = useQueryClient();
 
   // Only CFO and GM can access user management
-  const canManageUsers = currentUser?.roles.includes('CFO') || currentUser?.roles.includes('General Manager');
+  const canManageUsers =
+    currentUser?.roles.includes("Accountant") ||
+    currentUser?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['users-with-details', { page, search }],
-    queryFn: () => managementApi.getUsersWithDetails({ page, limit: 10, search }),
-    enabled: canManageUsers
+    queryKey: ["users-with-details", { page, search }],
+    queryFn: () =>
+      managementApi.getUsersWithDetails({ page, limit: 10, search }),
+    enabled: canManageUsers,
   });
 
   const { data: roles } = useQuery({
-    queryKey: ['roles-for-user-management'],
+    queryKey: ["roles-for-user-management"],
     queryFn: () => userApi.getRoles(),
-    enabled: canManageUsers
+    enabled: canManageUsers,
   });
 
   const updateUserStatusMutation = useMutation({
     mutationFn: ({ userId, status }: { userId: string; status: string }) =>
       userApi.updateUserStatus(userId, status),
     onSuccess: () => {
-      toast.success('User status updated successfully');
+      toast.success("User status updated successfully");
       refetch();
     },
     onError: (error) => {
-      console.error('Update user status error:', error);
-      toast.error('Failed to update user status');
-    }
+      console.error("Update user status error:", error);
+      toast.error("Failed to update user status");
+    },
   });
 
   if (!canManageUsers) {
@@ -64,8 +71,12 @@ const EnhancedUserManagement = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Shield className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You don't have permission to access user management.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-gray-600">
+            You don't have permission to access user management.
+          </p>
         </div>
       </div>
     );
@@ -73,18 +84,18 @@ const EnhancedUserManagement = () => {
 
   const columns = [
     {
-      key: 'name',
-      header: 'Name',
-      width: 'w-48'
+      key: "name",
+      header: "Name",
+      width: "w-48",
     },
     {
-      key: 'email',
-      header: 'Email',
-      width: 'w-64'
+      key: "email",
+      header: "Email",
+      width: "w-64",
     },
     {
-      key: 'roles',
-      header: 'Roles',
+      key: "roles",
+      header: "Roles",
       cell: (user: UserWithDetails) => (
         <div className="flex flex-wrap gap-1">
           {user.roles.map((role, index) => (
@@ -92,26 +103,30 @@ const EnhancedUserManagement = () => {
           ))}
         </div>
       ),
-      width: 'w-48'
+      width: "w-48",
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       cell: (user: UserWithDetails) => <StatusBadge status={user.status} />,
-      width: 'w-24'
+      width: "w-24",
     },
     {
-      key: 'lastLoginAt',
-      header: 'Last Login',
-      cell: (user: UserWithDetails) => user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never',
-      width: 'w-32'
+      key: "lastLoginAt",
+      header: "Last Login",
+      cell: (user: UserWithDetails) =>
+        user.lastLoginAt
+          ? new Date(user.lastLoginAt).toLocaleDateString()
+          : "Never",
+      width: "w-32",
     },
     {
-      key: 'createdAt',
-      header: 'Created',
-      cell: (user: UserWithDetails) => new Date(user.createdAt).toLocaleDateString(),
-      width: 'w-32'
-    }
+      key: "createdAt",
+      header: "Created",
+      cell: (user: UserWithDetails) =>
+        new Date(user.createdAt).toLocaleDateString(),
+      width: "w-32",
+    },
   ];
 
   const handleCreateUser = () => {
@@ -126,13 +141,13 @@ const EnhancedUserManagement = () => {
   };
 
   const handleToggleUserStatus = (userId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const newStatus = currentStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     updateUserStatusMutation.mutate({ userId, status: newStatus });
   };
 
   const actions = (user: UserWithDetails) => (
     <div className="flex space-x-2">
-      <button
+      {/* <button
         onClick={() => {
           setSelectedUser(user);
           setShowEditRolesModal(true);
@@ -141,13 +156,27 @@ const EnhancedUserManagement = () => {
         title="Edit User Roles"
       >
         <Edit className="h-4 w-4" />
+      </button> */}
+      <button
+        onClick={() => {
+          setSelectedUser(user);
+          setShowEditUserModal(true);
+        }}
+        className="text-blue-600 hover:text-blue-900"
+        title="Edit User Details"
+      >
+        <Edit className="h-4 w-4" />
       </button>
       <button
         onClick={() => handleToggleUserStatus(user.id, user.status)}
-        className={`${user.status === 'ACTIVE' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
-        title={user.status === 'ACTIVE' ? 'Deactivate User' : 'Activate User'}
+        className={`${user.status === "ACTIVE" ? "text-red-600 hover:text-red-900" : "text-green-600 hover:text-green-900"}`}
+        title={user.status === "ACTIVE" ? "Deactivate User" : "Activate User"}
       >
-        {user.status === 'ACTIVE' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        {user.status === "ACTIVE" ? (
+          <EyeOff className="h-4 w-4" />
+        ) : (
+          <Eye className="h-4 w-4" />
+        )}
       </button>
     </div>
   );
@@ -158,7 +187,9 @@ const EnhancedUserManagement = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600">Manage system users, roles, and permissions</p>
+          <p className="text-gray-600">
+            Manage system users, roles, and permissions
+          </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -221,7 +252,9 @@ const EnhancedUserManagement = () => {
                     Active Users
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.users?.filter((u: UserWithDetails) => u.status === 'ACTIVE').length || 0}
+                    {data?.users?.filter(
+                      (u: UserWithDetails) => u.status === "ACTIVE",
+                    ).length || 0}
                   </dd>
                 </dl>
               </div>
@@ -238,10 +271,12 @@ const EnhancedUserManagement = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    CFOs
+                    Accountants
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.users?.filter((u: UserWithDetails) => u.roles.some(r => r.name === 'CFO')).length || 0}
+                    {data?.users?.filter((u: UserWithDetails) =>
+                      u.roles.some((r) => r.name === "Accountant"),
+                    ).length || 0}
                   </dd>
                 </dl>
               </div>
@@ -261,7 +296,9 @@ const EnhancedUserManagement = () => {
                     General Managers
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.users?.filter((u: UserWithDetails) => u.roles.some(r => r.name === 'General Manager')).length || 0}
+                    {data?.users?.filter((u: UserWithDetails) =>
+                      u.roles.some((r) => r.name === "General Manager"),
+                    ).length || 0}
                   </dd>
                 </dl>
               </div>
@@ -299,6 +336,23 @@ const EnhancedUserManagement = () => {
             setSelectedUser(null);
           }}
           onSuccess={handleEditUserRoles}
+        />
+      )}
+
+      {/* Edit User Details Modal */}
+      {showEditUserModal && selectedUser && (
+        <EditUserModal
+          user={selectedUser}
+          roles={roles?.roles || []}
+          onClose={() => {
+            setShowEditUserModal(false);
+            setSelectedUser(null);
+          }}
+          onSuccess={() => {
+            refetch();
+            setShowEditUserModal(false);
+            setSelectedUser(null);
+          }}
         />
       )}
     </div>

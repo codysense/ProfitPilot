@@ -38,6 +38,7 @@ const createItemSchema = z.object({
     "CONSUMABLE",
   ]),
   uom: z.string().default("QTY"),
+  minimumStockLevel: z.number().positive().optional(),
   costingMethod: z.enum(["GLOBAL", "FIFO", "WEIGHTED_AVG"]).default("GLOBAL"),
   standardCost: z.number().optional(),
   sellingPriceOrdinary: z.number().optional(),
@@ -188,6 +189,18 @@ const CreateItemModal = ({ onClose, onSuccess }: CreateItemModalProps) => {
                   rows={3}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Item description"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Minimum Stock Level
+                </label>
+                <input
+                  {...register("minimumStockLevel", { valueAsNumber: true })}
+                  type="number"
+                  step="0.01"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="0.00"
                 />
               </div>
 

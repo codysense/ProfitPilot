@@ -1,30 +1,22 @@
-
-
-
-
-
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt,{ Secret, SignOptions } from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-import { loginSchema, registerSchema } from '../types/auth';
-import { AuthRequest } from '../middleware/auth';
-
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import jwt, { Secret, SignOptions } from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
+import { loginSchema, registerSchema } from "../types/auth";
+import { AuthRequest } from "../middleware/auth";
 
 const prisma = new PrismaClient();
 
 // Utility: generate JWT token safely
 
-
 function generateToken(
   payload: Record<string, any>,
   secret: Secret,
-  expiresIn: string | number
+  expiresIn: string | number,
 ): string {
   const options: SignOptions = { expiresIn: expiresIn as any };
   return jwt.sign(payload, secret, options);
 }
-
 
 export class AuthController {
   async login(req: Request, res: Response) {
@@ -50,13 +42,13 @@ export class AuthController {
         },
       });
 
-      if (!user || user.status !== 'ACTIVE') {
-        return res.status(401).json({ error: 'Invalid credentials' });
+      if (!user || user.status !== "ACTIVE") {
+        return res.status(401).json({ error: "Invalid credentials" });
       }
 
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return res.status(401).json({ error: "Invalid credentials" });
       }
 
       // Update last login
@@ -69,19 +61,19 @@ export class AuthController {
       const accessToken = generateToken(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET as string,
-        process.env.JWT_ACCESS_EXPIRY as string
+        process.env.JWT_ACCESS_EXPIRY as string,
       );
 
       const refreshToken = generateToken(
         { userId: user.id },
         process.env.JWT_REFRESH_SECRET as string,
-        process.env.JWT_REFRESH_EXPIRY as string
+        process.env.JWT_REFRESH_EXPIRY as string,
       );
 
       // Extract user roles & permissions
       const roles = user.userRoles.map((ur) => ur.role.name);
       const permissions = user.userRoles.flatMap((ur) =>
-        ur.role.rolePermissions.map((rp) => rp.permission.name)
+        ur.role.rolePermissions.map((rp) => rp.permission.name),
       );
 
       res.json({
@@ -96,8 +88,8 @@ export class AuthController {
         refreshToken,
       });
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(400).json({ error: 'Invalid request data' });
+      console.error("Login error:", error);
+      res.status(400).json({ error: "Invalid request data" });
     }
   }
 
@@ -107,26 +99,28 @@ export class AuthController {
 
       const existingUser = await prisma.user.findUnique({ where: { email } });
       if (existingUser) {
-        return res.status(400).json({ error: 'User already exists' });
+        return res.status(400).json({ error: "User already exists" });
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const user = await prisma.$transaction(async (tx) => {
-        const newUser = await tx.user.create({
-          data: { name, email, password: hashedPassword },
-        });
+      const user = await prisma.$transaction(
+        async (tx) => {
+          const newUser = await tx.user.create({
+            data: { name, email, password: hashedPassword },
+          });
 
-        await tx.userRole.create({
-          data: { userId: newUser.id, roleId },
-        });
+          await tx.userRole.create({
+            data: { userId: newUser.id, roleId },
+          });
 
-        return newUser;
-      },
-     {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-});
+          return newUser;
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
+        },
+      );
 
       res.status(201).json({
         id: user.id,
@@ -134,8 +128,8 @@ export class AuthController {
         email: user.email,
       });
     } catch (error) {
-      console.error('Register error:', error);
-      res.status(400).json({ error: 'Invalid request data' });
+      console.error("Register error:", error);
+      res.status(400).json({ error: "Invalid request data" });
     }
   }
 
@@ -144,12 +138,12 @@ export class AuthController {
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        return res.status(401).json({ error: 'Refresh token required' });
+        return res.status(401).json({ error: "Refresh token required" });
       }
 
       const payload = jwt.verify(
         refreshToken,
-        process.env.JWT_REFRESH_SECRET as string
+        process.env.JWT_REFRESH_SECRET as string,
       ) as { userId: string };
 
       const user = await prisma.user.findUnique({
@@ -157,27 +151,27 @@ export class AuthController {
         select: { id: true, email: true, status: true },
       });
 
-      if (!user || user.status !== 'ACTIVE') {
-        return res.status(401).json({ error: 'Invalid refresh token' });
+      if (!user || user.status !== "ACTIVE") {
+        return res.status(401).json({ error: "Invalid refresh token" });
       }
 
       // Rotate tokens (best practice)
       const newAccessToken = generateToken(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET as string,
-        process.env.JWT_ACCESS_EXPIRY as string
+        process.env.JWT_ACCESS_EXPIRY as string,
       );
 
       const newRefreshToken = generateToken(
         { userId: user.id },
         process.env.JWT_REFRESH_SECRET as string,
-        process.env.JWT_REFRESH_EXPIRY as string
+        process.env.JWT_REFRESH_EXPIRY as string,
       );
 
       res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
     } catch (error) {
-      console.error('Refresh error:', error);
-      res.status(401).json({ error: 'Invalid refresh token' });
+      console.error("Refresh error:", error);
+      res.status(401).json({ error: "Invalid refresh token" });
     }
   }
 
@@ -187,16 +181,16 @@ export class AuthController {
 
   async logout(req: AuthRequest, res: Response) {
     // In production, you'd invalidate refresh tokens here (e.g. store a blacklist in Redis)
-    res.json({ message: 'Logged out successfully' });
+    res.json({ message: "Logged out successfully" });
   }
 
   async getUsers(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes('CFO') &&
-        !req.user?.roles.includes('General Manager')
+        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("General Manager")
       ) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
+        return res.status(403).json({ error: "Insufficient permissions" });
       }
 
       const { page = 1, limit = 10, search } = req.query;
@@ -205,8 +199,8 @@ export class AuthController {
       const where: any = {};
       if (search) {
         where.OR = [
-          { name: { contains: search as string, mode: 'insensitive' } },
-          { email: { contains: search as string, mode: 'insensitive' } },
+          { name: { contains: search as string, mode: "insensitive" } },
+          { email: { contains: search as string, mode: "insensitive" } },
         ];
       }
 
@@ -228,7 +222,7 @@ export class AuthController {
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         }),
         prisma.user.count({ where }),
       ]);
@@ -249,55 +243,51 @@ export class AuthController {
         },
       });
     } catch (error) {
-      console.error('Get users error:', error);
-      res.status(500).json({ error: 'Failed to fetch users' });
+      console.error("Get users error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
     }
   }
 
   async createUser(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes('CFO') &&
-        !req.user?.roles.includes('General Manager')
+        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("General Manager")
       ) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
+        return res.status(403).json({ error: "Insufficient permissions" });
       }
 
       const { name, email, password, roleId, warehouseId } = req.body;
 
       const existingUser = await prisma.user.findUnique({ where: { email } });
       if (existingUser) {
-        return res.status(400).json({ error: 'User already exists' });
+        return res.status(400).json({ error: "User already exists" });
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const user = await prisma.$transaction(async (tx) => {
-        const newUser = await tx.user.create({
-          data: { 
-            name, 
-            email, 
-            password: hashedPassword,
-            warehouseId: warehouseId || null
-          },
-          
-        }
+      const user = await prisma.$transaction(
+        async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              name,
+              email,
+              password: hashedPassword,
+              warehouseId: warehouseId || null,
+            },
+          });
+
+          await tx.userRole.create({
+            data: { userId: newUser.id, roleId },
+          });
+
+          return newUser;
+        },
+        {
+          maxWait: 5000, // 5s wait for connection
+          timeout: 20000, // 20s max runtime
+        },
       );
-       
-
-
-
-        await tx.userRole.create({
-          data: { userId: newUser.id, roleId },
-        });
-
-        return newUser;
-      },
-     {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-    );
 
       res.status(201).json({
         id: user.id,
@@ -306,25 +296,106 @@ export class AuthController {
         status: user.status,
       });
     } catch (error) {
-      console.error('Create user error:', error);
-      res.status(400).json({ error: 'Failed to create user' });
+      console.error("Create user error:", error);
+      res.status(400).json({ error: "Failed to create user" });
+    }
+  }
+
+  async updateUser(req: AuthRequest, res: Response) {
+    try {
+      if (
+        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("General Manager")
+      ) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
+
+      const { id } = req.params;
+      const { name, email, password, roleId, warehouseId } = req.body;
+
+      const existingUser = await prisma.user.findUnique({
+        where: { id },
+      });
+
+      if (!existingUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Prevent duplicate email (except self)
+      if (email && email !== existingUser.email) {
+        const emailExists = await prisma.user.findUnique({
+          where: { email },
+        });
+        if (emailExists) {
+          return res.status(400).json({ error: "Email already in use" });
+        }
+      }
+
+      const hashedPassword = password
+        ? await bcrypt.hash(password, 12)
+        : undefined;
+
+      const updatedUser = await prisma.$transaction(
+        async (tx) => {
+          // Update user core fields
+          const user = await tx.user.update({
+            where: { id },
+            data: {
+              name,
+              email,
+              ...(hashedPassword && { password: hashedPassword }),
+              warehouseId: warehouseId ?? null,
+            },
+          });
+
+          // Update role (replace existing role)
+          if (roleId) {
+            await tx.userRole.deleteMany({
+              where: { userId: id },
+            });
+
+            await tx.userRole.create({
+              data: {
+                userId: id,
+                roleId,
+              },
+            });
+          }
+
+          return user;
+        },
+        {
+          maxWait: 5000,
+          timeout: 20000,
+        },
+      );
+
+      res.json({
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        status: updatedUser.status,
+      });
+    } catch (error) {
+      console.error("Update user error:", error);
+      res.status(400).json({ error: "Failed to update user" });
     }
   }
 
   async updateUserStatus(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes('CFO') &&
-        !req.user?.roles.includes('General Manager')
+        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("General Manager")
       ) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
+        return res.status(403).json({ error: "Insufficient permissions" });
       }
 
       const { id } = req.params;
       const { status } = req.body;
 
       if (id === req.user.id) {
-        return res.status(400).json({ error: 'Cannot change your own status' });
+        return res.status(400).json({ error: "Cannot change your own status" });
       }
 
       const user = await prisma.user.update({
@@ -335,29 +406,29 @@ export class AuthController {
 
       res.json(user);
     } catch (error) {
-      console.error('Update user status error:', error);
-      res.status(400).json({ error: 'Failed to update user status' });
+      console.error("Update user status error:", error);
+      res.status(400).json({ error: "Failed to update user status" });
     }
   }
 
   async getRoles(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes('CFO') &&
-        !req.user?.roles.includes('General Manager')
+        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("General Manager")
       ) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
+        return res.status(403).json({ error: "Insufficient permissions" });
       }
 
       const roles = await prisma.role.findMany({
         select: { id: true, name: true, description: true },
-        orderBy: { name: 'asc' },
+        orderBy: { name: "asc" },
       });
 
       res.json({ roles });
     } catch (error) {
-      console.error('Get roles error:', error);
-      res.status(500).json({ error: 'Failed to fetch roles' });
+      console.error("Get roles error:", error);
+      res.status(500).json({ error: "Failed to fetch roles" });
     }
   }
 }

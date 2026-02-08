@@ -229,6 +229,10 @@ export interface Sale {
   };
   saleLines: SaleLine[];
   createdAt: string;
+  createdBy: string;
+  preparer?: {
+    name: string;
+  };
 }
 
 export interface CreateSaleRequest {

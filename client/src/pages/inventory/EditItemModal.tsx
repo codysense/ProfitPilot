@@ -20,6 +20,7 @@ const editItemSchema = z.object({
     "CONSUMABLE",
   ]),
   uom: z.string().default("QTY"),
+  minimumStockLevel: z.number().positive().optional(),
   costingMethod: z.enum(["GLOBAL", "FIFO", "WEIGHTED_AVG"]).default("GLOBAL"),
   standardCost: z.number().optional(),
   priceList: z
@@ -133,7 +134,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                   </label>
                   <input
                     {...register("sku")}
-                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="e.g., RM-001"
                   />
                   {errors.sku && (
@@ -147,7 +148,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                   </label>
                   <select
                     {...register("type")}
-                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="RAW_MATERIAL">Raw Material</option>
                     <option value="WORK_IN_PROGRESS">Work in Progress</option>
@@ -163,7 +164,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                 </label>
                 <input
                   {...register("name")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
                 {errors.name && (
                   <p className="text-sm text-red-600">{errors.name.message}</p>
@@ -177,7 +178,19 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                 <textarea
                   {...register("description")}
                   rows={2}
-                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Minimum Stock Level
+                </label>
+                <input
+                  {...register("minimumStockLevel", { valueAsNumber: true })}
+                  type="number"
+                  step="0.01"
+                  className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="0.00"
                 />
               </div>
 
@@ -190,7 +203,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                     {...register("standardCost", { valueAsNumber: true })}
                     type="number"
                     step="0.01"
-                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
@@ -199,7 +212,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                   </label>
                   <input
                     {...register("uom")}
-                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                    className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="QTY"
                   />
                 </div>
@@ -214,7 +227,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                   <button
                     type="button"
                     onClick={() => append({ customerGroup: "", price: 0 })}
-                    className="inline-flex items-center px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-50"
+                    className="inline-flex items-center px-3 py-1 border rounded-md text-sm bg-white hover:bg-gray-50 "
                   >
                     <Plus className="h-4 w-4 mr-1" /> Add Price
                   </button>
@@ -232,7 +245,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                         </label>
                         <select
                           {...register(`priceList.${index}.customerGroup`)}
-                          className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                          className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3  focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         >
                           <option value="">Select Group</option>
                           {isGroupsLoading ? (
@@ -257,7 +270,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                           })}
                           type="number"
                           step="0.01"
-                          className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                          className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         />
                       </div>
 

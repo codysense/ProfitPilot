@@ -1,49 +1,65 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Package, Edit } from 'lucide-react';
-import { inventoryApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { Bom } from '../../types/api';
-import CreateBomModal from './CreateBomModal';
-import EditBomModal from './EditBomModal';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Package, Edit } from "lucide-react";
+import { inventoryApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { Bom } from "../../types/api";
+import CreateBomModal from "./CreateBomModal";
+import EditBomModal from "./EditBomModal";
+import { ItemSelect } from "../../components/ItemSelect";
 
 const BOMs = () => {
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedBom, setSelectedBom] = useState<Bom | null>(null);
-  const [selectedItemId, setSelectedItemId] = useState<string>('');
+  // const [selectedItemId, setSelectedItemId] = useState<string>("");
+  const [search, setSearch] = useState("");
 
-  const { data: boms, isLoading, refetch } = useQuery({
-    queryKey: ['boms'],
-    queryFn: () => inventoryApi.getBoms()
+  const {
+    data: boms,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["boms"],
+    queryFn: () => inventoryApi.getBoms(),
   });
 
-  const { data: items } = useQuery({
-    queryKey: ['items-for-bom'],
-    queryFn: () => inventoryApi.getItems({ type: 'FINISHED_GOODS' })
+  // const { data: items } = useQuery({
+  //   queryKey: ["items-for-bom"],
+  //   queryFn: () => inventoryApi.getItems({ type: "FINISHED_GOODS" }),
+  // });
+
+  const filteredBoms = boms?.filter((bom: Bom) => {
+    if (!search) return true;
+
+    const q = search.toLowerCase();
+    return (
+      bom.item.name.toLowerCase().includes(q) ||
+      bom.item.sku.toLowerCase().includes(q)
+    );
   });
 
   const columns = [
     {
-      key: 'item.sku',
-      header: 'Item SKU',
-      width: 'w-32'
+      key: "item.sku",
+      header: "Item SKU",
+      width: "w-32",
     },
     {
-      key: 'item.name',
-      header: 'Item Name',
-      width: 'w-48'
+      key: "item.name",
+      header: "Item Name",
+      width: "w-48",
     },
     {
-      key: 'version',
-      header: 'Version',
-      width: 'w-24'
+      key: "version",
+      header: "Version",
+      width: "w-24",
     },
     {
-      key: 'bomLines',
-      header: 'Components',
+      key: "bomLines",
+      header: "Components",
       cell: (bom: Bom) => (
         <div className="space-y-1 max-w-sm">
           {bom.bomLines.slice(0, 3).map((line, index) => (
@@ -62,20 +78,22 @@ const BOMs = () => {
           )}
         </div>
       ),
-      width: 'w-80'
+      width: "w-80",
     },
     {
-      key: 'isActive',
-      header: 'Status',
-      cell: (bom: Bom) => <StatusBadge status={bom.isActive ? 'Active' : 'Inactive'} />,
-      width: 'w-24'
+      key: "isActive",
+      header: "Status",
+      cell: (bom: Bom) => (
+        <StatusBadge status={bom.isActive ? "Active" : "Inactive"} />
+      ),
+      width: "w-24",
     },
     {
-      key: 'createdAt',
-      header: 'Created',
+      key: "createdAt",
+      header: "Created",
       cell: (bom: Bom) => new Date(bom.createdAt).toLocaleDateString(),
-      width: 'w-32'
-    }
+      width: "w-32",
+    },
   ];
 
   const handleCreateBom = () => {
@@ -109,8 +127,12 @@ const BOMs = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bills of Materials</h1>
-          <p className="text-gray-600">Manage product recipes and component lists</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Bills of Materials
+          </h1>
+          <p className="text-gray-600">
+            Manage product recipes and component lists
+          </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -124,10 +146,11 @@ const BOMs = () => {
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Filter by Item
             </label>
+
             <select
               value={selectedItemId}
               onChange={(e) => setSelectedItemId(e.target.value)}
@@ -140,6 +163,18 @@ const BOMs = () => {
                 </option>
               ))}
             </select>
+          </div> */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Search BOM by Item Name
+            </label>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Type item name or SKU..."
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
           </div>
         </div>
       </div>
@@ -198,8 +233,14 @@ const BOMs = () => {
                     Avg Components
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {boms?.length ? 
-                      Math.round(boms.reduce((sum: number, bom: Bom) => sum + bom.bomLines.length, 0) / boms.length) 
+                    {boms?.length
+                      ? Math.round(
+                          boms.reduce(
+                            (sum: number, bom: Bom) =>
+                              sum + bom.bomLines.length,
+                            0,
+                          ) / boms.length,
+                        )
                       : 0}
                   </dd>
                 </dl>
@@ -210,8 +251,18 @@ const BOMs = () => {
       </div>
 
       {/* Data Table */}
+      {/* <DataTable
+        data={
+          selectedItemId
+            ? boms?.filter((bom: Bom) => bom.itemId === selectedItemId) || []
+            : boms || []
+        }
+        columns={columns}
+        loading={isLoading}
+        actions={actions}
+      /> */}
       <DataTable
-        data={selectedItemId ? boms?.filter((bom: Bom) => bom.itemId === selectedItemId) || [] : boms || []}
+        data={filteredBoms || []}
         columns={columns}
         loading={isLoading}
         actions={actions}

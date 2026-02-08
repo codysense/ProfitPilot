@@ -18,11 +18,17 @@ import {
   cashApi,
 } from "../lib/api";
 
+import { useAuthStore } from "../store/authStore";
 const Dashboard = () => {
   const { data: inventory } = useQuery({
     queryKey: ["inventory-valuation"],
     queryFn: () => inventoryApi.getInventoryValuation(),
   });
+
+  const { user } = useAuthStore();
+  const canviewall =
+    user?.roles.includes("Accountant") ||
+    user?.roles.includes("General Manager");
 
   const { data: productionOrders } = useQuery({
     queryKey: ["production-orders", { limit: 10 }],
@@ -38,6 +44,13 @@ const Dashboard = () => {
     queryKey: ["sales", { limit: 10 }],
     queryFn: () => salesApi.getSales({ limit: 10 }),
   });
+
+  //if user is not accountant or gm, filter sales orders to only those created by the user
+  if (sales && !canviewall) {
+    sales.sales = sales.sales.filter(
+      (sale: any) => sale.preparer?.name === user?.name,
+    );
+  }
 
   const { data: cashAccounts } = useQuery({
     queryKey: ["cash-accounts"],
@@ -65,7 +78,7 @@ const Dashboard = () => {
       name: "Active Production Orders",
       value:
         productionOrders?.orders?.filter(
-          (po: any) => po.status === "IN_PROGRESS"
+          (po: any) => po.status === "IN_PROGRESS",
         ).length || 0,
       icon: Factory,
       // change: '+8.2%',
@@ -144,69 +157,71 @@ const Dashboard = () => {
       </div>
 
       {/* Cash Account Balances */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Cash Account Balances
-          </h3>
-        </div>
-        <div className="px-4 py-4 sm:px-6">
-          {cashAccounts?.accounts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {cashAccounts?.accounts.map((account: any) => (
-                <div key={account.id} className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-gray-900">
-                        {account.name}
+      {canviewall && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">
+              Cash Account Balances
+            </h3>
+          </div>
+          <div className="px-4 py-4 sm:px-6">
+            {cashAccounts?.accounts.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {cashAccounts?.accounts.map((account: any) => (
+                  <div key={account.id} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {account.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {account.code}
+                        </div>
+                        <div className="text-xs text-gray-400 flex items-center mt-1">
+                          <DollarSign className="h-3 w-3 mr-1" />
+                          {account.accountType}
+                          {account.bankName && ` - ${account.bankName}`}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {account.code}
-                      </div>
-                      <div className="text-xs text-gray-400 flex items-center mt-1">
-                        <DollarSign className="h-3 w-3 mr-1" />
-                        {account.accountType}
-                        {account.bankName && ` - ${account.bankName}`}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div
-                        className={`text-lg font-semibold ${
-                          account.balance >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {Number(account.balance).toLocaleString("en-NG", {
-                          style: "currency",
-                          currency: "NGN",
-                        })}
-                      </div>
-                      <div
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          account.isActive
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {account.isActive ? "Active" : "Inactive"}
+                      <div className="text-right">
+                        <div
+                          className={`text-lg font-semibold ${
+                            account.balance >= 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {Number(account.balance).toLocaleString("en-NG", {
+                            style: "currency",
+                            currency: "NGN",
+                          })}
+                        </div>
+                        <div
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            account.isActive
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {account.isActive ? "Active" : "Inactive"}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-sm text-gray-500">No cash accounts found</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Cash accounts will appear here once created
-              </p>
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-sm text-gray-500">No cash accounts found</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Cash accounts will appear here once created
+                </p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Recent Activity Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -238,8 +253,8 @@ const Dashboard = () => {
                       order.status === "FINISHED"
                         ? "bg-green-100 text-green-800"
                         : order.status === "IN_PROGRESS"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-yellow-100 text-yellow-800"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
                     {order.status}
@@ -263,7 +278,7 @@ const Dashboard = () => {
           </div>
           <div className="px-4 py-4 sm:px-6">
             {inventory?.valuation
-              ?.filter((item: any) => item.qty < 10)
+              ?.filter((item: any) => item.qty < item.minimumStockLevel)
               .slice(0, 5)
               .map((item: any) => (
                 <div
@@ -363,8 +378,8 @@ const Dashboard = () => {
                       sale.status === "PAID"
                         ? "bg-green-100 text-green-800"
                         : sale.status === "INVOICED"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-yellow-100 text-yellow-800"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
                     {sale.status}

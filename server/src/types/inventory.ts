@@ -7,6 +7,7 @@ export const createItemSchema = z.object({
   description: z.string().optional(),
   type: z.nativeEnum(ItemType),
   uom: z.string().default("EA"),
+  minimumStockLevel: z.number().positive().optional(),
   costingMethod: z.nativeEnum(CostingMethod).default("GLOBAL"),
   standardCost: z.number().optional(),
   sellingPriceOrdinary: z.number().optional(),
@@ -17,7 +18,7 @@ export const createItemSchema = z.object({
       // itemId: z.string().cuid(),
       customerGroup: z.string(),
       price: z.number().positive(),
-    })
+    }),
   ),
   taxCode: z.string().optional(),
 });
@@ -30,7 +31,7 @@ export const createBomSchema = z.object({
       componentItemId: z.string().cuid(),
       qtyPer: z.number().positive(),
       scrapPercent: z.number().min(0).max(100).default(0),
-    })
+    }),
   ),
 });
 
@@ -50,23 +51,23 @@ export const inventoryAdjustmentSchema = z.object({
 //   qty: z.number().positive(),
 // });
 
-export const bulkInventoryTransferSchema = z.object({
-  fromWarehouseId: z.string().min(1),
-  toWarehouseId: z.string().min(1),
-  transferItems: z.array(
-    z.object({
-      itemId: z.string().min(1),
-      qty: z.number().positive(),
-    })
-  ).min(1),
-}).refine(
-  (data) => data.fromWarehouseId !== data.toWarehouseId,
-  {
+export const bulkInventoryTransferSchema = z
+  .object({
+    fromWarehouseId: z.string().min(1),
+    toWarehouseId: z.string().min(1),
+    transferItems: z
+      .array(
+        z.object({
+          itemId: z.string().min(1),
+          qty: z.number().positive(),
+        }),
+      )
+      .min(1),
+  })
+  .refine((data) => data.fromWarehouseId !== data.toWarehouseId, {
     message: "Source and destination warehouses must be different",
     path: ["toWarehouseId"],
-  }
-);
-
+  });
 
 export type CreateItemRequest = z.infer<typeof createItemSchema>;
 export type CreateBomRequest = z.infer<typeof createBomSchema>;
@@ -118,4 +119,6 @@ export type CreateWarehouseRequest = z.infer<typeof createWarehouseSchema>;
 export type InventoryAdjustmentRequest = z.infer<
   typeof inventoryAdjustmentSchema
 >;
-export type InventoryTransferRequest = z.infer<typeof bulkInventoryTransferSchema>;
+export type InventoryTransferRequest = z.infer<
+  typeof bulkInventoryTransferSchema
+>;
