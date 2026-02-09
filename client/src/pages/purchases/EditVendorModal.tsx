@@ -1,73 +1,77 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Phone, X } from 'lucide-react';
-import { purchaseApi } from '../../lib/api';
-import toast from 'react-hot-toast';
-import {Vendor} from '../../types/api'
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Phone, X } from "lucide-react";
+import { purchaseApi } from "../../lib/api";
+import toast from "react-hot-toast";
+import { Vendor } from "../../types/api";
 
 const createVendorSchema = z.object({
-  code: z.string().min(1, 'Code is required'),
-  name: z.string().min(1, 'Name is required'),
+  code: z.string().min(1, "Code is required"),
+  name: z.string().min(1, "Name is required"),
   address: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email('Invalid email format').optional().or(z.literal('')),
+  email: z.string().email("Invalid email format").optional().or(z.literal("")),
   paymentTerms: z.string().optional(),
 });
 
 type EditVendorFormData = z.infer<typeof createVendorSchema>;
 
 interface CreateVendorModalProps {
-  vendor:Vendor; 
+  vendor: Vendor;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-
-
-
-
-const EditVendorModal = ({ vendor, onClose, onSuccess }: CreateVendorModalProps) => {
+const EditVendorModal = ({
+  vendor,
+  onClose,
+  onSuccess,
+}: CreateVendorModalProps) => {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
   } = useForm<EditVendorFormData>({
     resolver: zodResolver(createVendorSchema),
-    defaultValues:{
-        code:vendor.code,
-        name:vendor.name,
-        address:vendor.address,
-        phone:vendor.phone,
-        email:vendor.email,
-        paymentTerms:vendor.paymentTerms
-    }
+    defaultValues: {
+      code: vendor.code,
+      name: vendor.name,
+      address: vendor.address,
+      phone: vendor.phone,
+      email: vendor.email,
+      paymentTerms: vendor.paymentTerms,
+    },
   });
 
   const onSubmit = async (data: EditVendorFormData) => {
     try {
       await purchaseApi.createVendor({
-            code:data.code,
-            name:data.name,
-            address:data.address,
-            phone:data.phone,
-            email:data.email,
-            paymentTerms: data.paymentTerms
-            // status:data.status
+        code: data.code,
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        paymentTerms: data.paymentTerms,
+        mode: "update",
       });
-      toast.success('Vendor updated successfully');
+
+      toast.success("Vendor updated successfully");
       onSuccess();
     } catch (error) {
-      console.error('Update vendor error:', error);
+      console.error("Update vendor error:", error);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-        
+        <div
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          onClick={onClose}
+        />
+
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
@@ -81,7 +85,7 @@ const EditVendorModal = ({ vendor, onClose, onSuccess }: CreateVendorModalProps)
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -89,83 +93,90 @@ const EditVendorModal = ({ vendor, onClose, onSuccess }: CreateVendorModalProps)
                     Code *
                   </label>
                   <input
-                    {...register('code')}
+                    {...register("code")}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="VEN001"
                     disabled
                   />
                   {errors.code && (
-                    <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.code.message}
+                    </p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Name *
                   </label>
                   <input
-                    {...register('name')}
+                    {...register("name")}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Vendor name"
                   />
                   {errors.name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.name.message}
+                    </p>
                   )}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Address
                 </label>
                 <textarea
-                  {...register('address')}
+                  {...register("address")}
                   rows={3}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Vendor address"
                 />
               </div>
-              
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Phone
                   </label>
                   <input
-                    {...register('phone')}
+                    {...register("phone")}
                     type="tel"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="+234-XXX-XXX-XXXX"
                   />
                   {errors.phone && (
-                    <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.phone.message}
+                    </p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Email
                   </label>
                   <input
-                    {...register('email')}
+                    {...register("email")}
                     type="email"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="vendor@email.com"
                   />
                   {errors.email && (
-                    <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.email.message}
+                    </p>
                   )}
                 </div>
               </div>
 
-
               {/* <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"> */}
-                <div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Payment Terms
                 </label>
                 <select
-                  {...register('paymentTerms')}
+                  {...register("paymentTerms")}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
                   <option value="">Select payment terms</option>
@@ -179,9 +190,7 @@ const EditVendorModal = ({ vendor, onClose, onSuccess }: CreateVendorModalProps)
                 </select>
               </div>
               {/* </div> */}
-              
-        
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -195,7 +204,7 @@ const EditVendorModal = ({ vendor, onClose, onSuccess }: CreateVendorModalProps)
                   disabled={isSubmitting}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Updating...' : 'Update Vendor'}
+                  {isSubmitting ? "Updating..." : "Update Vendor"}
                 </button>
               </div>
             </form>

@@ -355,31 +355,42 @@ export class PurchaseController {
   async createVendor(req: AuthRequest, res: Response) {
     try {
       const validatedData = createVendorSchema.parse(req.body);
+      const { mode, ...vendorData } = validatedData;
 
-      //check if vendorcode exist before
-      const existingVendor = await prisma.vendor.findUnique({
-        where: { code: validatedData.code },
-      });
+      //create Mode
+      if (mode === "create") {
+        //check if vendorcode exist before
+        const existingVendor = await prisma.vendor.findUnique({
+          where: { code: validatedData.code },
+        });
+        if (existingVendor) {
+          console.log("Vendor with the same code already exist");
+          throw new Error("Vendor with the same code already exist");
+        } else {
+          const vendor = await prisma.vendor.create({
+            data: { ...vendorData, createdBy: req.user!.id },
+          });
 
-      if (existingVendor) {
-        console.log("Vendor with the same code already exist");
-        throw new Error("Vendor with the same code already exist");
+          res.status(201).json(vendor);
+          return;
+        }
       }
 
-      const vendor = await prisma.vendor.upsert({
-        where: { code: validatedData.code },
-        update: { ...validatedData },
-        create: { ...validatedData, createdBy: req.user!.id },
-      });
-
-      // const vendor = await prisma.vendor.create({
-      //   data: req.body
-      // });
-
-      res.status(201).json(vendor);
+      //update mode
+      if (mode === "update") {
+        const vendor = await prisma.vendor.update({
+          where: { code: validatedData.code },
+          data: { ...vendorData },
+        });
+        res.status(200).json(vendor);
+        return;
+      }
     } catch (error) {
       console.error("Create vendor error:", error);
-      res.status(400).json({ error: "Failed to create vendor" });
+
+      res
+        .status(400)
+        .json({ error: "Failed to create/update vendor" + error.message });
     }
   }
 

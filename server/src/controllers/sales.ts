@@ -458,39 +458,59 @@ export class SalesController {
   async createCustomer(req: AuthRequest, res: Response) {
     try {
       const validatedData = createCustomerSchema.parse(req.body);
+      const { customerGroupId, mode, ...rest } = validatedData;
 
-      const { customerGroupId, ...rest } = validatedData;
-
-      // Check if customer with the same code already exists
       const existingCustomer = await prisma.customer.findUnique({
         where: { code: validatedData.code },
       });
 
-      if (existingCustomer) {
-        throw new Error("Customer with the same code already exists");
+      //  CREATE MODE
+      if (mode === "create") {
+        if (existingCustomer) {
+          return res.status(400).json({
+            error: "Customer with this code already exists",
+          });
+        }
+
+        const customer = await prisma.customer.create({
+          data: {
+            ...rest,
+            ...(customerGroupId && {
+              customerGroup: { connect: { id: customerGroupId } },
+            }),
+          },
+          include: { customerGroup: true },
+        });
+
+        return res.status(201).json(customer);
       }
 
-      const customer = await prisma.customer.upsert({
-        where: { code: validatedData.code },
-        update: {
-          ...rest,
-          ...(customerGroupId
-            ? { customerGroup: { connect: { id: customerGroupId } } }
-            : { customerGroup: { disconnect: true } }),
-        },
-        create: {
-          ...rest,
-          ...(customerGroupId
-            ? { customerGroup: { connect: { id: customerGroupId } } }
-            : {}),
-        },
-        include: { customerGroup: true }, // Optional: return group info too
-      });
+      //  UPDATE MODE
+      if (mode === "update") {
+        if (!existingCustomer) {
+          return res.status(404).json({
+            error: "Customer not found for update",
+          });
+        }
 
-      res.status(201).json(customer);
+        const customer = await prisma.customer.update({
+          where: { code: validatedData.code },
+          data: {
+            ...rest,
+            ...(customerGroupId
+              ? { customerGroup: { connect: { id: customerGroupId } } }
+              : { customerGroup: { disconnect: true } }),
+          },
+          include: { customerGroup: true },
+        });
+
+        return res.json(customer);
+      }
+
+      return res.status(400).json({ error: "Invalid operation mode" });
     } catch (error) {
-      console.error("Create customer error:", error);
-      res.status(400).json({ error: "Failed to create customer" });
+      console.error("Create/Update customer error:", error);
+      res.status(400).json({ error: "Failed to process customer" });
     }
   }
 

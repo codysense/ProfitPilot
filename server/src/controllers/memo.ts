@@ -289,7 +289,7 @@ export class MemoController {
             ],
           });
 
-          // 🔹 Link memo to SalesReceipt or PurchasePayment using Memo Clearing Account
+          // Link memo to SalesReceipt or PurchasePayment using Memo Clearing Account
           // First, find the GL account with code "9999"
           const memoClearingGlAccount = await tx.chartOfAccount.findFirst({
             where: { code: "9999" },

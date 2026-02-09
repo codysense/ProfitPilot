@@ -73,6 +73,7 @@ export const createVendorSchema = z.object({
   code: z.string().min(1, "Code is required"),
   name: z.string().min(1, "Name is required"),
   address: z.string().optional(),
+  mode: z.enum(["create", "update"]),
   phone: z.string().optional(),
   email: z.string().email("Invalid email format").optional().or(z.literal("")),
   paymentTerms: z.string().optional(),
