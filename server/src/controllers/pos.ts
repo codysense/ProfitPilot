@@ -460,18 +460,16 @@ export class PosController {
 
   async createSale(req: AuthRequest, res: Response) {
     try {
-      /* =====================================================
-       * 1. VALIDATE INPUT (NO TOTALS FROM FRONTEND)
-       * ===================================================== */
+      // 1. VALIDATE INPUT (NO TOTALS FROM FRONTEND)
+
       const input = createPosSaleSchema.parse(req.body);
 
-      console.log("Validated POS sale input:", input);
+      //console.log("Validated POS sale input:", input);
 
       const sale = await prisma.$transaction(
         async (tx) => {
-          /* =====================================================
-           * 2. VALIDATE SESSION
-           * ===================================================== */
+          // 2. VALIDATE SESSION
+
           const session = await tx.posSession.findUnique({
             where: { id: input.sessionId },
           });
@@ -480,15 +478,13 @@ export class PosController {
             throw new Error("Invalid or closed POS session");
           }
 
-          /* =====================================================
-           * 3. GENERATE SALE NUMBER (SAFE ENOUGH FOR NOW)
-           * ===================================================== */
+          // 3. GENERATE SALE NUMBER (SAFE ENOUGH FOR NOW)
+
           const saleCount = await tx.posSale.count();
           const saleNo = `POS${String(saleCount + 1).padStart(8, "0")}`;
 
-          /* =====================================================
-           * 4. RE-CALCULATE TOTALS (BACKEND AUTHORITY)
-           * ===================================================== */
+          // 4. RE-CALCULATE TOTALS (BACKEND AUTHORITY)
+
           let subtotal = 0;
 
           for (const line of input.saleLines) {
@@ -548,9 +544,14 @@ export class PosController {
             },
           });
 
-          /* =====================================================
-           * 6. SALE LINES + INVENTORY ISSUE
-           * ===================================================== */
+          const totalCogs = await calculateCogs(
+            input.saleLines,
+            session.warehouseId,
+            // tx,
+          );
+
+          // 6. SALE LINES + INVENTORY ISSUE
+
           for (const line of input.saleLines) {
             const qty = Number(line.qty);
             const unitPrice = Number(line.unitPrice);
@@ -558,10 +559,12 @@ export class PosController {
 
             const lineTotal = qty * unitPrice * (1 - discountPercent / 100);
 
+            // 10. COGS
+
             const costInfo = await costingService.getInventoryValue(
               line.itemId,
               session.warehouseId,
-              // tx, // IMPORTANT: same transaction
+              //tx, // IMPORTANT: same transaction
             );
 
             await tx.posSaleLine.create({
@@ -589,9 +592,8 @@ export class PosController {
             );
           }
 
-          /* =====================================================
-           * 7. UPDATE SESSION TOTALS
-           * ===================================================== */
+          // 7. UPDATE SESSION TOTALS
+
           await tx.posSession.update({
             where: { id: input.sessionId },
             data: {
@@ -599,9 +601,8 @@ export class PosController {
             },
           });
 
-          /* =====================================================
-           * 8. PAYMENTS + CASH TRANSACTIONS
-           * ===================================================== */
+          // 8. PAYMENTS + CASH TRANSACTIONS
+
           const glEntries: any[] = [];
 
           for (const payment of input.payments) {
@@ -665,9 +666,8 @@ export class PosController {
             });
           }
 
-          /* =====================================================
-           * 9. GL CREDIT SALES
-           * ===================================================== */
+          // 9. GL CREDIT SALES
+
           glEntries.push({
             accountCode: "4000",
             debit: 0,
@@ -675,15 +675,6 @@ export class PosController {
             refType: "POS_SALE",
             refId: posSale.id,
           });
-
-          /* =====================================================
-           * 10. COGS
-           * ===================================================== */
-          const totalCogs = await calculateCogs(
-            input.saleLines,
-            session.warehouseId,
-            // tx,
-          );
 
           glEntries.push(
             {
@@ -1097,7 +1088,7 @@ export class PosController {
           throw new Error("Original sale not found");
         }
 
-        console.log("Original Sale", originalSale);
+        // console.log("Original Sale", originalSale);
 
         // Validate session
         const session = await tx.posSession.findUnique({

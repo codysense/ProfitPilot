@@ -403,12 +403,34 @@ export class CostingService {
         where: { itemId, warehouseId },
         orderBy: { postedAt: "desc" },
       });
-      // console.log("LastEntry for the inventory ", lastEntry);
+
+      if (!lastEntry) {
+        return { qty: 0, value: 0, avgCost: 0 };
+      }
+
+      const qty = lastEntry.runningQty.toNumber();
+      const value = lastEntry.runningValue.toNumber();
+      const avgCost = lastEntry.runningAvgCost.toNumber();
+
+      //  If stock still exists, return normally
+      if (qty > 0) {
+        return { qty, value, avgCost };
+      }
+
+      //  If stock is zero, fetch last known avgCost > 0
+      const lastKnownCost = await prisma.inventoryLedger.findFirst({
+        where: {
+          itemId,
+          warehouseId,
+          runningAvgCost: { gt: 0 },
+        },
+        orderBy: { postedAt: "desc" },
+      });
 
       return {
-        qty: lastEntry?.runningQty.toNumber() || 0,
-        value: lastEntry?.runningValue.toNumber() || 0,
-        avgCost: lastEntry?.runningAvgCost.toNumber() || 0,
+        qty: 0,
+        value: 0,
+        avgCost: lastKnownCost ? lastKnownCost.runningAvgCost.toNumber() : 0,
       };
     } else {
       // FIFO - sum batches

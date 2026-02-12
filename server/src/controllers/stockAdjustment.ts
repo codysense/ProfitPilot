@@ -102,7 +102,8 @@ export class AdjustmentController {
                 adjustmentLine.itemId,
                 newAdjustment.warehouseId,
               );
-              const cogs = adjustmentLine.quantity * inventoryValue.avgCost;
+              const unitCost = inventoryValue.avgCost;
+              const totalValue = unitCost * adjustmentLine.quantity;
               const accountCode = await getAccountCodeById(
                 validatedData.accountId,
               );
@@ -113,8 +114,8 @@ export class AdjustmentController {
                   adjustmentLine.itemId,
                   newAdjustment.warehouseId,
                   adjustmentLine.quantity,
-                  cogs,
-                  `Stock adjustment: ${newAdjustment.id}`,
+                  unitCost,
+                  `Stock adjustment: ${newAdjustment.notes}`,
                   newAdjustment.id,
                   req.user!.id,
                 );
@@ -123,20 +124,20 @@ export class AdjustmentController {
                     {
                       accountCode:
                         itemType === "FINISHED_GOODS" ? "1350" : "1300",
-                      debit: Number(cogs),
+                      debit: Number(totalValue),
                       credit: 0,
                       refType: "STOCK ADJUSTMENT",
-                      refId: id,
+                      refId: newAdjustment.id,
                     },
                     {
                       accountCode: String(accountCode),
                       debit: 0,
-                      credit: Number(cogs),
+                      credit: Number(totalValue),
                       refType: "STOCK ADJUSTMENT",
-                      refId: id,
+                      refId: newAdjustment.id,
                     },
                   ],
-                  `Stock adjustment: ${newAdjustment.id}`,
+                  `Stock adjustment: ${newAdjustment.notes}`,
                   req.user!.id,
                 );
               } else {
@@ -144,7 +145,7 @@ export class AdjustmentController {
                   adjustmentLine.itemId,
                   newAdjustment.warehouseId,
                   adjustmentLine.quantity,
-                  `Stock adjustment: ${newAdjustment.id}`,
+                  `Stock adjustment: ${newAdjustment.notes}`,
                   newAdjustment.id,
                   req.user!.id,
                 );
@@ -154,19 +155,19 @@ export class AdjustmentController {
                       accountCode:
                         itemType === "FINISHED_GOODS" ? "1350" : "1300",
                       debit: 0,
-                      credit: Number(cogs),
+                      credit: Number(totalValue),
                       refType: "STOCK ADJUSTMENT",
-                      refId: id,
+                      refId: newAdjustment.id,
                     },
                     {
                       accountCode: String(accountCode),
-                      debit: Number(cogs),
+                      debit: Number(totalValue),
                       credit: 0,
                       refType: "STOCK ADJUSTMENT",
-                      refId: id,
+                      refId: newAdjustment.id,
                     },
                   ],
-                  `Stock adjustment: ${newAdjustment.id}`,
+                  `Stock adjustment: ${newAdjustment.notes}`,
                   req.user!.id,
                 );
               }

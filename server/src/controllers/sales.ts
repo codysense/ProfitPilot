@@ -166,28 +166,6 @@ export class SalesController {
             },
           });
 
-          // Process each delivery line
-          for (const deliveryLine of validatedData.deliveryLines) {
-            const saleLine = await tx.saleLine.findUnique({
-              where: { id: deliveryLine.saleLineId },
-              include: { item: true },
-            });
-
-            if (!saleLine) {
-              throw new Error(`Sale line ${deliveryLine.saleLineId} not found`);
-            }
-
-            // Issue inventory using costing service
-            await costingService.issueInventory(
-              saleLine.itemId,
-              deliveryLine.warehouseId,
-              deliveryLine.qtyDelivered,
-              "SALE",
-              id,
-              req.user!.id,
-            );
-          }
-
           // Post to general ledger
           const sale = await tx.sale.findUnique({
             where: { id },
@@ -200,7 +178,7 @@ export class SalesController {
               validatedData.deliveryLines,
             );
 
-            console.log("Total COGS:", totalCogs);
+            //console.log("Total COGS:", totalCogs);
 
             const itemType = await getItemTypeById(sale.saleLines[0].itemId);
             await glService.postJournal(
@@ -235,6 +213,28 @@ export class SalesController {
                 },
               ],
               `Sale delivery: ${sale.orderNo}`,
+              req.user!.id,
+            );
+          }
+
+          // Process each delivery line
+          for (const deliveryLine of validatedData.deliveryLines) {
+            const saleLine = await tx.saleLine.findUnique({
+              where: { id: deliveryLine.saleLineId },
+              include: { item: true },
+            });
+
+            if (!saleLine) {
+              throw new Error(`Sale line ${deliveryLine.saleLineId} not found`);
+            }
+
+            // Issue inventory using costing service
+            await costingService.issueInventory(
+              saleLine.itemId,
+              deliveryLine.warehouseId,
+              deliveryLine.qtyDelivered,
+              "SALE",
+              id,
               req.user!.id,
             );
           }
