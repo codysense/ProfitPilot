@@ -485,10 +485,11 @@ model Purchase {
 
   vendor Vendor @relation(fields: [vendorId], references: [id])
 
-  preparer User? @relation("PurchasePreparer", fields: [preparedBy], references: [id])
-  receiver User? @relation("PurchaseReceiver", fields: [receivedBy], references: [id])
-  invoicer User? @relation("PurchaseInvoicer", fields: [invoicedBy], references: [id])
-  payer    User? @relation("PurchasePayer", fields: [paidBy], references: [id])
+  preparer User?  @relation("PurchasePreparer", fields: [preparedBy], references: [id])
+  receiver User?  @relation("PurchaseReceiver", fields: [receivedBy], references: [id])
+  invoicer User?  @relation("PurchaseInvoicer", fields: [invoicedBy], references: [id])
+  payer    User?  @relation("PurchasePayer", fields: [paidBy], references: [id])
+  memos    Memo[]
 
   @@map("purchases")
 }
@@ -565,6 +566,7 @@ model Journal {
   journalLines            JournalLine[]
   postedByUser            User                     @relation(fields: [postedBy], references: [id])
   vendorPaymentPostings   VendorPaymentPosting[]
+  memos                   Memo[]
 
   @@map("journals")
 }
@@ -841,10 +843,11 @@ model Sale {
 
   customer Customer @relation(fields: [customerId], references: [id])
 
-  preparer  User? @relation("SalePreparer", fields: [preparedBy], references: [id])
-  deliverer User? @relation("SaleDeliverer", fields: [deliveredBy], references: [id])
-  invoicer  User? @relation("SaleInvoicer", fields: [invoicedBy], references: [id])
-  payer     User? @relation("SalePayer", fields: [paidBy], references: [id])
+  preparer  User?  @relation("SalePreparer", fields: [preparedBy], references: [id])
+  deliverer User?  @relation("SaleDeliverer", fields: [deliveredBy], references: [id])
+  invoicer  User?  @relation("SaleInvoicer", fields: [invoicedBy], references: [id])
+  payer     User?  @relation("SalePayer", fields: [paidBy], references: [id])
+  memos     Memo[]
 
   @@map("sales")
 }
@@ -1295,24 +1298,62 @@ model PosReturnLine {
   @@map("pos_return_lines")
 }
 
-model Memo {
-  id          String         @id @default(cuid())
-  amount      Decimal        @db.Decimal(15, 4)
-  description String?
-  accountId   String
-  customerId  String?
-  vendorId    String?
-  createdBy   String?
-  createdAt   DateTime       @default(now())
-  module      MemoModule
-  memoType    MemoType
-  date        DateTime       @default(now())
-  account     ChartOfAccount @relation(fields: [accountId], references: [id])
-  user        User?          @relation(fields: [createdBy], references: [id])
-  customer    Customer?      @relation(fields: [customerId], references: [id])
-  vendor      Vendor?        @relation(fields: [vendorId], references: [id])
+enum MemoStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
 
-  @@map("memos")
+enum memoCategory { 
+  SALES_RETURN
+  PURCHASE_RETURN
+  FINANCIAL
+  
+  } 
+
+
+model Memo {
+  id     String   @id @default(cuid())
+  memoNo String   @unique
+  date   DateTime
+
+  module   MemoModule // SALES | PURCHASES
+  memoType MemoType // CREDIT | DEBIT
+  category memoCategory @default(FINANCIAL)
+
+  amount    Decimal
+  remaining Decimal
+  status    MemoStatus @default(OPEN)
+
+  description String?
+
+  //  Optional source documents
+  saleId     String?
+  purchaseId String?
+
+  sale     Sale?     @relation(fields: [saleId], references: [id])
+  purchase Purchase? @relation(fields: [purchaseId], references: [id])
+
+  //  Optional direct party (for standalone memo)
+  customerId String?
+  vendorId   String?
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+  vendor   Vendor?   @relation(fields: [vendorId], references: [id])
+
+  // Used only for standalone memo
+  accountId String?
+  account   ChartOfAccount? @relation(fields: [accountId], references: [id])
+
+  journalId String?
+  journal   Journal? @relation(fields: [journalId], references: [id])
+
+  createdBy String
+
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [createdBy], references: [id])
+
+   @@map("memo")
 }
 
 model StockAdjustment {
@@ -1386,6 +1427,7 @@ enum PurchaseStatus {
   INVOICED
   PAID
   PARTIALLY_PAID
+  RETURNED
 }
 
 enum SaleStatus {
@@ -1394,6 +1436,7 @@ enum SaleStatus {
   DELIVERED
   INVOICED
   PAID
+  RETURNED
 }
 
 enum PosSaleStatus {

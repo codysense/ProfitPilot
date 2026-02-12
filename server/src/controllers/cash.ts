@@ -2253,6 +2253,7 @@ export class CashController {
               | "ORDERED"
               | "RECEIVED"
               | "INVOICED"
+              | "RETURNED"
               | "PARTIALLY_PAID"
               | "PAID" = purchase.status;
 

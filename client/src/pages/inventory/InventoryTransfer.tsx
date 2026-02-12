@@ -7,6 +7,7 @@ import {
   Building,
   Edit,
   Printer,
+  Eye,
 } from "lucide-react";
 import { inventoryApi, managementApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
@@ -15,6 +16,7 @@ import { useAuthStore } from "../../store/authStore";
 import CreateTransferModal from "./CreateTransferModal";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
+import DetailTransferModal from "./DetailTransferModal";
 
 interface TransferItem {
   id: string;
@@ -45,13 +47,6 @@ interface InventoryTransfer {
   items: TransferItem[];
 }
 
-// const [showEditTransferModal, setShowEditTransferModal] = useState(false);
-// const [selectedTransfer, setSelectedTransfer] = useState<InventoryTransfer | null>(
-//   null
-// );
-
-
-
 const getTotalQty = (items: TransferItem[]) =>
   items.reduce((sum, i) => sum + Number(i.qty), 0);
 
@@ -62,13 +57,13 @@ const InventoryTransfer = () => {
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuthStore();
-  
+
   // Check if user can create transfers (Inventory Manager or GM only)
   const canCreateTransfer =
-  user?.roles.includes("Inventory Manager") ||
-  user?.roles.includes("Assistant Inventory Manager") ||
-  user?.roles.includes("General Manager");
-  
+    user?.roles.includes("Inventory Manager") ||
+    user?.roles.includes("Assistant Inventory Manager") ||
+    user?.roles.includes("General Manager");
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["inventory-transfers", { page }],
     queryFn: () =>
@@ -76,19 +71,25 @@ const InventoryTransfer = () => {
         page,
         limit: 10,
       }),
-    });
-    
-    const{data:companyInformations} = useQuery({
-            queryKey: ['company-info-for-transfer'],
-            queryFn:  () => managementApi.getCompanySettings()
-          });
+  });
+
+  console.log("Fetched inventory transfers:", data);
+
+  const [showViewTransferModal, setShowViewTransferModal] = useState(false);
+  const [selectedTransfer, setSelectedTransfer] =
+    useState<InventoryTransfer | null>(null);
+
+  const { data: companyInformations } = useQuery({
+    queryKey: ["company-info-for-transfer"],
+    queryFn: () => managementApi.getCompanySettings(),
+  });
   //   const { data: printInventoryTransfer } = useQuery({
   //   queryKey: ['print-inventory-transfer'],
   //   queryFn: () => inventoryApi.printInventoryTransfer(),
   //   enabled: false, // Disable automatic query execution
   // });
 
-  console.log(data);
+  // console.log(companyInformations);
 
   // console.log('Loading:', isLoading);
 
@@ -173,48 +174,50 @@ const InventoryTransfer = () => {
 
   const actions = (inventoryTransfer: InventoryTransfer) => (
     <div className="flex space-x-2">
-      {/* <button
-        onClick={() => {
-          // setSelectedTransfer(inventoryTransfer);
-          // setShowEditTransferModal(true);
-        }}
-        className="text-blue-600 hover:text-blue-900"
-        title="Edit Transfer"
-      >
-        <Edit className="h-4 w-4" />
-      </button> */}
-
       <button
-         onClick={() => handlePrintTransfer(inventoryTransfer)}
+        onClick={() => handlePrintTransfer(inventoryTransfer)}
         className="text-blue-600 hover:text-blue-900"
         title="Print Transfer"
       >
         <Printer className="h-4 w-4" />
       </button>
+
+      <button
+        onClick={() => {
+          setSelectedTransfer(inventoryTransfer);
+          setShowViewTransferModal(true);
+        }}
+        className="text-blue-600 hover:text-blue-900"
+        title="View Transfer"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
     </div>
   );
 
- const handlePrintTransfer = async (transfer: InventoryTransfer) => {
-  try {
-    const printData = await inventoryApi.printInventoryTransfer(transfer.refId);
+  const handlePrintTransfer = async (transfer: InventoryTransfer) => {
+    try {
+      const printData = await inventoryApi.printInventoryTransfer(
+        transfer.refId,
+      );
 
-    const company = companyInformations;
-    const note = printData.printData;
+      const company = companyInformations;
+      const note = printData.printData;
 
-    console.log("Print Data:", note);
+      console.log("Print Data:", note);
 
-    // Generate QR Code using transfer document number
-    const qrData = await QRCode.toDataURL(`Transfer:${note.documentNo}`);
+      // Generate QR Code using transfer document number
+      const qrData = await QRCode.toDataURL(`Transfer:${note.documentNo}`);
 
-    // Open print window
-    const printWindow = window.open("", "_blank", "width=900,height=1000");
+      // Open print window
+      const printWindow = window.open("", "_blank", "width=900,height=1000");
 
-    if (!printWindow) {
-      toast.error("Unable to open print window");
-      return;
-    }
+      if (!printWindow) {
+        toast.error("Unable to open print window");
+        return;
+      }
 
-    printWindow.document.write(`
+      printWindow.document.write(`
       <html>
       <head>
         <title>${note.title} - ${note.documentNo}</title>
@@ -346,7 +349,7 @@ const InventoryTransfer = () => {
                 </td>
                
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -390,18 +393,17 @@ const InventoryTransfer = () => {
       </html>
     `);
 
-    printWindow.document.close();
+      printWindow.document.close();
 
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-  } catch (error) {
-    console.error("Print transfer error:", error);
-    toast.error("Failed to print inventory transfer");
-  }
-};
-
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+    } catch (error) {
+      console.error("Print transfer error:", error);
+      toast.error("Failed to print inventory transfer");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -459,7 +461,7 @@ const InventoryTransfer = () => {
                     {data?.transfers?.filter(
                       (t: InventoryTransfer) =>
                         new Date(t.createdAt).toDateString() ===
-                        new Date().toDateString()
+                        new Date().toDateString(),
                     ).length || 0}
                   </dd>
                 </dl>
@@ -484,7 +486,7 @@ const InventoryTransfer = () => {
                       ?.reduce(
                         (sum: number, t: InventoryTransfer) =>
                           sum + getTotalQty(t.items),
-                        0
+                        0,
                       )
                       .toLocaleString() || "0"}
                   </dd>
@@ -510,6 +512,14 @@ const InventoryTransfer = () => {
         <CreateTransferModal
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleCreateTransfer}
+        />
+      )}
+
+      {/* View Transfer Modal */}
+      {showViewTransferModal && selectedTransfer && (
+        <DetailTransferModal
+          transfer={selectedTransfer}
+          onClose={() => setShowViewTransferModal(false)}
         />
       )}
 

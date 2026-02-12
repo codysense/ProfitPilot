@@ -3,8 +3,13 @@ import { PrismaClient, MemoType, MemoModule } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth";
 import { Decimal } from "@prisma/client/runtime/library";
 // import { Prisma } from '../../prisma/generated/client';
+import { GeneralLedgerService } from "../services/gl";
+import { CostingService } from "../services/costing";
+import { ca } from "zod/v4/locales";
 
 const prisma = new PrismaClient();
+const glService = new GeneralLedgerService();
+const costingService = new CostingService();
 // console.log('Prisma export member',Object.keys(Prisma).includes('MemoType')? Object.keys(Prisma):'Not found');
 export class MemoController {
   // GET /api/v1/memos
@@ -37,24 +42,27 @@ export class MemoController {
     }
   }
 
-  // GET /api/v1/memos/:id
   async getMemos(req: AuthRequest, res: Response) {
     try {
-      const { id } = req.params;
+      // const { id } = req.params;
 
-      const memo = await prisma.memo.findUnique({
-        where: { id },
+      const memo = await prisma.memo.findMany({
         include: {
           account: true,
           customer: true,
           vendor: true,
           user: true,
+          sale: { include: { saleLines: { include: { item: true } } } },
+          purchase: { include: { purchaseLines: { include: { item: true } } } },
         },
+        orderBy: { createdAt: "desc" },
       });
 
       if (!memo) {
         return res.status(404).json({ error: "Memo not found" });
       }
+
+      // console.log("Fetched memos:", memo);
 
       res.json(memo);
     } catch (error) {
@@ -196,296 +204,418 @@ export class MemoController {
     try {
       const {
         date,
-        module, // "SALES" | "PURCHASES"
-        memoType, // "CREDIT" | "DEBIT"
-        amount,
-        description,
-        accountId, // chosen GL account
+        module,
+        memoType,
+        saleId,
+        purchaseId,
         customerId,
         vendorId,
+        amount,
+        accountId,
+        warehouseId,
+        description,
       } = req.body;
 
-      const result = await prisma.$transaction(
-        async (tx) => {
-          // Generate memo number
-          const count = await tx.memo.count();
-          const memoNo = `M${String(count + 1).padStart(6, "0")}`;
+      // console.log("request user ", req.user);
 
-          // Create Memo record
-          const memo = await tx.memo.create({
-            data: {
-              date: new Date(date),
-              module: module as MemoModule,
-              memoType: memoType as MemoType,
-              amount: new Decimal(amount),
-              description,
-              user: { connect: { id: req.user!.id } },
-              account: { connect: { id: accountId } },
-              ...(customerId
-                ? { customer: { connect: { id: customerId } } }
-                : {}),
-              ...(vendorId ? { vendor: { connect: { id: vendorId } } } : {}),
-            },
+      const result = await prisma.$transaction(async (tx) => {
+        const memoCount = await tx.memo.count();
+        const memoNo = `M${String(memoCount + 1).padStart(6, "0")}`;
+        let finalAmount = 0;
+        let category: "SALES_RETURN" | "PURCHASE_RETURN" | "FINANCIAL" =
+          "FINANCIAL";
+
+        // CASE 1: LINKED TO SALE (Customer Return)
+
+        if (saleId) {
+          const sale = await tx.sale.findUnique({
+            where: { id: saleId },
+            include: { saleLines: true },
           });
 
-          // Create Journal
-          const journalCount = await tx.journal.count();
-          const journalNo = `J${String(journalCount + 1).padStart(6, "0")}`;
+          category = "SALES_RETURN";
 
-          const journal = await tx.journal.create({
-            data: {
-              journalNo,
-              date: new Date(date),
-              memo: description ?? `Memo ${memoNo}`,
-              postedBy: req.user!.id,
-            },
-          });
+          if (!sale) throw new Error("Sale not found");
 
-          // Determine AR/AP control account
-          const controlAccount = await tx.chartOfAccount.findFirst({
-            where: {
-              code: module === "SALES" ? "1200" : "2000", // AR = 1200, AP = 2000
-            },
-          });
+          finalAmount = Number(sale.totalAmount);
+          const itemType = await getItemTypeById(sale.saleLines[0]?.itemId);
+          let totalCogs = 0;
 
-          if (!controlAccount) {
-            throw new Error(
-              `${module === "SALES" ? "Accounts Receivable" : "Accounts Payable"} control account not found`,
+          for (const line of sale.saleLines) {
+            const inventoryValue = await costingService.getInventoryValue(
+              line.itemId,
+              warehouseId,
+            );
+            totalCogs += Number(inventoryValue.avgCost) * Number(line.qty);
+          }
+
+          // Reverse AR
+          await glService.postJournal(
+            [
+              {
+                accountCode: "4000",
+                debit: finalAmount,
+                credit: 0,
+                refType: "SALES RETURN",
+                refId: sale.id,
+              },
+              {
+                accountCode: "1200",
+                debit: 0,
+                credit: finalAmount,
+                refType: "SALES RETURN",
+                refId: sale.id,
+              },
+              {
+                accountCode: "5000",
+                debit: 0,
+                credit: totalCogs,
+                refType: "SALE",
+                refId: sale.id,
+              },
+              {
+                accountCode: itemType === "FINISHED_GOODS" ? "1350" : "1300",
+                debit: totalCogs,
+                credit: 0,
+                refType: "SALE",
+                refId: sale.id,
+              },
+            ],
+            "SALES RETURN",
+            req.user!.id,
+          );
+
+          // Process Inventory Return
+          for (const line of sale.saleLines) {
+            const inventoryValue = await costingService.getInventoryValue(
+              line.itemId,
+              warehouseId,
+            );
+
+            const unitCost = inventoryValue.avgCost;
+
+            await costingService.receiveInventory(
+              line.itemId,
+              warehouseId,
+              Number(line.qty),
+              unitCost,
+              "SALES RETURN",
+              sale.id,
+              req.user!.id,
             );
           }
 
-          let debitAccountId: string;
-          let creditAccountId: string;
+          await prisma.sale.update({
+            where: { id: saleId },
+            data: {
+              status: "RETURNED",
+            },
+          });
+        }
 
-          if (memoType === "CREDIT") {
-            // Credit chosen GL, Debit control (AR/AP)
-            creditAccountId = accountId;
-            debitAccountId = controlAccount.id;
-          } else {
-            // Debit chosen GL, Credit control (AR/AP)
-            debitAccountId = accountId;
-            creditAccountId = controlAccount.id;
-          }
+        // CASE 2: LINKED TO PURCHASE (Vendor Return)
+        else if (purchaseId) {
+          const purchase = await tx.purchase.findUnique({
+            where: { id: purchaseId },
+            include: { purchaseLines: true },
+          });
 
-          // Insert journal lines
-          await tx.journalLine.createMany({
-            data: [
+          category = "PURCHASE_RETURN";
+
+          const itemType = await getItemTypeById(
+            purchase.purchaseLines[0]?.itemId,
+          );
+
+          if (!purchase) throw new Error("Purchase not found");
+
+          finalAmount = Number(purchase.totalAmount);
+
+          await glService.postJournal(
+            [
               {
-                journalId: journal.id,
-                accountId: debitAccountId,
-                debit: new Decimal(amount),
-                credit: new Decimal(0),
-                refType: "MEMO",
-                refId: memo.id,
+                accountCode: "2000",
+                debit: finalAmount,
+                credit: 0,
+                refType: "PURCHASE RETURN",
+                refId: purchase.id,
               },
               {
-                journalId: journal.id,
-                accountId: creditAccountId,
-                debit: new Decimal(0),
-                credit: new Decimal(amount),
-                refType: "MEMO",
-                refId: memo.id,
+                accountCode: itemType === "FINISHED_GOODS" ? "1350" : "1300",
+                debit: 0,
+                credit: finalAmount,
+                refType: "PURCHASE RETURN",
+                refId: purchase.id,
               },
             ],
+            "PURCHASE RETURN",
+            req.user!.id,
+          );
+
+          for (const line of purchase.purchaseLines) {
+            if (!line.itemId) continue;
+
+            await costingService.issueInventory(
+              line.itemId,
+              warehouseId,
+              Number(line.qty),
+              "PURCHASE RETURN",
+              purchase.id,
+              req.user!.id,
+            );
+          }
+
+          await prisma.purchase.update({
+            where: { id: purchaseId },
+            data: {
+              status: "RETURNED",
+            },
           });
+        }
 
-          // Link memo to SalesReceipt or PurchasePayment using Memo Clearing Account
-          // First, find the GL account with code "9999"
-          const memoClearingGlAccount = await tx.chartOfAccount.findFirst({
-            where: { code: "9999" },
-            select: { id: true },
-          });
-          if (!memoClearingGlAccount) {
-            throw new Error("Memo Clearing GL account (9999) not found.");
+        // CASE 3: STANDALONE MEMO
+        else {
+          category = "FINANCIAL";
+          if (!amount || !accountId)
+            throw new Error("Amount and account required");
+
+          finalAmount = Number(amount);
+
+          const controlAccount = module === "SALES" ? "1200" : "2000";
+
+          if (memoType === "CREDIT") {
+            await glService.postJournal(
+              [
+                {
+                  accountCode: accountId,
+                  debit: finalAmount,
+                  credit: 0,
+                  refType: "CREDIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+                {
+                  accountCode: controlAccount,
+                  debit: 0,
+                  credit: finalAmount,
+                  refType: "CREDIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+              ],
+              `Credit Memo: ${description ?? memoNo}`,
+              req.user!.id,
+            );
+          } else {
+            await glService.postJournal(
+              [
+                {
+                  accountCode: controlAccount,
+                  debit: finalAmount,
+                  credit: 0,
+                  refType: "DEBIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+                {
+                  accountCode: accountId,
+                  debit: 0,
+                  credit: finalAmount,
+                  refType: "DEBIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+              ],
+              `Debit Memo: ${description ?? memoNo}`,
+              req.user!.id,
+            );
           }
+        }
 
-          const memoClearingCashAccount = await tx.cashAccount.findFirst({
-            where: { glAccountId: memoClearingGlAccount.id }, // link by GL account id
-            select: { id: true },
-          });
+        // Create Memo Record
+        const memo = await tx.memo.create({
+          data: {
+            memoNo,
+            date: new Date(date),
+            module,
+            memoType,
+            category,
+            amount: finalAmount,
+            remaining: finalAmount,
+            description,
+            saleId,
+            purchaseId,
+            customerId,
+            vendorId,
+            accountId,
+            createdBy: req.user!.id,
+          },
+        });
 
-          if (!memoClearingCashAccount) {
-            throw new Error("Memo Clearing cash account (9999) not found.");
-          }
-
-          if (module === "SALES" && customerId) {
-            // Record as SalesReceipt (non-cash)
-            await tx.salesReceipt.create({
-              data: {
-                receiptNo: `MEMO-${String(Date.now())}`,
-                saleId: null,
-                customerId,
-                cashAccountId: memoClearingCashAccount.id,
-                amountReceived: new Decimal(amount),
-                receiptDate: new Date(date),
-                reference: `MEMO-${journal.journalNo}`,
-                notes:
-                  memoType === "CREDIT"
-                    ? "Customer Credit Memo"
-                    : "Customer Debit Memo",
-                userId: req.user!.id,
-              },
-            });
-          }
-
-          if (module === "PURCHASES" && vendorId) {
-            // Record as PurchasePayment (non-cash)
-            await tx.purchasePayment.create({
-              data: {
-                paymentNo: `MEMO-${String(Date.now())}`,
-                purchaseId: null,
-                vendorId,
-                cashAccountId: memoClearingCashAccount.id,
-                amountPaid: new Decimal(amount),
-                paymentDate: new Date(date),
-                reference: `MEMO-${journal.journalNo}`,
-                notes:
-                  memoType === "CREDIT"
-                    ? "Vendor Credit Memo"
-                    : "Vendor Debit Memo",
-                userId: req.user!.id,
-              },
-            });
-          }
-
-          return memo;
-        },
-        {
-          maxWait: 5000,
-          timeout: 20000,
-        },
-      );
+        return memo;
+      });
 
       res.status(201).json(result);
     } catch (error: any) {
-      console.error("Create memo error:", error.message, error.stack);
       res.status(400).json({ error: error.message });
     }
   }
 
-  //  async createMemo(req: AuthRequest, res: Response) {
-  //     try {
-  //       const {
-  //         date,
-  //         module,      // "SALES" | "PURCHASES"
-  //         memoType,    // "CREDIT" | "DEBIT"
-  //         amount,
-  //         description,
-  //         accountId,   // chosen GL account
-  //         customerId,
-  //         vendorId,
+  // async createMemo(req: AuthRequest, res: Response) {
+  //   try {
+  //     const {
+  //       date,
+  //       module,
+  //       memoType,
+  //       amount,
+  //       description,
+  //       accountId,
+  //       customerId,
+  //       vendorId,
+  //     } = req.body;
 
-  //       } = req.body;
+  //     const result = await prisma.$transaction(async (tx) => {
+  //       const memoCount = await tx.memo.count();
+  //       const memoNo = `M${String(memoCount + 1).padStart(6, "0")}`;
 
-  //       const result = await prisma.$transaction(async (tx) => {
-  //         // Generate memo number
-  //         const count = await tx.memo.count();
-  //         const memoNo = `M${String(count + 1).padStart(6, '0')}`;
+  //       // Determine control account
+  //       const controlAccount = await tx.chartOfAccount.findFirst({
+  //         where: {
+  //           code: module === "SALES" ? "1200" : "2000",
+  //         },
+  //       });
 
-  //         // Create Memo record
-  //         // const memo = await tx.memo.create({
-  //         //   data: {
-  //         //     module,
-  //         //     memoType,
-  //         //     amount: new Decimal(amount),
-  //         //     description,
-  //         //     accountId,
-  //         //     customerId: customerId ?? null,
-  //         //     vendorId: vendorId ?? null,
-  //         //     createdBy: req.user!.id
-  //         //   }
-  //         // });
-
-  //         const memo = await tx.memo.create({
-  //           data: {
-  //             date,
-  //             module: module as MemoModule,      // cast to enum
-  //             memoType: memoType as MemoType,
-  //             amount: new Decimal(amount),
-  //             description,
-  //             //customerId: customerId || null,
-  //             // vendorId: vendorId || null,
-  //             createdBy: req.user!.id,
-  //             account: {
-  //               connect: { id: accountId }
-  //               },
-  //             ...(customerId ? { customer: { connect: { id: customerId } } } : {}),
-  //             ...(vendorId ? { vendor: { connect: { id: vendorId } } } : {}),
-  //           }
-  //         });
-
-  //         // Create Journal
-  //         const journalCount = await tx.journal.count();
-  //         const journalNo = `J${String(journalCount + 1).padStart(6, '0')}`;
-
-  //         const journal = await tx.journal.create({
-  //           data: {
-  //             journalNo,
-  //             date: new Date(),
-  //             memo: description ?? `Memo ${memoNo}`,
-  //             postedBy: req.user!.id
-  //           }
-  //         });
-
-  //         // Auto-generate JournalLines
-  //         // CREDIT MEMO: Credit chosen account, Debit "Accounts Receivable" (if sales) or "Accounts Payable" (if purchase)
-  //         // DEBIT MEMO: Reverse
-  //         let debitAccountId: string;
-  //         let creditAccountId: string;
-
-  //         if (memoType === 'CREDIT') {
-  //           // Credit chosen GL, Debit customer/vendor control account
-  //           creditAccountId = accountId;
-  //           if (module === 'SALES') {
-  //             debitAccountId = (await tx.chartOfAccount.findFirst({ where: { code: '1200' } }))!.id;
-  //           } else {
-  //             debitAccountId = (await tx.chartOfAccount.findFirst({ where: { code: '2000' } }))!.id;
-  //           }
-  //         } else {
-  //           // Debit chosen GL, Credit customer/vendor control account
-  //           debitAccountId = accountId;
-  //           if (module === 'SALES') {
-  //             creditAccountId = (await tx.chartOfAccount.findFirst({ where: { code: '1200' } }))!.id;
-  //           } else {
-  //             creditAccountId = (await tx.chartOfAccount.findFirst({ where: { code: '2000' } }))!.id;
-  //           }
-  //         }
-  //         // console.log('Debit Account',debitAccountId, 'Credit Account', creditAccountId)
-
-  //         await tx.journalLine.createMany({
-  //           data: [
-  //             {
-  //               journalId: journal.id,
-  //               accountId: debitAccountId,
-  //               debit: new Decimal(amount),
-  //               credit: new Decimal(0),
-  //               refType: 'MEMO',
-  //               refId: memo.id
-  //             },
-  //             {
-  //               journalId: journal.id,
-  //               accountId: creditAccountId,
-  //               debit: new Decimal(0),
-  //               credit: new Decimal(amount),
-  //               refType: 'MEMO',
-  //               refId: memo.id
-  //             }
-  //           ]
-  //         });
-
-  //         return memo;
+  //       if (!controlAccount) {
+  //         throw new Error("AR/AP control account not found");
   //       }
-  //       ,
-  //     {
-  //   maxWait: 5000,  // 5s wait for connection
-  //   timeout: 20000  // 20s max runtime
-  // }
-  //     );
 
-  //       res.status(201).json(result);
-  //     } catch (error: any) {
-  //   console.error('Create memo error details:', error.message, error.stack);
-  //   res.status(400).json({ error: error.message });
-  // }
+  //       let debitAccountId: string;
+  //       let creditAccountId: string;
+
+  //       if (memoType === "CREDIT") {
+  //         // Credit Memo reduces AR/AP
+  //         debitAccountId = accountId;
+  //         creditAccountId = controlAccount.id;
+  //       } else {
+  //         // Debit Memo increases AR/AP
+  //         debitAccountId = controlAccount.id;
+  //         creditAccountId = accountId;
+  //       }
+
+  //       const journal = await tx.journal.create({
+  //         data: {
+  //           journalNo: `J${Date.now()}`,
+  //           date: new Date(date),
+  //           memo: description ?? memoNo,
+  //           postedBy: req.user!.id,
+  //           journalLines: {
+  //             create: [
+  //               {
+  //                 accountId: debitAccountId,
+  //                 debit: new Decimal(amount),
+  //                 credit: new Decimal(0),
+  //                 refType: "MEMO",
+  //               },
+  //               {
+  //                 accountId: creditAccountId,
+  //                 debit: new Decimal(0),
+  //                 credit: new Decimal(amount),
+  //                 refType: "MEMO",
+  //               },
+  //             ],
+  //           },
+  //         },
+  //       });
+
+  //       const memo = await tx.memo.create({
+  //         data: {
+  //           date: new Date(date),
+  //           module,
+  //           memoType,
+  //           amount: new Decimal(amount),
+  //           //remaining: new Decimal(amount),
+  //           description,
+  //           accountId,
+  //           // journalId: journal.id,
+  //           createdBy: req.user!.id,
+  //           ...(customerId ? { customerId } : {}),
+  //           ...(vendorId ? { vendorId } : {}),
+  //         },
+  //       });
+
+  //       return memo;
+  //     });
+
+  //     res.status(201).json(result);
+  //   } catch (error: any) {
+  //     console.error(error);
+  //     res.status(400).json({ error: error.message });
   //   }
+  // }
+
+  // Link memo to SalesReceipt or PurchasePayment using Memo Clearing Account
+  // First, find the GL account with code "9999"
+  // const memoClearingGlAccount = await tx.chartOfAccount.findFirst({
+  //   where: { code: "9999" },
+  //   select: { id: true },
+  // });
+  // if (!memoClearingGlAccount) {
+  //   throw new Error("Memo Clearing GL account (9999) not found.");
+  // }
+
+  // const memoClearingCashAccount = await tx.cashAccount.findFirst({
+  //   where: { glAccountId: memoClearingGlAccount.id }, // link by GL account id
+  //   select: { id: true },
+  // });
+
+  // if (!memoClearingCashAccount) {
+  //   throw new Error("Memo Clearing cash account (9999) not found.");
+  // }
+
+  // if (module === "SALES" && customerId) {
+  //   // Record as SalesReceipt (non-cash)
+  //   await tx.salesReceipt.create({
+  //     data: {
+  //       receiptNo: `MEMO-${String(Date.now())}`,
+  //       saleId: null,
+  //       customerId,
+  //       cashAccountId: memoClearingCashAccount.id,
+  //       amountReceived: new Decimal(amount),
+  //       receiptDate: new Date(date),
+  //       reference: `MEMO-${journal.journalNo}`,
+  //       notes:
+  //         memoType === "CREDIT"
+  //           ? "Customer Credit Memo"
+  //           : "Customer Debit Memo",
+  //       userId: req.user!.id,
+  //     },
+  //   });
+  // }
+
+  // if (module === "PURCHASES" && vendorId) {
+  //   // Record as PurchasePayment (non-cash)
+  //   await tx.purchasePayment.create({
+  //     data: {
+  //       paymentNo: `MEMO-${String(Date.now())}`,
+  //       purchaseId: null,
+  //       vendorId,
+  //       cashAccountId: memoClearingCashAccount.id,
+  //       amountPaid: new Decimal(amount),
+  //       paymentDate: new Date(date),
+  //       reference: `MEMO-${journal.journalNo}`,
+  //       notes:
+  //         memoType === "CREDIT"
+  //           ? "Vendor Credit Memo"
+  //           : "Vendor Debit Memo",
+  //       userId: req.user!.id,
+  //     },
+  //   });
+  // }
+}
+async function getItemTypeById(itemId: string) {
+  const item = await prisma.item.findUnique({
+    where: { id: itemId },
+    select: { type: true },
+  });
+
+  if (!item) {
+    throw new Error("Item not found");
+  }
+
+  return String(item.type);
 }

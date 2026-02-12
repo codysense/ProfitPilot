@@ -1,30 +1,32 @@
-import React, { useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { X, Plus, Trash2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { cashApi, salesApi,managementApi } from '../../lib/api';
-import toast from 'react-hot-toast';
-import { CustomerSelect } from '../../components/CustomerSelect';
-import { ChartAccountSelect } from '../../components/ChartAccountSelect';
+import React, { useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { X, Plus, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { cashApi, salesApi, managementApi } from "../../lib/api";
+import toast from "react-hot-toast";
+import { CustomerSelect } from "../../components/CustomerSelect";
+import { ChartAccountSelect } from "../../components/ChartAccountSelect";
 
 /* ------------------------- ZOD SCHEMA ------------------------- */
 const createCustomerPaymentSchema = z.object({
-  customerId: z.string().min(1, 'Customer is required'),
-  cashAccountId: z.string().min(1, 'Cash account is required'),
-  paymentDate: z.string().min(1, 'Payment date is required'),
+  customerId: z.string().min(1, "Customer is required"),
+  cashAccountId: z.string().min(1, "Cash account is required"),
+  paymentDate: z.string().min(1, "Payment date is required"),
   reference: z.string().optional(),
   notes: z.string().optional(),
 
-  lines: z.array(
-    z.object({
-      saleId: z.string().optional().nullable(),
-      glAccountId: z.string().min(1, 'GL Account is required'),
-      lineAmount: z.coerce.number().positive('Amount must be positive'),
-      description: z.string().optional()
-    })
-  ).min(1, 'At least one payment line is required')
+  lines: z
+    .array(
+      z.object({
+        saleId: z.string().optional().nullable(),
+        glAccountId: z.string().min(1, "GL Account is required"),
+        lineAmount: z.coerce.number().positive("Amount must be positive"),
+        description: z.string().optional(),
+      }),
+    )
+    .min(1, "At least one payment line is required"),
 });
 
 type FormData = z.infer<typeof createCustomerPaymentSchema>;
@@ -35,150 +37,167 @@ interface Props {
 }
 
 const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
-
   const {
     register,
     handleSubmit,
     watch,
     setValue,
     control,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(createCustomerPaymentSchema),
     defaultValues: {
-      paymentDate: new Date().toISOString().split('T')[0],
+      paymentDate: new Date().toISOString().split("T")[0],
       lines: [
-        { saleId: null, glAccountId: '', lineAmount: 0, description: '' }
-      ]
-    }
+        { saleId: null, glAccountId: "", lineAmount: 0, description: "" },
+      ],
+    },
   });
 
-  const selectedCustomerId = watch('customerId');
-  const watchedLines = watch('lines');
+  const selectedCustomerId = watch("customerId");
+  const watchedLines = watch("lines");
 
   /* ------------------------- QUERIES -------------------------- */
   const { data: customers } = useQuery({
-    queryKey: ['customers-for-payment'],
-    queryFn: () => salesApi.getCustomers({ limit: 100 })
+    queryKey: ["customers-for-payment"],
+    queryFn: () => salesApi.getCustomers({ limit: 100 }),
   });
 
   const { data: cashAccounts } = useQuery({
-    queryKey: ['cash-accounts-for-payment'],
-    queryFn: () => cashApi.getCashAccounts()
+    queryKey: ["cash-accounts-for-payment"],
+    queryFn: () => cashApi.getCashAccounts(),
   });
 
   const { data: customerSales } = useQuery({
-    queryKey: ['customer-sales', selectedCustomerId],
+    queryKey: ["customer-sales", selectedCustomerId],
     queryFn: () =>
-      selectedCustomerId ? salesApi.getSales({ customerId: selectedCustomerId, status: 'INVOICED', limit: 100 }) : null,
-    enabled: !!selectedCustomerId
+      selectedCustomerId
+        ? salesApi.getSales({
+            customerId: selectedCustomerId,
+            status: "INVOICED",
+            limit: 100,
+          })
+        : null,
+    enabled: !!selectedCustomerId,
   });
   // console.log(customerSales)
   const { data: chartAccounts } = useQuery({
-      queryKey: ['chart-accounts-for-transaction'],
-      queryFn: () => managementApi.getChartOfAccounts()
-    });
+    queryKey: ["chart-accounts-for-transaction"],
+    queryFn: () => managementApi.getChartOfAccounts(),
+  });
 
   /* ------------------------- FIELD ARRAY ------------------------ */
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'lines'
+    name: "lines",
   });
 
   /* --------------------- AUTO-FILL AMOUNT ---------------------- */
   useEffect(() => {
-  if (!customerSales?.sales) return;
+    if (!customerSales?.sales) return;
 
-  watchedLines.forEach((line, index) => {
-    if (!line.saleId) return;
+    watchedLines.forEach((line, index) => {
+      if (!line.saleId) return;
 
-    const sale = customerSales.sales.find(
-      (s: any) => String(s.id) === String(line.saleId)
-    );
+      const sale = customerSales.sales.find(
+        (s: any) => String(s.id) === String(line.saleId),
+      );
 
-    if (sale) {
-      setValue(`lines.${index}.lineAmount`, Number(sale.totalAmount), {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    }
-  });
-}, [watchedLines, customerSales?.sales, setValue]);
-
+      if (sale) {
+        setValue(`lines.${index}.lineAmount`, Number(sale.totalAmount), {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+      }
+    });
+  }, [watchedLines, customerSales?.sales, setValue]);
 
   /* ----------------------- TOTAL CALC -------------------------- */
   const calculateTotal = () => {
     return watchedLines.reduce((sum, line) => sum + (line.lineAmount || 0), 0);
   };
 
-
   const onSubmit = async (data: FormData) => {
     try {
       await cashApi.createCustomerPayment(data);
-      toast.success('Customer payment recorded successfully!');
+      toast.success("Customer payment recorded successfully!");
       onSuccess();
     } catch (error) {
       console.error(error);
-      toast.error('Failed to create payment');
+      toast.error("Failed to create payment");
     }
   };
 
- 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={onClose} />
+        <div
+          className="fixed inset-0 bg-gray-500 bg-opacity-75"
+          onClick={onClose}
+        />
 
         <div className="inline-block bg-white rounded-lg shadow-xl transform transition-all sm:max-w-5xl sm:w-full sm:my-8">
           <div className="bg-white p-6">
-
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Record Customer Payment</h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-medium text-gray-900">
+                Record Customer Payment
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
 
             {/* FORM */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-
               {/* Row 1 - Customer + Date */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
                 <div>
-                  <label className="block text-sm font-medium">Customer *</label>
+                  <label className="block text-sm font-medium">
+                    Customer *
+                  </label>
                   <CustomerSelect
                     customers={customers?.customers || []}
-                    value={watch('customerId')}
-                    onChange={(v) => setValue('customerId', v)}
+                    value={watch("customerId")}
+                    onChange={(v) => setValue("customerId", v)}
                   />
-                  {errors.customerId && <p className="text-red-600 text-sm">{errors.customerId.message}</p>}
+                  {errors.customerId && (
+                    <p className="text-red-600 text-sm">
+                      {errors.customerId.message}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium">Payment Date *</label>
+                  <label className="block text-sm font-medium">
+                    Payment Date *
+                  </label>
                   <input
-                    {...register('paymentDate')}
+                    {...register("paymentDate")}
                     type="date"
                     className="mt-1 w-full border rounded-md px-3 py-2"
                   />
                 </div>
-
               </div>
 
               {/* Row 2 - Cash Account + Reference */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
                 <div>
-                  <label className="block text-sm font-medium">Cash Account *</label>
-                  <select {...register('cashAccountId')}
-                    className="mt-1 w-full border rounded-md px-3 py-2">
+                  <label className="block text-sm font-medium">
+                    Cash Account *
+                  </label>
+                  <select
+                    {...register("cashAccountId")}
+                    className="mt-1 w-full border rounded-md px-3 py-2"
+                  >
                     <option value="">Select cash account</option>
                     {cashAccounts?.accounts?.map((a: any) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} - {a.name} (₦{Number(a.balance).toLocaleString()})
+                        {a.code} - {a.name} (₦
+                        {Number(a.balance).toLocaleString()})
                       </option>
                     ))}
                   </select>
@@ -187,11 +206,10 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
                 <div>
                   <label className="block text-sm font-medium">Reference</label>
                   <input
-                    {...register('reference')}
+                    {...register("reference")}
                     className="mt-1 w-full border rounded-md px-3 py-2"
                   />
                 </div>
-
               </div>
 
               {/* MULTILINE SECTION */}
@@ -202,7 +220,12 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
                   <button
                     type="button"
                     onClick={() =>
-                      append({ saleId: null, glAccountId: '', lineAmount: 0, description: '' })
+                      append({
+                        saleId: null,
+                        glAccountId: "",
+                        lineAmount: 0,
+                        description: "",
+                      })
                     }
                     className="px-3 py-2 border rounded-md bg-white"
                   >
@@ -211,17 +234,17 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
                 </div>
 
                 {errors.lines && (
-                  <p className="text-red-600 text-sm mb-2">{errors.lines.message}</p>
+                  <p className="text-red-600 text-sm mb-2">
+                    {errors.lines.message}
+                  </p>
                 )}
 
                 <div className="space-y-4">
                   {fields.map((field, index) => (
                     <div key={field.id} className="bg-gray-50 p-4 rounded-lg">
-
                       <div className="grid grid-cols-1 sm:grid-cols-8 gap-4">
-
                         {/* saleId (optional) */}
-                        <div className='col-span-2'>
+                        <div className="col-span-2">
                           <label className="block text-sm font-medium ">
                             Sale (optional)
                           </label>
@@ -233,27 +256,36 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
                             <option value="">Select sale</option>
                             {customerSales?.sales?.map((s: any) => (
                               <option key={s.id} value={s.id}>
-                                #{s.orderNo} — ₦{Number(s.totalAmount).toLocaleString()}
+                                #{s.orderNo} — ₦
+                                {Number(s.totalAmount).toLocaleString()}
                               </option>
                             ))}
                           </select>
                         </div>
 
                         {/* glAccount */}
-                        <div className='col-span-2'>
-                          <label className="block text-sm font-medium ">GL Account *</label>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium ">
+                            GL Account *
+                          </label>
                           <ChartAccountSelect
                             accounts={chartAccounts?.accounts || []}
                             value={watch(`lines.${index}.glAccountId`)}
-                            onChange={(v) => setValue(`lines.${index}.glAccountId`, v)}
+                            onChange={(v) =>
+                              setValue(`lines.${index}.glAccountId`, v)
+                            }
                           />
                         </div>
 
                         {/* lineAmount */}
                         <div>
-                          <label className="block text-sm font-medium">Amount *</label>
+                          <label className="block text-sm font-medium">
+                            Amount *
+                          </label>
                           <input
-                            {...register(`lines.${index}.lineAmount`, { valueAsNumber: true })}
+                            {...register(`lines.${index}.lineAmount`, {
+                              valueAsNumber: true,
+                            })}
                             type="number"
                             step="0.01"
                             className="mt-1 w-full border rounded-md px-3 py-2"
@@ -261,8 +293,10 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
                         </div>
 
                         {/* description */}
-                        <div className='col-span-2'>
-                          <label className="block text-sm font-medium">Description</label>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium">
+                            Description
+                          </label>
                           <input
                             {...register(`lines.${index}.description`)}
                             className="mt-1 w-full border rounded-md px-3 py-2"
@@ -281,7 +315,6 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
                             </button>
                           )}
                         </div>
-
                       </div>
                     </div>
                   ))}
@@ -300,7 +333,6 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
 
               {/* FOOTER BUTTONS */}
               <div className="flex justify-end space-x-3 pt-4">
-
                 <button
                   type="button"
                   onClick={onClose}
@@ -314,25 +346,18 @@ const CreateCustomerPaymentModal = ({ onClose, onSuccess }: Props) => {
                   disabled={isSubmitting}
                   className="px-4 py-2 rounded-md bg-green-600 text-white disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Recording...' : 'Record Payment'}
+                  {isSubmitting ? "Recording..." : "Record Payment"}
                 </button>
-
               </div>
-
             </form>
-
           </div>
         </div>
-
       </div>
     </div>
   );
 };
 
 export default CreateCustomerPaymentModal;
-
-
-
 
 // import React from 'react';
 // import { useForm } from 'react-hook-form';
@@ -358,7 +383,7 @@ export default CreateCustomerPaymentModal;
 // const createCustomerPaymentSchema = z.object({
 //   customerId: z.string(),
 //   cashAccountId: z.string(),
-//   paymentDate: z.string(),           
+//   paymentDate: z.string(),
 //   reference: z.string().optional(),
 //   notes: z.string().optional(),
 
@@ -410,7 +435,7 @@ export default CreateCustomerPaymentModal;
 
 //   const { data: customerSales } = useQuery({
 //     queryKey: ['customer-sales', selectedCustomerId],
-//     queryFn: () => selectedCustomerId ? 
+//     queryFn: () => selectedCustomerId ?
 //       salesApi.getSales({ customerId: selectedCustomerId, status: 'INVOICED', limit: 100 }) : null,
 //     enabled: !!selectedCustomerId
 //   });
@@ -428,7 +453,7 @@ export default CreateCustomerPaymentModal;
 //   const onSubmit = async (data: CreateCustomerPaymentFormData) => {
 //     try {
 //       await cashApi.createCustomerPayment(data);
-      
+
 //       toast.success('Customer payment recorded successfully');
 //       onSuccess();
 //     } catch (error) {
@@ -443,7 +468,7 @@ export default CreateCustomerPaymentModal;
 //     <div className="fixed inset-0 z-50 overflow-y-auto">
 //       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
 //         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-        
+
 //         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
 //           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
 //             <div className="flex items-center justify-between mb-4">
@@ -457,7 +482,7 @@ export default CreateCustomerPaymentModal;
 //                 <X className="h-6 w-6" />
 //               </button>
 //             </div>
-            
+
 //             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 //               <div>
 //                 <label className="block text-sm font-medium text-gray-700">
@@ -548,7 +573,7 @@ export default CreateCustomerPaymentModal;
 //                     <p className="mt-1 text-sm text-red-600">{errors.cashAccountId.message}</p>
 //                   )}
 //                 </div>
-                
+
 //                 <div>
 //                   <label className="block text-sm font-medium text-gray-700">
 //                     Payment Date *
@@ -563,7 +588,7 @@ export default CreateCustomerPaymentModal;
 //                   )}
 //                 </div>
 //               </div>
-              
+
 //               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 //                 <div>
 //                   <label className="block text-sm font-medium text-gray-700">
@@ -592,7 +617,7 @@ export default CreateCustomerPaymentModal;
 //                   />
 //                 </div>
 //               </div>
-              
+
 //               <div>
 //                 <label className="block text-sm font-medium text-gray-700">
 //                   Notes
@@ -613,7 +638,7 @@ export default CreateCustomerPaymentModal;
 //                   <div>• Customer balance will be reduced</div>
 //                 </div>
 //               </div>
-              
+
 //               <div className="flex justify-end space-x-3 pt-4">
 //                 <button
 //                   type="button"

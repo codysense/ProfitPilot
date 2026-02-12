@@ -703,16 +703,24 @@ export class ReportsService {
       }[]
     >(
       `
-    SELECT 
+SELECT 
     c.id AS customer_id,
     c.code AS customer_code,
     c.name AS customer_name,
 
     COALESCE(s.total_sales, 0) AS total_sales,
     COALESCE(p.total_receipts, 0) AS total_receipts,
+    COALESCE(r.total_refunds, 0) AS total_refunds,
+    COALESCE(dm.total_debit_memos, 0) AS total_debit_memos,
+    COALESCE(cm.total_credit_memos, 0) AS total_credit_memos,
+
+    /* FINAL OUTSTANDING */
     COALESCE(s.total_sales, 0)
       - COALESCE(p.total_receipts, 0)
-      + COALESCE(r.total_refunds, 0) AS outstanding_balance
+      + COALESCE(r.total_refunds, 0)
+      + COALESCE(dm.total_debit_memos, 0)
+      - COALESCE(cm.total_credit_memos, 0)
+      AS outstanding_balance
 
 FROM customers c
 
@@ -723,7 +731,7 @@ LEFT JOIN (
         SUM("totalAmount") AS total_sales
     FROM sales
     WHERE "orderDate" <= $1
-      AND status IN ('INVOICED', 'PAID')
+      AND status IN ('INVOICED', 'PAID', 'RETURNED')
     GROUP BY "customerId"
 ) s ON s."customerId" = c.id
 
@@ -738,7 +746,7 @@ LEFT JOIN (
         ON cpl."customerPaymentId" = cp.id
     INNER JOIN chart_of_accounts coa
         ON coa.id = cpl."glAccountId"
-       AND coa.code = '1200'  -- ACCOUNTS RECEIVABLE
+       AND coa.code = '1200'
     WHERE cp.status = 'PAID'
       AND cp."paymentDate" <= $1
     GROUP BY cp."customerId"
@@ -755,8 +763,32 @@ LEFT JOIN (
     GROUP BY "customerId"
 ) r ON r."customerId" = c.id
 
+
+/* ---------------- DEBIT MEMOS ---------------- */
+LEFT JOIN (
+    SELECT
+        "customerId",
+        SUM("amount") AS total_debit_memos
+    FROM memo
+    WHERE "memoType" = 'DEBIT'
+      AND "date" <= $1
+    GROUP BY "customerId"
+) dm ON dm."customerId" = c.id
+
+
+/* ---------------- CREDIT MEMOS ---------------- */
+LEFT JOIN (
+    SELECT
+        "customerId",
+        SUM("amount") AS total_credit_memos
+    FROM memo
+    WHERE "memoType" = 'CREDIT'
+      AND "date" <= $1
+    GROUP BY "customerId"
+) cm ON cm."customerId" = c.id
+
 ORDER BY c.name;
-  `,
+`,
       asOfDate,
     );
     console.log("Customer Balances Result:", result);
@@ -776,7 +808,7 @@ FROM (
   FROM sales s
   WHERE s."customerId" = $1
     AND s."orderDate" < $2
-    AND s.status != 'DRAFT'
+    AND s.status IN ('INVOICED', 'PAID', 'RETURNED')
 
   UNION ALL
 
@@ -799,6 +831,20 @@ FROM (
   FROM sales_refunds srr
   WHERE srr."customerId" = $1
     AND srr."refundDate" < $2
+
+  UNION ALL
+ 
+/* ---------------- CUSTOMER CREDIT MEMO (CREDIT AR) ---------------- */
+/* ---------------- CUSTOMER MEMOS ---------------- */
+SELECT 
+  CASE 
+    WHEN m."memoType" = 'CREDIT' THEN -m."amount"
+    WHEN m."memoType" = 'DEBIT' THEN  m."amount"
+  END AS balance
+FROM memo m
+WHERE m."customerId" = $1
+  AND m."date" < $2
+
 
 ) x;
     `,
@@ -841,7 +887,7 @@ WHERE c.id = $1
  AND s."orderDate" >= $2
 AND s."orderDate" < ($3 + INTERVAL '1 day')
 
-  AND s.status != 'DRAFT'
+  AND s.status IN ('INVOICED', 'PAID','RETURNED')
 
 UNION ALL
 
@@ -890,6 +936,36 @@ WHERE c.id = $1
   AND srr."refundDate" >= $2
   AND srr."refundDate" < ($3 + INTERVAL '1 day')
 
+  UNION ALL
+
+/* ---------------- CUSTOMER MEMOS ---------------- */
+SELECT
+  'CUSTOMER' AS type,
+  c."code" AS account_code,
+  c."name" AS account_name,
+  CASE 
+    WHEN m."memoType" = 'CREDIT' THEN 'CREDIT_MEMO'
+    ELSE 'DEBIT_MEMO'
+  END AS transaction_type,
+  m."memoNo" AS reference,
+  m."date" AS date,
+  CASE 
+    WHEN m."memoType" = 'DEBIT' THEN m."amount"
+    ELSE 0
+  END AS debit,
+  CASE 
+    WHEN m."memoType" = 'CREDIT' THEN m."amount"
+    ELSE 0
+  END AS credit,
+  m."amount" AS amount,
+  COALESCE(m."description", 'Memo') AS description
+FROM memo m
+INNER JOIN customers c ON m."customerId" = c.id
+WHERE c.id = $1
+  AND m."date" >= $2
+  AND m."date" < ($3 + INTERVAL '1 day')
+
+
 ORDER BY date, transaction_type, reference;
 ;
     `,
@@ -927,7 +1003,7 @@ ORDER BY date, transaction_type, reference;
     SELECT COALESCE(SUM(x.balance), 0) AS balance
 FROM (
 
-    /* ---------------- PURCHASE INVOICES ---------------- */
+    /* PURCHASES */
     SELECT p."totalAmount" AS balance
     FROM purchases p
     WHERE p."vendorId" = $1
@@ -936,28 +1012,46 @@ FROM (
 
     UNION ALL
 
-    /* ---------------- PAYMENTS (ACCOUNTS PAYABLE ONLY – CODE 2000) ---------------- */
-    SELECT -SUM(vpl."lineAmount") AS balance
+    /* PAYMENTS (AP 2000) */
+    SELECT -SUM(vpl."lineAmount")
     FROM vendor_payments vp
     INNER JOIN vendor_payment_lines vpl
         ON vpl."vendorPaymentId" = vp.id
     INNER JOIN chart_of_accounts coa
         ON coa.id = vpl."glAccountId"
-       AND coa.code = '2000'                -- Accounts Payable
+       AND coa.code = '2000'
     WHERE vp."vendorId" = $1
       AND vp.status = 'PAID'
       AND vp."paymentDate" < $2
-  
 
     UNION ALL
 
-    /* ---------------- PURCHASE REFUNDS / CREDIT NOTES ---------------- */
-    SELECT -pr."amount" AS balance
+    /* PURCHASE REFUNDS */
+    SELECT -pr."amount"
     FROM purchase_refunds pr
     WHERE pr."vendorId" = $1
       AND pr."refundDate" < $2
 
+    UNION ALL
+
+    /* DEBIT MEMOS (reduce AP) */
+    SELECT -m."amount"
+    FROM memo m
+    WHERE m."vendorId" = $1
+      AND m."memoType" = 'DEBIT'
+      AND m."date" < $2
+
+    UNION ALL
+
+    /* CREDIT MEMOS (increase AP) */
+    SELECT m."amount"
+    FROM memo m
+    WHERE m."vendorId" = $1
+      AND m."memoType" = 'CREDIT'
+      AND m."date" < $2
+
 ) x;
+
     `,
       vendorId,
       fromDate,
@@ -998,7 +1092,7 @@ INNER JOIN vendors v ON p."vendorId" = v."id"
 WHERE v."id" = $1
   AND p."orderDate" >= $2
   AND p."orderDate" < ($3 + INTERVAL '1 day')
-  AND p."status" != 'DRAFT'
+  AND p."status" IN ('INVOICED', 'PAID', 'PARTIALLY_PAID', 'RETURNED')
 
 UNION ALL
 
@@ -1048,6 +1142,47 @@ WHERE v."id" = $1
   AND pr."refundDate" >= $2
   AND pr."refundDate" < ($3 + INTERVAL '1 day')
 
+  UNION ALL
+
+SELECT 
+    'VENDOR' AS type,
+    v."code" AS account_code,
+    v."name" AS account_name,
+    'DEBIT_MEMO' AS transaction_type,
+    m."memoNo" AS reference,
+    m."date" AS date,
+    m."amount" AS debit,
+    0 AS credit,
+    -m."amount" AS balance,
+    m."description" AS description
+FROM memo m
+INNER JOIN vendors v ON m."vendorId" = v."id"
+WHERE v."id" = $1
+  AND m."memoType" = 'DEBIT'
+  AND m."date" >= $2
+  AND m."date" < ($3 + INTERVAL '1 day')
+
+  UNION ALL
+
+SELECT 
+    'VENDOR' AS type,
+    v."code" AS account_code,
+    v."name" AS account_name,
+    'CREDIT_MEMO' AS transaction_type,
+    m."memoNo" AS reference,
+    m."date" AS date,
+    0 AS debit,
+    m."amount" AS credit,
+    m."amount" AS balance,
+    m."description" AS description
+FROM memo m
+INNER JOIN vendors v ON m."vendorId" = v."id"
+WHERE v."id" = $1
+  AND m."memoType" = 'CREDIT'
+  AND m."date" >= $2
+  AND m."date" < ($3 + INTERVAL '1 day')
+
+
 ORDER BY date, transaction_type, reference;
     `,
       vendorId,
@@ -1055,7 +1190,7 @@ ORDER BY date, transaction_type, reference;
       toDate,
     );
 
-    // 🔹 Totals
+    //  Totals
     const totalPurchases = entries.reduce(
       (sum, e) => sum + Number(e.credit || 0),
       0,
@@ -1071,7 +1206,17 @@ ORDER BY date, transaction_type, reference;
 
     // const closingBalance = openingBalance + netMovement;
 
-    const closingBalance = openingBalance + totalPurchases - totalPayments;
+    const totalDebits = entries.reduce(
+      (sum, e) => sum + Number(e.debit || 0),
+      0,
+    );
+
+    const totalCredits = entries.reduce(
+      (sum, e) => sum + Number(e.credit || 0),
+      0,
+    );
+
+    const closingBalance = openingBalance + totalCredits - totalDebits;
 
     return {
       openingBalance,
@@ -1104,25 +1249,31 @@ ORDER BY date, transaction_type, reference;
 
     COALESCE(p.total_purchases, 0) AS total_purchases,
     COALESCE(pay.total_payments, 0) AS total_payments,
+    COALESCE(r.total_refunds, 0) AS total_refunds,
+    COALESCE(dm.total_debit_memos, 0) AS total_debit_memos,
+    COALESCE(cm.total_credit_memos, 0) AS total_credit_memos,
 
     COALESCE(p.total_purchases, 0)
       - COALESCE(pay.total_payments, 0)
-      - COALESCE(r.total_refunds, 0) AS outstanding_balance
+      - COALESCE(r.total_refunds, 0)
+      - COALESCE(dm.total_debit_memos, 0)
+      + COALESCE(cm.total_credit_memos, 0)
+      AS outstanding_balance
 
 FROM vendors v
 
-/* ---------------- PURCHASES (AP INVOICES) ---------------- */
+/* PURCHASES */
 LEFT JOIN (
     SELECT 
-        p."vendorId",
-        SUM(p."totalAmount") AS total_purchases
-    FROM purchases p
-    WHERE p."orderDate" <= $1
-      AND p.status IN ('INVOICED', 'PAID', 'PARTIALLY_PAID')
-    GROUP BY p."vendorId"
+        "vendorId",
+        SUM("totalAmount") AS total_purchases
+    FROM purchases
+    WHERE "orderDate" <= $1
+      AND status IN ('INVOICED', 'PAID', 'PARTIALLY_PAID', 'RETURNED')
+    GROUP BY "vendorId"
 ) p ON p."vendorId" = v.id
 
-/* ---------------- PAYMENTS (ONLY AP = CODE 2000) ---------------- */
+/* PAYMENTS */
 LEFT JOIN (
     SELECT 
         vp."vendorId",
@@ -1132,23 +1283,46 @@ LEFT JOIN (
         ON vpl."vendorPaymentId" = vp.id
     INNER JOIN chart_of_accounts coa
         ON coa.id = vpl."glAccountId"
-       AND coa.code = '2000'                -- Accounts Payable
-    WHERE vp.status = 'PAID'
+       AND coa.code = '2000'
+    WHERE vp.status IN ('PAID', 'PARTIALLY_PAID', 'RETURNED', 'INVOICED')
       AND vp."paymentDate" <= $1
     GROUP BY vp."vendorId"
 ) pay ON pay."vendorId" = v.id
 
-/* ---------------- PURCHASE REFUNDS / CREDIT NOTES ---------------- */
+/* REFUNDS */
 LEFT JOIN (
     SELECT 
-        pr."vendorId",
-        SUM(pr."amount") AS total_refunds
-    FROM purchase_refunds pr
-    WHERE pr."refundDate" <= $1
-    GROUP BY pr."vendorId"
+        "vendorId",
+        SUM("amount") AS total_refunds
+    FROM purchase_refunds
+    WHERE "refundDate" <= $1
+    GROUP BY "vendorId"
 ) r ON r."vendorId" = v.id
 
+/* DEBIT MEMOS */
+LEFT JOIN (
+    SELECT
+        "vendorId",
+        SUM("amount") AS total_debit_memos
+    FROM memo
+    WHERE "memoType" = 'DEBIT'
+      AND "date" <= $1
+    GROUP BY "vendorId"
+) dm ON dm."vendorId" = v.id
+
+/* CREDIT MEMOS */
+LEFT JOIN (
+    SELECT
+        "vendorId",
+        SUM("amount") AS total_credit_memos
+    FROM memo
+    WHERE "memoType" = 'CREDIT'
+      AND "date" <= $1
+    GROUP BY "vendorId"
+) cm ON cm."vendorId" = v.id
+
 ORDER BY v.name;
+
 
   `,
       asOfDate,

@@ -379,9 +379,7 @@ const PosTerminal = ({
             printData.customer
               ? `
             <div style="margin-bottom: 10px; font-size: 12px;">
-              <strong>Customer:</strong> ${
-                printData.customer.name
-              }<br>
+              <strong>Customer:</strong> ${printData.customer.name}<br>
               <strong>Code:</strong> ${printData.customer.code}
             </div>
           `
@@ -593,41 +591,6 @@ const PosTerminal = ({
                     <Plus className="mr-1" size={16} /> Add Payment Method
                   </button>
                 </div>
-                {/* <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Payment Method
-                  </label>
-                  <select
-                    {...register("paymentMethod")}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="CARD">Card</option>
-                    <option value="TRANSFER">Bank Transfer</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Cash Account *
-                  </label>
-                  <select
-                    {...register("cashAccountId")}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select cash account</option>
-                    {filteredAccounts?.map((account: any) => (
-                      <option key={account.id} value={account.id}>
-                        {account.code} - {account.name} (₦
-                        {Number(account.balance).toLocaleString()})
-                      </option>
-                    ))}
-                  </select>
-                  {errors.cashAccountId && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.cashAccountId.message}
-                    </p>
-                  )}
-                </div> */}
               </div>
 
               {/* Customer Outstanding Balance */}

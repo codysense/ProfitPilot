@@ -14,6 +14,7 @@ import StatusBadge from "../../components/StatusBadge";
 import { PosSale } from "../../types/api";
 // import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
+import DetailPOSSaleModal from "./DetailPOSSaleModal";
 
 const PosSalesHistory = () => {
   const [page, setPage] = useState(1);
@@ -23,6 +24,8 @@ const PosSalesHistory = () => {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [cashiers, setCashiers] = useState<any[]>([]);
   const [selectedCashier, setSelectedCashier] = useState<string>("");
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<PosSale | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: [
@@ -92,17 +95,17 @@ const PosSalesHistory = () => {
       width: "w-32",
     },
     {
-  key: "payments",
-  header: "Payment",
-  cell: (sale: PosSale) => (
-    <div className="flex gap-1 flex-wrap">
-      {sale.payments.map((p, i) => (
-        <StatusBadge key={i} status={p.method} variant="info" />
-      ))}
-    </div>
-  ),
-  width: "w-32",
-},
+      key: "payments",
+      header: "Payment",
+      cell: (sale: PosSale) => (
+        <div className="flex gap-1 flex-wrap">
+          {sale.payments.map((p, i) => (
+            <StatusBadge key={i} status={p.method} variant="info" />
+          ))}
+        </div>
+      ),
+      width: "w-32",
+    },
 
     {
       key: "status",
@@ -123,8 +126,6 @@ const PosSalesHistory = () => {
     },
   ];
 
- 
-
   const handlePrintReceipt = async (sale: PosSale) => {
     try {
       const printData = await posApi.printReceipt(sale.id);
@@ -134,7 +135,7 @@ const PosSalesHistory = () => {
       const printWindow = window.open("", "_blank", "width=400,height=600");
       if (!printWindow) throw new Error("Unable to open print window");
 
-       const receiptHTML = `
+      const receiptHTML = `
       <html>
         <head>
           <title>Receipt - ${printData.documentNo}</title>
@@ -211,9 +212,7 @@ const PosSalesHistory = () => {
             printData.customer
               ? `
             <div style="margin-bottom: 10px; font-size: 12px;">
-              <strong>Customer:</strong> ${
-                printData.customer.name
-              }<br>
+              <strong>Customer:</strong> ${printData.customer.name}<br>
               <strong>Code:</strong> ${printData.customer.code}
             </div>
           `
@@ -303,6 +302,11 @@ const PosSalesHistory = () => {
     }
   };
 
+  const handleViewDetails = (sale: PosSale) => {
+    setSelectedSale(sale);
+    setShowDetailsModal(true);
+  };
+
   const actions = (sale: PosSale) => (
     <div className="flex space-x-2">
       {sale.status === "COMPLETED" && (
@@ -314,18 +318,15 @@ const PosSalesHistory = () => {
           <Printer className="h-4 w-4" />
         </button>
       )}
-      {/* {sale.status === "COMPLETED" && (
+      {/* Include view button */}
+      {sale.status === "COMPLETED" && (
         <button
-          onClick={() => {
-            // TODO: Implement return from history
-            console.log("Process return for sale:", sale.id);
-          }}
-          className="text-orange-600 hover:text-orange-900"
-          title="Process Return"
+          onClick={() => handleViewDetails(sale)}
+          className="text-blue-600 hover:text-blue-900"
         >
-          <RotateCcw className="h-4 w-4" />
+          <Eye className="h-4 w-4" />
         </button>
-      )} */}
+      )}
     </div>
   );
 
@@ -512,6 +513,17 @@ const PosSalesHistory = () => {
         onPageChange={setPage}
         actions={actions}
       />
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedSale && (
+        <DetailPOSSaleModal
+          sale={selectedSale}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedSale(null);
+          }}
+        />
+      )}
     </div>
   );
 };

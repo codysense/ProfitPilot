@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useState } from "react";
 import { Combobox, Transition } from "@headlessui/react";
-import { Check,ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { useDebounce } from "../utils/debounce";
-import { useQuery,keepPreviousData } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { salesApi } from "../lib/api";
 
 interface Customer {
@@ -19,11 +19,16 @@ interface CustomerSelectProps {
   error?: string;
   typeFilter?: string;
 }
-export function CustomerSelect({  value, onChange, error, typeFilter }: CustomerSelectProps) {
+export function CustomerSelect({
+  value,
+  onChange,
+  error,
+  typeFilter,
+}: CustomerSelectProps) {
   const [query, setQuery] = useState("");
 
-const [search, setSearch] = useState("");
-const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   // debounce search
   const debouncedSearch = useDebounce(search, 500);
@@ -34,7 +39,10 @@ const [page, setPage] = useState(1);
   }, [debouncedSearch, typeFilter]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["customers", { page, search: debouncedSearch, type: typeFilter }],
+    queryKey: [
+      "customers",
+      { page, search: debouncedSearch, type: typeFilter },
+    ],
     queryFn: () =>
       salesApi.getCustomers({
         page,
@@ -59,22 +67,18 @@ const [page, setPage] = useState(1);
     }
   };
 
-
-
-
   const filtered =
     query === ""
       ? customers
       : customers.filter((c) =>
           `${c.code} ${c.name} ${c.phone || ""}`
             .toLowerCase()
-            .includes(query.toLowerCase())
+            .includes(query.toLowerCase()),
         );
 
   return (
     <div>
       <Combobox value={value || ""} onChange={onChange || (() => {})}>
-
         <div className="relative mt-1">
           <div className="relative w-full cursor-default overflow-hidden rounded-md border border-gray-300 bg-white text-left shadow-sm focus-within:ring-2 focus-within:ring-blue-500 sm:text-sm">
             <Combobox.Input
@@ -89,9 +93,16 @@ const [page, setPage] = useState(1);
               <ChevronsUpDown className="h-5 w-5 text-gray-400" />
             </Combobox.Button>
           </div>
-          <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm" 
-            onScroll={handleScroll}>
+          <Transition
+            as={Fragment}
+            leave="transition ease-in duration-100"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <Combobox.Options
+              className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm"
+              onScroll={handleScroll}
+            >
               {customers.length === 0 && !isLoading ? (
                 <div className="cursor-default select-none py-2 px-4 text-gray-700">
                   Nothing found.
@@ -107,7 +118,7 @@ const [page, setPage] = useState(1);
                       }`
                     }
                   >
-              {/* {filtered.length === 0 && query !== "" ? (
+                    {/* {filtered.length === 0 && query !== "" ? (
                 <div className="cursor-default select-none py-2 px-4 text-gray-700">
                   Nothing found.
                 </div>
@@ -124,7 +135,9 @@ const [page, setPage] = useState(1);
                   > */}
                     {({ selected, active }) => (
                       <>
-                        <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                        <span
+                          className={`block truncate ${selected ? "font-medium" : "font-normal"}`}
+                        >
                           {c.code} - {c.name} {c.phone ? `(${c.phone})` : ""}
                         </span>
                         {selected && (
