@@ -880,6 +880,8 @@ export const posApi = {
 
   // Sales
   createSale: (data: CreatePosSaleRequest) => api.post("/pos/sales", data),
+  getPOSsalePayments: (saleId: string) =>
+    api.get(`/pos/sales/${saleId}/payments`),
   getSales: (params?: {
     page?: number;
     limit?: number;

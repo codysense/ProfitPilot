@@ -1,5 +1,7 @@
 import React from "react";
 import { X, User, ShoppingCart } from "lucide-react";
+import { posApi } from "../../lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 interface DetailPOSSaleModalProps {
   sale: any;
@@ -10,6 +12,14 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
   sale,
   onClose,
 }) => {
+  const { data: paymentsData } = useQuery({
+    queryKey: ["posSalePayments", sale.id],
+    queryFn: () => posApi.getPOSsalePayments(sale.id),
+  });
+
+  // console.log("Payments Data:", paymentsData);
+  // console.log("Sale Data in Modal:", sale.id, sale.saleNo);
+
   if (!sale) return null;
 
   const subtotal =
@@ -127,7 +137,7 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
               </h4>
 
               <div className="space-y-3">
-                {sale.payments?.map((payment: any, index: number) => (
+                {paymentsData?.map((payment: any, index: number) => (
                   <div
                     key={index}
                     className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-3 rounded-md text-sm"
@@ -140,7 +150,7 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
                     <div>
                       <div className="text-gray-500">Account</div>
                       <div>
-                        {payment.cashAccount?.code} -{" "}
+                        {/* {payment.cashAccount?.code} -{" "} */}
                         {payment.cashAccount?.name}
                       </div>
                     </div>

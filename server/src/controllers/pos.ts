@@ -781,6 +781,7 @@ export class PosController {
           include: {
             customer: { select: { code: true, name: true } },
             warehouse: { select: { code: true, name: true } },
+            cashAccount: { select: { code: true, name: true } },
             session: { select: { sessionNo: true } },
             saleLines: {
               include: {
@@ -791,6 +792,7 @@ export class PosController {
               select: {
                 method: true,
                 amount: true,
+                cashAccountId: true,
               },
             },
             user: { select: { id: true, name: true } },
@@ -812,6 +814,26 @@ export class PosController {
     } catch (error) {
       console.error("Get POS sales error:", error);
       res.status(500).json({ error: "Failed to fetch POS sales" });
+    }
+  }
+
+  async getPOSsalePayments(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      //fetch payments with cash account details for a specific POS sale
+
+      const payments = await prisma.posSalePayment.findMany({
+        where: { posSaleId: id },
+        include: {
+          cashAccount: { select: { code: true, name: true } },
+        },
+      });
+
+      res.json(payments);
+    } catch (error) {
+      console.error("Get POS sale payments error:", error);
+      res.status(500).json({ error: "Failed to fetch POS sale payments" });
     }
   }
 

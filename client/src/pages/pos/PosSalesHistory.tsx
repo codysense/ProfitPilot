@@ -51,7 +51,7 @@ const PosSalesHistory = () => {
         ...(paymentMethod && { paymentMethod: paymentMethod }),
       }),
   });
-  console.log("Sales history data:", data);
+  // console.log("Sales history data:", data);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-info-for-receipt"],

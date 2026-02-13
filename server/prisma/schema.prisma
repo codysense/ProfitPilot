@@ -634,6 +634,7 @@ model CashAccount {
   salesReceipts    SalesReceipt[]
   SalesRefund      SalesRefund[]
   vendorPayments   VendorPayment[]
+  posSalePayments  PosSalePayment[]
 
   @@map("cash_accounts")
 }
@@ -1193,7 +1194,8 @@ model PosSalePayment {
   amount        Decimal          @db.Decimal(15, 2)
   createdAt     DateTime         @default(now())
 
-  posSale PosSale @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
+  posSale     PosSale      @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
+  cashAccount CashAccount? @relation(fields: [cashAccountId], references: [id])
 
   @@map("pos_sale_payments")
 }
@@ -1304,13 +1306,11 @@ enum MemoStatus {
   CANCELLED
 }
 
-enum memoCategory { 
+enum memoCategory {
   SALES_RETURN
   PURCHASE_RETURN
   FINANCIAL
-  
-  } 
-
+}
 
 model Memo {
   id     String   @id @default(cuid())
@@ -1353,7 +1353,7 @@ model Memo {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [createdBy], references: [id])
 
-   @@map("memo")
+  @@map("memo")
 }
 
 model StockAdjustment {
