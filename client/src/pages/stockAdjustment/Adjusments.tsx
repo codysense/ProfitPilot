@@ -1,150 +1,160 @@
-import { useState } from "react";
-import { useMemos } from "../../hooks/useMemo";
-import CreateAdjustmentModal from "./createAdjustmentModal";
-import { adjustmentApi } from "../../lib/api";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-// import { format } from 'date-fns';
+import { adjustmentApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import { Eye, Plus } from "lucide-react";
+import CreateAdjustmentModal from "./createAdjustmentModal";
 
 export const Adjustments = () => {
+  const [page, setPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [query, setQuery] = useState<any>({
-    page: 1,
-    pageSize: 20,
-    type: "",
-    customerId: "",
-    vendorId: "",
-    status: "",
-    date: "",
-  });
 
-  const { data, isLoading, refetch } = useMemos(query);
-
-  //   const adjustments = data ?? [];
-  const pagination = data?.pagination ?? {
-    total: 0,
-    page: 1,
+  const query = {
+    page,
     pageSize: 10,
-    totalPages: 1,
+    type: typeFilter,
+    date: dateFilter,
   };
-  //  console.log(data)
 
-  const { data: adjustments } = useQuery<{ data: any[] }>({
-    queryKey: ["adjustments"],
-    queryFn: () => adjustmentApi.getStockAdjustment(),
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["adjustments", query],
+    queryFn: () => adjustmentApi.getStockAdjustment(query),
   });
-  console.log(adjustments);
+
+  const adjustments = data?.data || [];
+  const pagination = data?.pagination;
+
+  const columns = [
+    {
+      key: "date",
+      header: "Date",
+      cell: (adjustment: any) =>
+        adjustment.date ? new Date(adjustment.date).toLocaleDateString() : "-",
+      width: "w-32",
+    },
+    {
+      key: "itemName",
+      header: "Item",
+      cell: (adjustment: any) => adjustment.itemName || "-",
+      width: "w-48",
+    },
+    {
+      key: "adjustmentType",
+      header: "Adjustment Type",
+      cell: (adjustment: any) => (
+        <span
+          className={`px-2 py-1 rounded text-xs font-medium ${
+            adjustment.adjustmentType === "SURPLUS"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
+          {adjustment.adjustmentType}
+        </span>
+      ),
+      width: "w-32",
+    },
+    {
+      key: "quantity",
+      header: "Quantity",
+      cell: (adjustment: any) =>
+        Number(adjustment.quantity || 0).toLocaleString(),
+      width: "w-24",
+    },
+    {
+      key: "warehouse",
+      header: "Warehouse",
+      cell: (adjustment: any) => adjustment.warehouse || "-",
+      width: "w-40",
+    },
+    {
+      key: "createdBy",
+      header: "Posted By",
+      cell: (adjustment: any) => adjustment.createdBy || "-",
+      width: "w-40",
+    },
+  ];
+
+  // const actions = (adjustment: any) => (
+  //   <button
+  //     className="text-blue-600 hover:text-blue-900"
+  //     title="View Adjustment"
+  //     onClick={() => console.log(adjustment)} // replace with modal later
+  //   >
+  //     <Eye className="h-4 w-4" />
+  //   </button>
+  // );
 
   return (
-    <div>
-      {/* Filters */}
-      <div className="flex gap-4 mb-4">
-        <select
-          value={query.type}
-          onChange={(e) => setQuery({ ...query, type: e.target.value })}
-          className="block w-40 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        >
-          <option value="">All Types</option>
-          <option value="CREDIT">FINISHED_GOODS</option>
-          <option value="DEBIT">RAW MATERIAL</option>
-        </select>
-
-        {/* <select
-  value={query.partyType}
-  onChange={(e) => setQuery({ ...query, partyType: e.target.value })}
-  className="block w-40 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
->
-  <option value="">All</option>
-  <option value="CUSTOMER">Customer</option>
-  <option value="VENDOR">Vendor</option>
-</select> */}
-
-        <input
-          type="date"
-          value={query.date}
-          onChange={(e) => setQuery({ ...query, date: e.target.value })}
-          className="block w-40 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Stock Adjustments
+          </h1>
+          <p className="text-gray-600">Manage inventory stock adjustments</p>
+        </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="ml-auto bg-blue-600 text-white px-4 py-2 rounded"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
         >
-          New Stock Adjustment
+          <Plus className="h-4 w-4 mr-2" />
+          New Adjustment
         </button>
       </div>
 
-      {/* Table */}
-      <table className="min-w-full border">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="px-3 py-2 border text-gray-600">Date</th>
-            <th className="px-3 py-2 border  text-gray-600">Item</th>
-            <th className="px-3 py-2 border  text-gray-600">Adjustment Type</th>
-            <th className="px-3 py-2 border  text-gray-600">Quantity</th>
-            <th className="px-3 py-2 border  text-gray-600">Warehouse</th>
-            <th className="px-3 py-2 border  text-gray-600">Posted by</th>
-            {/* <th className="px-3 py-2 border  text-gray-600">Amount</th>
-            <th className="px-3 py-2 border  text-gray-600">Reason</th> */}
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            <tr>
-              <td colSpan={7} className="text-center py-4">
-                Loading...
-              </td>
-            </tr>
-          ) : (
-            adjustments?.data?.map((adjustment: any) => (
-              <tr key={adjustment.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 border text-gray-500">
-                  {adjustment.date
-                    ? new Date(adjustment.date).toISOString().split("T")[0]
-                    : "-"}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {adjustment.itemName}
-                </td>
-                <td className="px-3 py-2 border   text-gray-500">
-                  {adjustment.adjustmentType}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {adjustment.quantity || "-"}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {adjustment.warehouse || "-"}
-                </td>
-                {/* <td className="px-3 py-2 border text-gray-500">{Number(adjustme).toLocaleString()}</td> */}
-                <td className="px-3 py-2 border text-gray-500">
-                  {adjustment.createdBy}
-                </td>
-                {/* <td className="px-3 py-2 border text-gray-500">{memo.user.name}</td> */}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-      {/* Pagination */}
-      <div className="flex justify-between items-center mt-4">
-        <button
-          disabled={query.page <= 1}
-          onClick={() => setQuery({ ...query, page: query.page - 1 })}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span className="text-sm text-gray-600">
-          Page {pagination.page} of {pagination.totalPages} (Total{" "}
-          {pagination.total})
-        </span>
-        <button
-          disabled={query.page >= pagination.totalPages}
-          onClick={() => setQuery({ ...query, page: query.page + 1 })}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Next
-        </button>
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Adjustment Type
+            </label>
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setPage(1);
+              }}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+            >
+              <option value="">All</option>
+              <option value="IN">Increase</option>
+              <option value="OUT">Decrease</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setPage(1);
+              }}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+            />
+          </div>
+        </div>
       </div>
+
+      {/* DataTable */}
+      <DataTable
+        data={adjustments}
+        columns={columns}
+        loading={isLoading}
+        pagination={pagination}
+        onPageChange={setPage}
+        // actions={actions}
+      />
+
       {/* Modal */}
       {isModalOpen && (
         <CreateAdjustmentModal

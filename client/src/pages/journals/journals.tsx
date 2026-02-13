@@ -1,125 +1,140 @@
-import { useState } from "react";
-import CreateJournalModal from "./createJournalModal";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { journalApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import { Eye, Plus } from "lucide-react";
+import CreateJournalModal from "./createJournalModal";
+import DetailJournalModal from "./DetailJournalModal";
 
 export const Journals = () => {
+  const [page, setPage] = useState(1);
+  const [dateFilter, setDateFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [query, setQuery] = useState<any>({
-    page: 1,
-    pageSize: 20,
-    date: "",
-  });
+  const [selectedJournal, setSelectedJournal] = useState<any>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  const query = {
+    page,
+    pageSize: 10,
+    date: dateFilter,
+  };
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["journals", query],
     queryFn: () => journalApi.getJournal(query),
-    // keepPreviousData: true, // helps smooth pagination
   });
 
-  const journals = data?.data ?? [];
-  const pagination = data?.pagination ?? {
-    total: 0,
-    page: 1,
-    pageSize: 10,
-    totalPages: 1,
-  };
+  console.log("Fetched journals data:", data);
+
+  const journals = data?.data || [];
+  const pagination = data?.pagination;
+
+  const columns = [
+    {
+      key: "date",
+      header: "Date",
+      cell: (journal: any) =>
+        journal.date ? new Date(journal.date).toLocaleDateString() : "-",
+      width: "w-32",
+    },
+    {
+      key: "refType",
+      header: "Reference",
+      cell: (journal: any) => journal.refType || "-",
+      width: "w-40",
+    },
+    {
+      key: "note",
+      header: "Reason",
+      cell: (journal: any) => journal.note || "-",
+      width: "w-64",
+    },
+    {
+      key: "accountName",
+      header: "Account Name",
+      cell: (journal: any) => journal.accountName || "-",
+      width: "w-48",
+    },
+    {
+      key: "debit",
+      header: "Total Debit",
+      cell: (journal: any) => `₦${Number(journal.debit || 0).toLocaleString()}`,
+      width: "w-32",
+    },
+    {
+      key: "credit",
+      header: "Total Credit",
+      cell: (journal: any) =>
+        `₦${Number(journal.credit || 0).toLocaleString()}`,
+      width: "w-32",
+    },
+    {
+      key: "postedBy",
+      header: "Posted By",
+      cell: (journal: any) => journal.postedBy || "-",
+      width: "w-40",
+    },
+  ];
+
+  // const actions = (journal: any) => (
+  //   <button
+  //     onClick={(() => setSelectedJournal(journal), setShowDetailModal(true))}
+  //     className="text-blue-600 hover:text-blue-900"
+  //     title="View Journal"
+  //   >
+  //     <Eye className="h-4 w-4" />
+  //   </button>
+  // );
 
   return (
-    <div>
-      {/* Filters */}
-      <div className="flex gap-4 mb-4">
-        <input
-          type="date"
-          value={query.date}
-          onChange={(e) => setQuery({ ...query, page: 1, date: e.target.value })}
-          className="block w-40 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Journals</h1>
+          <p className="text-gray-600">Manage general journal entries</p>
+        </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="ml-auto bg-blue-600 text-white px-4 py-2 rounded"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
         >
+          <Plus className="h-4 w-4 mr-2" />
           New Journal
         </button>
       </div>
 
-      {/* Table */}
-      <table className="min-w-full border">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="px-3 py-2 border text-gray-600">Date</th>
-            <th className="px-3 py-2 border text-gray-600">Account</th>
-            <th className="px-3 py-2 border text-gray-600">Debit Amount</th>
-            <th className="px-3 py-2 border text-gray-600">Credit Amount</th>
-            <th className="px-3 py-2 border text-gray-600">Reason</th>
-            <th className="px-3 py-2 border text-gray-600">Posted By</th>
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            <tr>
-              <td colSpan={7} className="text-center py-4">
-                Loading...
-              </td>
-            </tr>
-          ) : journals.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="text-center py-4">
-                No records found
-              </td>
-            </tr>
-          ) : (
-            journals.map((journal: any) => (
-              <tr key={journal.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 border text-gray-500">
-                  {journal.date
-                    ? new Date(journal.date).toISOString().split("T")[0]
-                    : "-"}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {journal.accountName || "-"}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {Number(journal.debit).toLocaleString()}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {Number(journal.credit).toLocaleString()}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {journal.memo || journal.note || "-"}
-                </td>
-                <td className="px-3 py-2 border text-gray-500">
-                  {journal.postedBy || "-"}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-
-      {/* Pagination */}
-      <div className="flex justify-between items-center mt-4">
-        <button
-          disabled={query.page <= 1}
-          onClick={() => setQuery({ ...query, page: query.page - 1 })}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span className="text-sm text-gray-600">
-          Page {pagination.page} of {pagination.totalPages} (Total {pagination.total})
-        </span>
-        <button
-          disabled={query.page >= pagination.totalPages}
-          onClick={() => setQuery({ ...query, page: query.page + 1 })}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Next
-        </button>
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setPage(1);
+              }}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Modal */}
+      {/* DataTable */}
+      <DataTable
+        data={journals}
+        columns={columns}
+        loading={isLoading}
+        pagination={pagination}
+        onPageChange={setPage}
+        // actions={actions}
+      />
+
+      {/* Create Modal */}
       {isModalOpen && (
         <CreateJournalModal
           onClose={() => setIsModalOpen(false)}
@@ -129,107 +144,14 @@ export const Journals = () => {
           }}
         />
       )}
+
+      {/* Detail Modal */}
+      {selectedJournal && (
+        <DetailJournalModal
+          journal={selectedJournal}
+          onClose={() => setSelectedJournal(null)}
+        />
+      )}
     </div>
   );
 };
-
-
-
-// import { useState } from "react";
-// import CreateJournalModal from "./createJournalModal";
-// import { useQuery } from "@tanstack/react-query";
-// import { journalApi } from "../../lib/api";
-
-// export const Journals = () => {
-//   const [isModalOpen, setIsModalOpen] = useState(false);
-//   const [query, setQuery] = useState<any>({
-//     page: 1,
-//     pageSize: 20,
-//     date: "",
-//   });
-
-//   const { data, isLoading, refetch } = useQuery({
-//     queryKey: ["journals", query],
-//     queryFn: () => journalApi.getJournal(query),
-//   });
-//  console.log(data)
-//   return (
-//     <div>
-//       {/* Filters */}
-//       <div className="flex gap-4 mb-4">
-//         <input
-//           type="date"
-//           value={query.date}
-//           onChange={(e) => setQuery({ ...query, date: e.target.value })}
-//           className="block w-40 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-//         />
-
-//         <button
-//           onClick={() => setIsModalOpen(true)}
-//           className="ml-auto bg-blue-600 text-white px-4 py-2 rounded"
-//         >
-//           New Journal
-//         </button>
-//       </div>
-
-//       {/* Table */}
-//       <table className="min-w-full border">
-//         <thead className="bg-gray-100">
-//           <tr>
-//             <th className="px-3 py-2 border text-gray-600">Date</th>
-//             <th className="px-3 py-2 border text-gray-600">Account</th>
-//             <th className="px-3 py-2 border text-gray-600">Debit Amount</th>
-//             <th className="px-3 py-2 border text-gray-600">Credit Amount</th>
-//             <th className="px-3 py-2 border text-gray-600">Reason</th>
-//             <th className="px-3 py-2 border text-gray-600">Posted By</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           {isLoading ? (
-//             <tr>
-//               <td colSpan={7} className="text-center py-4">
-//                 Loading...
-//               </td>
-//             </tr>
-//           ) : (
-//             data?.map((journal: any) => (
-//               <tr key={journal.id} className="hover:bg-gray-50">
-//                 <td className="px-3 py-2 border text-gray-500">
-//                   {journal.date
-//                     ? new Date(journal.date).toISOString().split("T")[0]
-//                     : "-"}
-//                 </td>
-//                 <td className="px-3 py-2 border text-gray-500">
-//                   {journal.accountName || "-"}
-//                 </td>
-//                 <td className="px-3 py-2 border text-gray-500">
-//                   {Number(journal.debit).toLocaleString()}
-//                 </td>
-//                 <td className="px-3 py-2 border text-gray-500">
-//                   {Number(journal.credit).toLocaleString()}
-//                 </td>
-//                 <td className="px-3 py-2 border text-gray-500">
-//                   {journal.memo || journal.note || "-"}
-//                 </td>
-//                 <td className="px-3 py-2 border text-gray-500">
-//                   {journal.memo || journal.postedBy || "-"}
-//                 </td>
-//               </tr>
-//             ))
-//           )}
-//         </tbody>
-//       </table>
-
-//       {/* Modal */}
-//       {isModalOpen && (
-//         <CreateJournalModal
-//           onClose={() => setIsModalOpen(false)}
-//           onSuccess={() => {
-//             setIsModalOpen(false);
-//             refetch();
-//           }}
-//         />
-//       )}
-//     </div>
-//   );
-// };
