@@ -791,7 +791,7 @@ ORDER BY c.name;
 `,
       asOfDate,
     );
-    console.log("Customer Balances Result:", result);
+    //console.log("Customer Balances Result:", result);
 
     return result;
   }
@@ -1307,6 +1307,7 @@ LEFT JOIN (
     FROM memo
     WHERE "memoType" = 'DEBIT'
       AND "date" <= $1
+      AND "vendorId" IS NOT NULL
     GROUP BY "vendorId"
 ) dm ON dm."vendorId" = v.id
 
@@ -1328,6 +1329,7 @@ ORDER BY v.name;
       asOfDate,
     );
 
+    // console.log("Vendor Balances Result:", result);
     return result;
   }
 
