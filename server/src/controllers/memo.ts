@@ -382,11 +382,15 @@ export class MemoController {
 
           const controlAccount = module === "SALES" ? "1200" : "2000";
 
+          const coa = await tx.chartOfAccount.findFirst({
+            where: { id: accountId },
+          });
+
           if (memoType === "CREDIT") {
             await glService.postJournal(
               [
                 {
-                  accountCode: accountId,
+                  accountCode: coa.code,
                   debit: finalAmount,
                   credit: 0,
                   refType: "CREDIT MEMO",
@@ -414,7 +418,7 @@ export class MemoController {
                   refId: req.body.refId ?? undefined,
                 },
                 {
-                  accountCode: accountId,
+                  accountCode: coa.code,
                   debit: 0,
                   credit: finalAmount,
                   refType: "DEBIT MEMO",
