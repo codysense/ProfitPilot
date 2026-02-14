@@ -13,3 +13,6 @@ dist/
 deploy.sh
 backup_db.sh
 backups/
+
+src/services/clearTransaction.ts
+
