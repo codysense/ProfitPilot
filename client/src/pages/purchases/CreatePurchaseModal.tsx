@@ -45,6 +45,8 @@ const CreatePurchaseModal = ({
     handleSubmit,
     watch,
     setValue,
+    getFieldState,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<CreatePurchaseFormData>({
     resolver: zodResolver(createPurchaseSchema),
@@ -111,7 +113,7 @@ const CreatePurchaseModal = ({
   useEffect(() => {
     if (orderType !== "INVENTORY") return;
     if (!purchaseData?.purchases?.length) return;
-    if (!watchedLines.length) return;
+    if (!watchedItemIds.length) return;
 
     watchedItemIds.forEach((line, index) => {
       if (!line) return;
@@ -125,33 +127,41 @@ const CreatePurchaseModal = ({
             new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime(),
         )[0];
 
-      if (lastPurchase === undefined) return;
+      if (!lastPurchase) return;
 
-      const lastLine = lastPurchase?.purchaseLines?.find(
+      const lastLine = lastPurchase.purchaseLines?.find(
         (l: any) => l.itemId === line,
       );
 
-      // if (!lastLine){
-      //   setValue(`purchaseLines.${index}.unitPrice`, 0, {
-      //     shouldDirty: true,
-      //     shouldTouch: true,
-      //   });
-      //   return;
-      // }
+      const lastPrice = lastLine ? Number(lastLine.unitPrice) : 0;
 
-      // const lastUnitPrice = Number(lastLine.unitPrice);
+      const currentPrice = Number(
+        getValues(`purchaseLines.${index}.unitPrice`),
+      );
 
-      const currentPrice = Number(watchedLines[index]?.unitPrice || 0);
-      const newPrice = lastLine ? Number(lastLine.unitPrice) : 0;
+      // const fieldState = getFieldState(`purchaseLines.${index}.unitPrice`);
 
-      if (currentPrice !== newPrice) {
-        setValue(`purchaseLines.${index}.unitPrice`, newPrice, {
-          shouldDirty: true,
-          shouldTouch: true,
-        });
+      // Only auto-fill if field is empty AND not dirty
+      if (currentPrice === 0 && lastPrice) {
+        setValue(`purchaseLines.${index}.unitPrice`, lastPrice);
       }
     });
-  }, [watchedItemIds, watchedLines, purchaseData, setValue]);
+  }, [watchedItemIds, purchaseData, orderType]);
+
+  // const getLastPrice = (itemId: string) => {
+  //   const lastPurchase = purchaseData.purchases
+  //     .filter((purchase: any) =>
+  //       purchase.purchaseLines?.some((l: any) => l.itemId === itemId),
+  //     )
+  //     .sort(
+  //       (a: any, b: any) =>
+  //         new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime(),
+  //     )[0];
+  //   return (
+  //     lastPurchase?.purchaseLines?.find((l: any) => l.itemId === itemId)
+  //       ?.unitPrice || 0
+  //   );
+  // };
 
   const calculateTotal = () => {
     return watchedLines.reduce((sum, line) => {
@@ -304,6 +314,20 @@ const CreatePurchaseModal = ({
                                   shouldDirty: true,
                                 })
                               }
+                              // onItemSelect={(itemId, index) => {
+                              //   console.log(
+                              //     "Selected itemId:",
+                              //     itemId,
+                              //     "at index:",
+                              //     index,
+                              //   );
+                              //   const lastPrice = getLastPrice(itemId);
+
+                              //   setValue(
+                              //     `purchaseLines.${index}.unitPrice`,
+                              //     lastPrice,
+                              //   );
+                              // }}
                               error={
                                 errors.purchaseLines?.[index]?.itemId?.message
                               }
@@ -332,7 +356,8 @@ const CreatePurchaseModal = ({
                               valueAsNumber: true,
                             })}
                             type="number"
-                            step="0.001"
+                            // onScroll={}
+                            step="1"
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             placeholder="1.00"
                           />
@@ -352,7 +377,7 @@ const CreatePurchaseModal = ({
                               valueAsNumber: true,
                             })}
                             type="number"
-                            step="0.01"
+                            step="10"
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             placeholder="0.00"
                           />

@@ -9,7 +9,7 @@ interface Item {
   id: string;
   sku: string;
   name: string;
-  stockQty:number;
+  stockQty: number;
 }
 
 interface ItemSelectProps {
@@ -19,7 +19,12 @@ interface ItemSelectProps {
   typeFilter?: string; // optional filter if needed
 }
 
-export function ItemSelect({ value, onChange, error, typeFilter }: ItemSelectProps) {
+export function ItemSelect({
+  value,
+  onChange,
+  error,
+  typeFilter,
+}: ItemSelectProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -40,11 +45,10 @@ export function ItemSelect({ value, onChange, error, typeFilter }: ItemSelectPro
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(typeFilter && { type: typeFilter }),
       }),
-    placeholderData: keepPreviousData, 
+    placeholderData: keepPreviousData,
   });
 
-// console.log("ItemSelect Data:", data);
-   
+  // console.log("ItemSelect Data:", data);
 
   const items: Item[] = data?.items ?? [];
   const total = data?.pagination?.total ?? 0;
