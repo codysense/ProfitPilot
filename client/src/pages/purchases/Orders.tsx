@@ -75,14 +75,15 @@ const PurchaseOrders = () => {
     {
       key: "totalAmount",
       header: "Total Amount",
-      cell: (purchase: Purchase) => `₦${purchase.totalAmount.toLocaleString()}`,
+      cell: (purchase: Purchase) =>
+        `₦${Number(purchase.totalAmount).toLocaleString()}`,
       width: "w-32",
     },
     {
       key: "balanceAmount",
       header: "Balance Amount",
       cell: (purchase: Purchase) =>
-        `₦${purchase.balanceAmount.toLocaleString()}`,
+        `₦${Number(purchase.balanceAmount).toLocaleString()}`,
       width: "w-32",
     },
     {
@@ -455,7 +456,7 @@ const PurchaseOrders = () => {
           </button>
         )}
 
-        {/* ================= ASSET PO ================= */}
+        {/* =================  DELETE FOR ASSET PO & INVENTORY ================= */}
         {canPerformActions &&
           ["DRAFT", "ORDERED"].includes(purchase.status) && (
             <button
@@ -486,7 +487,7 @@ const PurchaseOrders = () => {
               )}
 
             {/* Delete */}
-            {["DRAFT", "ORDERED"].includes(purchase.status) &&
+            {/* {["DRAFT", "ORDERED"].includes(purchase.status) &&
               canPerformActions && (
                 <button
                   onClick={() => handleDeletePurchase(purchase)}
@@ -495,7 +496,7 @@ const PurchaseOrders = () => {
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
-              )}
+              )} */}
 
             {/* Print */}
             {!["DRAFT"].includes(purchase.status) && (

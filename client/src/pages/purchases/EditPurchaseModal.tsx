@@ -8,6 +8,7 @@ import { purchaseApi, inventoryApi } from "../../lib/api";
 import { Purchase } from "../../types/api";
 import toast from "react-hot-toast";
 import { ItemSelect } from "../../components/ItemSelect";
+import { VendorSelect } from "../../components/VendorSelect";
 
 const editPurchaseSchema = z.object({
   vendorId: z.string().min(1, "Vendor is required"),
@@ -19,7 +20,7 @@ const editPurchaseSchema = z.object({
         itemId: z.string().min(1, "Item is required"),
         qty: z.number().positive("Quantity must be positive"),
         unitPrice: z.number().positive("Unit price must be positive"),
-      })
+      }),
     )
     .min(1, "At least one line item is required"),
 });
@@ -58,6 +59,7 @@ const EditPurchaseModal = ({
       })),
     },
   });
+  console.log("EditPurchaseModal Rendered with purchase:", purchase);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -152,7 +154,15 @@ const EditPurchaseModal = ({
                   <label className="block text-sm font-medium text-gray-700">
                     Vendor *
                   </label>
-                  <select
+                  <VendorSelect
+                    value={watch("vendorId")}
+                    onChange={(val) =>
+                      setValue("vendorId", val, { shouldDirty: true })
+                    }
+                    error={errors.vendorId?.message}
+                    vendors={vendors?.vendors || []}
+                  />
+                  {/* <select
                     {...register("vendorId")}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
@@ -162,7 +172,7 @@ const EditPurchaseModal = ({
                         {vendor.code} - {vendor.name}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                   {errors.vendorId && (
                     <p className="mt-1 text-sm text-red-600">
                       {errors.vendorId.message}
