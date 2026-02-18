@@ -27,6 +27,7 @@ export function ItemSelect({
 }: ItemSelectProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [items, setItems] = useState<Item[]>([]);
 
   // debounce search
   const debouncedSearch = useDebounce(search, 500);
@@ -34,6 +35,7 @@ export function ItemSelect({
   // reset to page 1 when search or filter changes
   useEffect(() => {
     setPage(1);
+    setItems([]);
   }, [debouncedSearch, typeFilter]);
 
   const { data, isLoading } = useQuery({
@@ -48,9 +50,41 @@ export function ItemSelect({
     placeholderData: keepPreviousData,
   });
 
+  useEffect(() => {
+    if (!data?.items) return;
+
+    setItems((prev) => {
+      const map = new Map(prev.map((i) => [i.id, i]));
+
+      data.items.forEach((item: Item) => {
+        map.set(item.id, item);
+      });
+
+      return Array.from(map.values());
+    });
+  }, [data]);
+
+  useEffect(() => {
+    if (!value) return;
+
+    const exists = items.find((i) => i.id === value);
+    if (exists) return;
+
+    // fetch single page to try to get it
+    inventoryApi
+      .getItems({ page: 1, limit: 1 })
+      .then((res) => {
+        const found = res.items.find((i: Item) => i.id === value);
+        if (found) {
+          setItems((prev) => [found, ...prev]);
+        }
+      })
+      .catch(() => {});
+  }, [value]);
+
   // console.log("ItemSelect Data:", data);
 
-  const items: Item[] = data?.items ?? [];
+  // const items: Item[] = data?.items ?? [];
   const total = data?.pagination?.total ?? 0;
 
   // pagination — simple "load more" when scrolling

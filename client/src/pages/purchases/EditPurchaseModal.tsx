@@ -59,7 +59,7 @@ const EditPurchaseModal = ({
       })),
     },
   });
-  //console.log("EditPurchaseModal Rendered with purchase:", purchase);
+  console.log("EditPurchaseModal Rendered with purchase:", purchase);
 
   const { fields, append, remove } = useFieldArray({
     control,
