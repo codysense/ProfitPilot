@@ -59,7 +59,7 @@ const EditPurchaseModal = ({
       })),
     },
   });
-  console.log("EditPurchaseModal Rendered with purchase:", purchase);
+  //console.log("EditPurchaseModal Rendered with purchase:", purchase);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -75,7 +75,7 @@ const EditPurchaseModal = ({
 
   const { data: items } = useQuery({
     queryKey: ["items-for-edit-purchase"],
-    queryFn: () => inventoryApi.getItems({ type: "RAW_MATERIAL", limit: 100 }),
+    queryFn: () => inventoryApi.getItems({ limit: 100 }),
   });
 
   // Reset form when purchase changes
@@ -238,7 +238,7 @@ const EditPurchaseModal = ({
                             Item *
                           </label>
                           <ItemSelect
-                            items={items?.items || []}
+                            //items={items?.items || []}
                             value={watch(`purchaseLines.${index}.itemId`)}
                             onChange={(val) =>
                               setValue(`purchaseLines.${index}.itemId`, val)
