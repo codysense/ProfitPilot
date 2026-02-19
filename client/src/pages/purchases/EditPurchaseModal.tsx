@@ -238,7 +238,6 @@ const EditPurchaseModal = ({
                             Item *
                           </label>
                           <ItemSelect
-                            //items={items?.items || []}
                             value={watch(`purchaseLines.${index}.itemId`)}
                             onChange={(val) =>
                               setValue(`purchaseLines.${index}.itemId`, val)

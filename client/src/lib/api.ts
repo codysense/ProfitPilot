@@ -186,6 +186,8 @@ export const inventoryApi = {
         params ? "&" + new URLSearchParams(params as any).toString() : ""
       }`,
     ),
+
+  getItemById: (id: string) => api.get(`/inventory/items/${id}`),
   createItem: (data: any) => api.post("/inventory/items", data),
   deleteItem: (sku: string) => api.delete(`/inventory/items/${sku}`),
   getBoms: (params?: { itemId?: string }) =>

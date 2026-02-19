@@ -1632,4 +1632,32 @@ export class InventoryController {
       res.status(500).json({ error: "Failed to fetch items" });
     }
   }
+
+  async getItemById(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const item = await prisma.item.findUnique({
+        where: { id },
+        include: {
+          priceList: {
+            select: {
+              id: true,
+              customerGroup: true,
+              price: true,
+            },
+          },
+        },
+      });
+
+      if (!item) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+
+      res.json(item);
+    } catch (error) {
+      console.error("Get item error:", error);
+      res.status(500).json({ error: "Failed to fetch item" });
+    }
+  }
 }

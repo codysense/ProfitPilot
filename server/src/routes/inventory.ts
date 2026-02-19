@@ -21,7 +21,19 @@ router.get(
   ]),
   inventoryController.getItems,
 );
-// router.get('/items', authorize('inventory.item.read'), inventoryController.getItems);
+
+router.get(
+  "/items/:id",
+  requireRole([
+    "Accountant",
+    "POS User",
+    "Production Manager",
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+  ]),
+  inventoryController.getItemById,
+);
+
 router.post(
   "/items",
   requireRole(["Inventory Manager"]),
