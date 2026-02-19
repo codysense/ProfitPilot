@@ -16,6 +16,7 @@ import {
   purchaseApi,
   salesApi,
   cashApi,
+  posApi,
 } from "../lib/api";
 
 import { useAuthStore } from "../store/authStore";
@@ -42,15 +43,64 @@ const Dashboard = () => {
 
   const { data: sales } = useQuery({
     queryKey: ["sales", { limit: 10 }],
-    queryFn: () => salesApi.getSales({ limit: 10 }),
+    queryFn: () => salesApi.getSales({ limit: 10, status: "INVOICED" }),
   });
 
+  //FILTER SALES TO ONLY THIS MONTH
+  const filteredSales = sales?.sales.filter((sale: any) => {
+    const saleDate = new Date(sale.orderDate);
+    const now = new Date();
+    return (
+      saleDate.getMonth() === now.getMonth() &&
+      saleDate.getFullYear() === now.getFullYear()
+    );
+  });
+
+  //get pos sales this month
+  const { data: posSales } = useQuery({
+    queryKey: ["pos-sales", { limit: 10 }],
+    queryFn: () =>
+      posApi.getSales({
+        dateFrom: new Date(
+          new Date().getFullYear(),
+          new Date().getMonth(),
+          1,
+        ).toISOString(),
+        dateTo: new Date(
+          new Date().getFullYear(),
+          new Date().getMonth() + 1,
+          0,
+        ).toISOString(),
+        status: "COMPLETED",
+      }),
+  });
+  // console.log("POS Sales Data:", posSales);
+
+  //if user is not accountant or gm, filter pos sales to only those created by the user
+  if (posSales && !canviewall) {
+    posSales.sales = posSales.sales.filter(
+      (sale: any) => sale.user?.name === user?.name,
+    );
+  }
+
+  //calculate total pos sales amount for the month
+  const totalPosSalesAmount = posSales?.sales?.reduce(
+    (sum: number, sale: any) => sum + Number(sale.totalAmount || 0),
+    0,
+  );
+
   //if user is not accountant or gm, filter sales orders to only those created by the user
-  if (sales && !canviewall) {
-    sales.sales = sales.sales.filter(
+  if (filteredSales && !canviewall) {
+    sales.sales = filteredSales.filter(
       (sale: any) => sale.preparer?.name === user?.name,
     );
   }
+
+  //calculate total sales amount for the month
+  const totalSalesAmount = sales?.sales?.reduce(
+    (sum: number, sale: any) => sum + Number(sale.totalAmount || 0),
+    0,
+  );
 
   const { data: cashAccounts } = useQuery({
     queryKey: ["cash-accounts"],
@@ -96,12 +146,13 @@ const Dashboard = () => {
     {
       name: "Sales This Month",
       value: `₦${
-        sales?.sales
-          ?.reduce((sum: number, s: any) => sum + Number(s.totalAmount), 0)
-          .toLocaleString(undefined, {
+        (totalSalesAmount + (totalPosSalesAmount || 0)).toLocaleString(
+          undefined,
+          {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
-          }) || "0"
+          },
+        ) || "0"
       }`,
       icon: TrendingUp,
       // change: '+12.5%',

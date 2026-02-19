@@ -38,6 +38,14 @@ const PosDashboard = () => {
       }),
   });
 
+  //Filter today's sales to only those created by the user if they don't have permission to view all sales
+  const canviewall = user?.permissions?.includes("VIEW_ALL_SALES");
+  if (todaySales && !canviewall) {
+    todaySales.sales = todaySales.sales.filter(
+      (sale: any) => sale.user?.name === user?.name,
+    );
+  }
+
   const { data: warehouseItems } = useQuery({
     queryKey: ["warehouse-items", user?.warehouseId],
     queryFn: () =>

@@ -146,47 +146,6 @@ const PosTerminal = ({
     (account: any) => account.name !== "Memo Clearing",
   );
 
-  // useEffect(() => {
-  //   watchedLines.forEach((line, index) => {
-  //     if (!line.itemId || !items?.items) return;
-
-  //     const selectedItem = items.items.find((it: any) => it.id === line.itemId);
-  //     const customer = customersWithBalances?.customers?.find(
-  //       (c: any) => c.id === watchedCustomerId,
-  //     );
-
-  //     if (!selectedItem) return;
-
-  //     if (selectedItem && selectedCustomer) {
-  //       // find the matching price for this customer's group
-  //       const customerGroup = selectedCustomer.customerGroupName;
-  //       const groupPrice = selectedItem.priceList?.find(
-  //         (priceObj: any) => priceObj.customerGroup === customerGroup,
-  //       );
-  //       // console.log("selected customer", selectedCustomer);
-  //       // console.log("selected item", selectedItem);
-  //       // fallback if no group-specific price found
-  //       const unitPrice = groupPrice
-  //         ? groupPrice.price
-  //         : selectedItem.defaultPrice || 0;
-
-  //       setValue(`saleLines.${index}.unitPrice`, unitPrice, {
-  //         shouldDirty: true,
-  //         shouldValidate: true,
-  //         shouldTouch: true,
-  //       });
-  //     }
-  //   });
-  // }, [
-  //   watchedCustomerId,
-  //   items,
-  //   customersWithBalances,
-  //   watchedLines.map((l) => l.itemId).join(","),
-  //   setValue,
-  //   selectedCustomer,
-  //   watchedLines,
-  // ]);
-
   useEffect(() => {
     const setPrices = async () => {
       if (!selectedCustomer) return;
