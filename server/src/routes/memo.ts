@@ -10,7 +10,7 @@ const memoController = new MemoController();
 router.post(
   "/",
   authenticate,
-  requireRole(["Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("CREATE", "MEMO"),
   (req, res) => memoController.createMemo(req, res),
 );
@@ -18,17 +18,17 @@ router.post(
 router.get(
   "/",
   authenticate,
-  requireRole(["Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("READ", "MEMO"),
   (req, res) => memoController.getMemos(req, res),
 );
 
-// router.get('/:id', authenticate, requireRole(['Accountant']), auditLogger('READ', 'MEMO'), (req, res) => memoController.getMemo(req, res));
+// router.get('/:id', authenticate, requireRole(['Senior Accountant']), auditLogger('READ', 'MEMO'), (req, res) => memoController.getMemo(req, res));
 
 router.patch(
   "/:id",
   authenticate,
-  requireRole(["Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("UPDATE", "MEMO"),
   (req, res) => memoController.updateMemo(req, res),
 );
@@ -36,7 +36,7 @@ router.patch(
 router.post(
   "/:id/post",
   authenticate,
-  requireRole(["Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("POST", "MEMO"),
   (req, res) => memoController.postMemo(req, res),
 );
@@ -44,7 +44,7 @@ router.post(
 router.delete(
   "/:id",
   authenticate,
-  requireRole(["Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("DELETE", "MEMO"),
   (req, res) => memoController.deleteMemo(req, res),
 );
@@ -52,7 +52,7 @@ router.delete(
 // router.post(
 //   '/memos',
 //   authenticate,
-//   requireRole(['Accountant']),
+//   requireRole(['Senior Accountant']),
 //   auditLogger('CREATE', 'MEMO'),
 //   (req, res) => memoController.createMemo(req, res)
 // );
@@ -68,7 +68,7 @@ router.delete(
 // router.get(
 //   '/memos',
 //   authenticate,
-//   requireRole(['Accountant']),
+//   requireRole(['Senior Accountant']),
 //   auditLogger('READ', 'MEMO'),
 //   (req, res) => memoController.listMemos(req, res)
 // );
@@ -76,7 +76,7 @@ router.delete(
 // router.get(
 //   '/memos/:id',
 //   authenticate,
-//   requireRole(['Accountant']),
+//   requireRole(['Senior Accountant']),
 //   auditLogger('READ', 'MEMO'),
 //   (req, res) => memoController.getMemo(req, res)
 // );
@@ -84,7 +84,7 @@ router.delete(
 // router.patch(
 //   '/memos/:id',
 //   authenticate,
-//   requireRole(['Accountant']),
+//   requireRole(['Senior Accountant']),
 //   auditLogger('UPDATE', 'MEMO'),
 //   (req, res) => memoController.updateMemo(req, res)
 // );
@@ -92,7 +92,7 @@ router.delete(
 // router.post(
 //   '/memos/:id/post',
 //   authenticate,
-//   requireRole(['Accountant']),
+//   requireRole(['Senior Accountant']),
 //   auditLogger('POST', 'MEMO'),
 //   (req, res) => memoController.postMemo(req, res)
 // );
@@ -100,7 +100,7 @@ router.delete(
 // router.delete(
 //   '/memos/:id',
 //   authenticate,
-//   requireRole(['Accountant']),
+//   requireRole(['Senior Accountant']),
 //   auditLogger('DELETE', 'MEMO'),
 //   (req, res) => memoController.deleteMemo(req, res)
 // );

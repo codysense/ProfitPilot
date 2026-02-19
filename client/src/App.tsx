@@ -105,7 +105,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   "Production Manager": ["dashboard", "production", "inventory"],
 
   "General Manager": ["*"],
-  Accountant: ["*"],
+  "Senior Accountant": ["*"],
+  Accountant: ["dashboard", "sales", "cash"],
 };
 
 // function ProtectedRoute({ children }: { children: React.ReactNode }) {

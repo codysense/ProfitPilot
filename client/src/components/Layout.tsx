@@ -45,6 +45,7 @@ const Layout = ({ children }: LayoutProps) => {
         "Assistant Inventory Manager",
         "Production Manager",
         "Accountant",
+        "Senior Accountant",
       ],
     },
     {
@@ -52,7 +53,12 @@ const Layout = ({ children }: LayoutProps) => {
       href: "/pos",
       icon: Monitor,
       // permission: null,
-      requiresRole: ["General Manager", "POS User", "Accountant"],
+      requiresRole: [
+        "General Manager",
+        "POS User",
+        "Accountant",
+        "Senior Accountant",
+      ],
       children: [
         { name: "POS Terminal", href: "/pos" },
         { name: "Sales History", href: "/pos/sales" },
@@ -68,6 +74,7 @@ const Layout = ({ children }: LayoutProps) => {
         "Inventory Manager",
         "Assistant Inventory Manager",
         "Production Manager",
+        "Senior Accountant",
       ],
       children: [
         { name: "UOMs", href: "/inventory/uoms" },
@@ -88,6 +95,7 @@ const Layout = ({ children }: LayoutProps) => {
         "General Manager",
         "Production Manager",
         "Inventory Manager",
+        // "Senior Accountant",
       ],
       children: [
         { name: "Orders", href: "/production/orders" },
@@ -102,6 +110,7 @@ const Layout = ({ children }: LayoutProps) => {
         "Inventory Manager",
         "Assistant Invenotry Manager",
         "General Manager",
+        "Senior Accountant",
       ],
       children: [
         { name: "Orders", href: "/purchases/orders" },
@@ -113,7 +122,12 @@ const Layout = ({ children }: LayoutProps) => {
       name: "Sales",
       href: "/sales",
       icon: TrendingUp,
-      requiresRole: ["Accountant", "POS User", "General Manager"],
+      requiresRole: [
+        "Accountant",
+        "POS User",
+        "General Manager",
+        "Senior Accountant",
+      ],
       children: [
         { name: "Orders", href: "/sales/orders" },
         { name: "Customers", href: "/sales/customers" },
@@ -125,19 +139,19 @@ const Layout = ({ children }: LayoutProps) => {
       name: "Memo",
       href: "/memos",
       icon: Users,
-      requiresRole: ["General Manager"],
+      requiresRole: ["General Manager", "Senior Accountant"],
     },
     {
       name: "Journal",
       href: "/journal",
       icon: FileText,
-      requiresRole: ["General Manager"],
+      requiresRole: ["General Manager", "Senior Accountant"],
     },
     {
       name: "Stock Adjustment",
       href: "/adjustment",
       icon: FileText,
-      requiresRole: ["General Manager"],
+      requiresRole: ["General Manager", "Senior Accountant"],
     },
     {
       name: "Assets",
@@ -148,14 +162,14 @@ const Layout = ({ children }: LayoutProps) => {
         { name: "Asset Register", href: "/assets/register" },
         { name: "Categories", href: "/assets/categories" },
       ],
-      requiresRole: ["General Manager", "Auditor"],
+      requiresRole: ["General Manager", "Auditor", "Senior Accountant"],
     },
     {
       name: "Cash Management",
       href: "/cash",
       icon: DollarSign,
       permission: null,
-      requiresRole: ["General Manager", "Accountant"],
+      requiresRole: ["General Manager", "Accountant", "Senior Accountant"],
       children: [
         { name: "Cashbook", href: "/cash/cashbook" },
         { name: "Customer Payments", href: "/cash/customer-payments" },
@@ -169,7 +183,7 @@ const Layout = ({ children }: LayoutProps) => {
       href: "/management",
       icon: Settings,
       // permission: null,
-      requiresRole: ["General Manager"],
+      requiresRole: ["General Manager", "Senior Accountant"],
       children: [
         { name: "Company Settings", href: "/management/company" },
         { name: "System Settings", href: "/management/settings" },
@@ -194,6 +208,7 @@ const Layout = ({ children }: LayoutProps) => {
         "Accountant",
         "General Manager",
         "Auditor",
+        "Senior Accountant",
       ],
     },
     // {

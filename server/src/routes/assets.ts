@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { AssetsController } from '../controllers/assets';
-import { authenticate, authorize, requireRole } from '../middleware/auth';
-import { auditLogger } from '../middleware/audit';
+import { Router } from "express";
+import { AssetsController } from "../controllers/assets";
+import { authenticate, authorize, requireRole } from "../middleware/auth";
+import { auditLogger } from "../middleware/audit";
 
 const router = Router();
 const assetsController = new AssetsController();
@@ -10,30 +10,98 @@ const assetsController = new AssetsController();
 router.use(authenticate);
 
 // Asset Categories (CFO and GM only)
-router.get('/categories', requireRole(['General Manager']), assetsController.getAssetCategories);
-router.post('/categories', requireRole(['General Manager']), auditLogger('CREATE', 'ASSET_CATEGORY'), assetsController.createAssetCategory);
-router.put('/categories/:id', requireRole(['General Manager']), auditLogger('UPDATE', 'ASSET_CATEGORY'), assetsController.updateAssetCategory);
-router.delete('/categories/:id', requireRole(['General Manager']), auditLogger('DELETE', 'ASSET_CATEGORY'), assetsController.deleteAssetCategory);
+router.get(
+  "/categories",
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
+  assetsController.getAssetCategories,
+);
+router.post(
+  "/categories",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("CREATE", "ASSET_CATEGORY"),
+  assetsController.createAssetCategory,
+);
+router.put(
+  "/categories/:id",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("UPDATE", "ASSET_CATEGORY"),
+  assetsController.updateAssetCategory,
+);
+router.delete(
+  "/categories/:id",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("DELETE", "ASSET_CATEGORY"),
+  assetsController.deleteAssetCategory,
+);
 
 // Assets
-router.get('/',requireRole(['General Manager']), assetsController.getAssets);
-router.post('/', requireRole(['General Manager']), auditLogger('CREATE', 'ASSET'), assetsController.createAsset);
-router.put('/:id', requireRole(['General Manager']), auditLogger('UPDATE', 'ASSET'), assetsController.updateAsset);
-router.delete('/:id', requireRole(['General Manager']), auditLogger('DELETE', 'ASSET'), assetsController.deleteAsset);
+router.get(
+  "/",
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
+  assetsController.getAssets,
+);
+router.post(
+  "/",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("CREATE", "ASSET"),
+  assetsController.createAsset,
+);
+router.put(
+  "/:id",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("UPDATE", "ASSET"),
+  assetsController.updateAsset,
+);
+router.delete(
+  "/:id",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("DELETE", "ASSET"),
+  assetsController.deleteAsset,
+);
 
 // Capitalization
-router.get('/purchase-orders', requireRole(['General Manager']), assetsController.getPurchaseOrdersForCapitalization);
-router.post('/capitalize', requireRole(['General Manager']), auditLogger('CAPITALIZE', 'ASSET'), assetsController.capitalizeFromPurchase);
+router.get(
+  "/purchase-orders",
+  requireRole(["General Manager", "Senior Accountant"]),
+  assetsController.getPurchaseOrdersForCapitalization,
+);
+router.post(
+  "/capitalize",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("CAPITALIZE", "ASSET"),
+  assetsController.capitalizeFromPurchase,
+);
 
 // Depreciation
-router.post('/depreciation/run', requireRole(['General Manager']), auditLogger('RUN_DEPRECIATION', 'ASSET'), assetsController.runDepreciation);
-router.get('/:id/depreciation', requireRole(['General Manager']), assetsController.getDepreciationSchedule);
+router.post(
+  "/depreciation/run",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("RUN_DEPRECIATION", "ASSET"),
+  assetsController.runDepreciation,
+);
+router.get(
+  "/:id/depreciation",
+  requireRole(["General Manager", "Senior Accountant"]),
+  assetsController.getDepreciationSchedule,
+);
 
 // Disposal
-router.post('/:id/dispose', requireRole(['General Manager']), auditLogger('DISPOSE', 'ASSET'), assetsController.disposeAsset);
-
+router.post(
+  "/:id/dispose",
+  requireRole(["General Manager", "Senior Accountant"]),
+  auditLogger("DISPOSE", "ASSET"),
+  assetsController.disposeAsset,
+);
 // Reports
-router.get('/register', requireRole(['General Manager']), assetsController.getAssetRegister);
-router.get('/valuation', requireRole(['General Manager']), assetsController.getAssetValuation);
+router.get(
+  "/register",
+  requireRole(["General Manager", "Senior Accountant"]),
+  assetsController.getAssetRegister,
+);
+router.get(
+  "/valuation",
+  requireRole(["General Manager", "Senior Accountant"]),
+  assetsController.getAssetValuation,
+);
 
 export default router;

@@ -169,6 +169,14 @@ const PosTerminal = ({
         const unitPrice = groupPrice
           ? groupPrice.price
           : selectedItem.defaultPrice || 0;
+        console.log(
+          "Setting unit price for item",
+          selectedItem.name,
+          "to",
+          unitPrice,
+          "for customer group",
+          customerGroup,
+        );
 
         setValue(`saleLines.${index}.unitPrice`, unitPrice, {
           shouldDirty: true,
@@ -233,39 +241,6 @@ const PosTerminal = ({
   // const { subtotal, taxAmount, discountAmount, totalAmount, changeAmount } =
   //   calculateTotals();
   const { discountAmount, totalAmount } = calculateTotals();
-
-  // const onSubmit = async (data: PosSaleFormData) => {
-  //   try {
-  //     const saleData = {
-  //       sessionId: session.id,
-  //       customerId: data.customerId,
-  //       cashAccountId: data.cashAccountId,
-  //       saleLines: data.saleLines.map((line) => ({
-  //         itemId: line.itemId,
-  //         qty: line.qty,
-  //         unitPrice: line.unitPrice,
-  //         discountPercent: line.discountPercent || 0,
-  //       })),
-  //       subtotal,
-  //       taxAmount,
-  //       discountAmount,
-  //       totalAmount,
-  //       amountPaid: data.amountPaid,
-  //       changeAmount,
-  //       paymentMethod: data.paymentMethod,
-  //       notes: data.notes,
-  //     };
-
-  //     const result = await posApi.createSale(saleData);
-
-  //     // Print receipt
-
-  //     toast.success("Sale completed successfully");
-  //     onSaleComplete();
-  //   } catch (error) {
-  //     console.error("Create POS sale error:", error);
-  //   }
-  // };
 
   const onSubmit = async (data: PosSaleFormData) => {
     try {

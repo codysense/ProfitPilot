@@ -13,7 +13,7 @@ router.use(authenticate);
 router.get(
   "/items",
   requireRole([
-    "Accountant",
+    "Senior Accountant",
     "POS User",
     "Production Manager",
     "Inventory Manager",
@@ -25,7 +25,7 @@ router.get(
 router.get(
   "/items/:id",
   requireRole([
-    "Accountant",
+    "Senior Accountant",
     "POS User",
     "Production Manager",
     "Inventory Manager",
@@ -36,7 +36,7 @@ router.get(
 
 router.post(
   "/items",
-  requireRole(["Inventory Manager"]),
+  requireRole(["Inventory Manager", "Senior Accountant"]),
   auditLogger("CREATE", "ITEM"),
   inventoryController.createItem,
 );
@@ -48,12 +48,13 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Production Manager",
+    "Senior Accountant",
   ]),
   inventoryController.getBoms,
 );
 router.post(
   "/boms",
-  requireRole(["Inventory Manager", "Production Manager"]),
+  requireRole(["Inventory Manager", "Production Manager", "Senior Accountant"]),
   auditLogger("CREATE", "BOM"),
   inventoryController.createBom,
 );
@@ -61,36 +62,52 @@ router.post(
 // Inventory transactions
 router.post(
   "/adjust",
-  requireRole(["Inventory Manager"]),
+  requireRole(["Inventory Manager", "Senior Accountant"]),
   auditLogger("ADJUST", "INVENTORY"),
   inventoryController.adjustInventory,
 );
 router.post(
   "/transfer",
-  requireRole(["Inventory Manager"]),
+  requireRole(["Inventory Manager", "Senior Accountant"]),
   auditLogger("TRANSFER", "INVENTORY"),
   inventoryController.transferInventoryBulk,
 );
 router.get(
   "/inventory/transfers",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.getInventoryTransfers,
 );
 
 // Reports
 router.get(
   "/ledger",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.getInventoryLedger,
 );
 router.get(
   "/ledger/export",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.exportInventoryLedger,
 );
 router.get(
   "/valuation",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.getInventoryValuation,
 );
 
@@ -100,7 +117,7 @@ router.get(
   requireRole([
     "Inventory Manager",
     "Assistant Inventory Manager",
-    "Accountant",
+    "Senior Accountant",
     "POS User",
     "Production Manager",
   ]),
@@ -108,18 +125,22 @@ router.get(
 );
 router.get(
   "/warehouses/list",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.getWarehousesList,
 );
 router.post(
   "/warehouses",
-  requireRole(["Inventory Manager"]),
+  requireRole(["Inventory Manager", "Senior Accountant"]),
   auditLogger("CREATE", "WAREHOUSE"),
   inventoryController.createWarehouse,
 );
 router.put(
   "/warehouses/:id",
-  requireRole(["Inventory Manager"]),
+  requireRole(["Inventory Manager", "Senior Accountant"]),
   auditLogger("UPDATE", "WAREHOUSE"),
   inventoryController.updateWarehouse,
 );
@@ -127,18 +148,22 @@ router.put(
 // Locations
 router.get(
   "/locations",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.getLocations,
 );
 router.post(
   "/locations",
-  requireRole(["Inventory Manager"]),
+  requireRole(["Inventory Manager", "Senior Accountant"]),
   auditLogger("CREATE", "LOCATION"),
   inventoryController.createLocation,
 );
 router.put(
   "/locations/:id",
-  requireRole(["Inventory Manager"]),
+  requireRole(["Inventory Manager", "Senior Accountant"]),
   auditLogger("UPDATE", "LOCATION"),
   inventoryController.updateLocation,
 );
@@ -149,27 +174,39 @@ router.get(
   requireRole([
     "Inventory Manager",
     "Assistant Inventory Manager",
+    "Senior Accountant",
     "Accountant",
-    ,
     "Production Manager",
   ]),
   inventoryController.getUOMs,
 );
 router.post(
   "/uoms",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   auditLogger("CREATE", "UOM"),
   inventoryController.createUOM,
 );
 router.put(
   "/uoms/:id",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   auditLogger("UPDATE", "UOM"),
   inventoryController.updateUOM,
 );
 router.delete(
   "/uoms/:id",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   auditLogger("DELETE", "UOM"),
   inventoryController.deleteUOM,
 );
@@ -177,14 +214,22 @@ router.delete(
 // Inventory transfers
 router.get(
   "/transfers",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.getInventoryTransfers,
 );
 
 //Print Inventory Transfer
 router.get(
   "/transfers/print/:id",
-  requireRole(["Inventory Manager", "Assistant Inventory Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+  ]),
   inventoryController.printInventoryTransfer,
 );
 
@@ -197,6 +242,7 @@ router.get(
     "Assistant Inventory Manager",
     "POS User",
     "Accountant",
+    "Senior Accountant",
   ]),
   inventoryController.getItemStock,
 );
