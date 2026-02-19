@@ -121,11 +121,11 @@ const PosTerminal = ({
   const watchedPayments = watch("payments") || [];
   const watchedItemIds = watchedLines.map((line) => line.itemId);
 
-  const { data: items } = useQuery({
-    queryKey: ["pos-itemss", "FINISHED_GOODS"],
-    queryFn: () =>
-      inventoryApi.getItems({ type: "FINISHED_GOODS", limit: 100 }),
-  });
+  // const { data: items } = useQuery({
+  //   queryKey: ["pos-itemss", "FINISHED_GOODS"],
+  //   queryFn: () =>
+  //     inventoryApi.getItems({ type: "FINISHED_GOODS", limit: 100 }),
+  // });
 
   const { data: customersWithBalances } = useQuery({
     queryKey: ["customers-with-balances"],
@@ -146,53 +146,83 @@ const PosTerminal = ({
     (account: any) => account.name !== "Memo Clearing",
   );
 
+  // useEffect(() => {
+  //   watchedLines.forEach((line, index) => {
+  //     if (!line.itemId || !items?.items) return;
+
+  //     const selectedItem = items.items.find((it: any) => it.id === line.itemId);
+  //     const customer = customersWithBalances?.customers?.find(
+  //       (c: any) => c.id === watchedCustomerId,
+  //     );
+
+  //     if (!selectedItem) return;
+
+  //     if (selectedItem && selectedCustomer) {
+  //       // find the matching price for this customer's group
+  //       const customerGroup = selectedCustomer.customerGroupName;
+  //       const groupPrice = selectedItem.priceList?.find(
+  //         (priceObj: any) => priceObj.customerGroup === customerGroup,
+  //       );
+  //       // console.log("selected customer", selectedCustomer);
+  //       // console.log("selected item", selectedItem);
+  //       // fallback if no group-specific price found
+  //       const unitPrice = groupPrice
+  //         ? groupPrice.price
+  //         : selectedItem.defaultPrice || 0;
+
+  //       setValue(`saleLines.${index}.unitPrice`, unitPrice, {
+  //         shouldDirty: true,
+  //         shouldValidate: true,
+  //         shouldTouch: true,
+  //       });
+  //     }
+  //   });
+  // }, [
+  //   watchedCustomerId,
+  //   items,
+  //   customersWithBalances,
+  //   watchedLines.map((l) => l.itemId).join(","),
+  //   setValue,
+  //   selectedCustomer,
+  //   watchedLines,
+  // ]);
+
   useEffect(() => {
-    watchedLines.forEach((line, index) => {
-      if (!line.itemId || !items?.items) return;
+    const setPrices = async () => {
+      if (!selectedCustomer) return;
 
-      const selectedItem = items.items.find((it: any) => it.id === line.itemId);
-      const customer = customersWithBalances?.customers?.find(
-        (c: any) => c.id === watchedCustomerId,
-      );
+      for (let index = 0; index < watchedLines.length; index++) {
+        const line = watchedLines[index];
+        if (!line.itemId) continue;
 
-      if (!selectedItem) return;
+        try {
+          const selectedItem = await inventoryApi.getItemById(line.itemId);
 
-      if (selectedItem && selectedCustomer) {
-        // find the matching price for this customer's group
-        const customerGroup = selectedCustomer.customerGroupName;
-        const groupPrice = selectedItem.priceList?.find(
-          (priceObj: any) => priceObj.customerGroup === customerGroup,
-        );
-        // console.log("selected customer", selectedCustomer);
-        // console.log("selected item", selectedItem);
-        // fallback if no group-specific price found
-        const unitPrice = groupPrice
-          ? groupPrice.price
-          : selectedItem.defaultPrice || 0;
-        console.log(
-          "Setting unit price for item",
-          selectedItem.name,
-          "to",
-          unitPrice,
-          "for customer group",
-          customerGroup,
-        );
+          const customerGroup = selectedCustomer.customerGroupName;
 
-        setValue(`saleLines.${index}.unitPrice`, unitPrice, {
-          shouldDirty: true,
-          shouldValidate: true,
-          shouldTouch: true,
-        });
+          const groupPrice = selectedItem.priceList?.find(
+            (p: any) => p.customerGroup === customerGroup,
+          );
+
+          const unitPrice = groupPrice
+            ? groupPrice.price
+            : selectedItem.defaultPrice || 0;
+
+          setValue(`saleLines.${index}.unitPrice`, unitPrice, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        } catch (err) {
+          console.error("Failed to fetch item price", err);
+        }
       }
-    });
+    };
+
+    setPrices();
   }, [
     watchedCustomerId,
-    items,
-    customersWithBalances,
     watchedLines.map((l) => l.itemId).join(","),
-    setValue,
     selectedCustomer,
-    watchedLines,
   ]);
 
   useEffect(() => {
