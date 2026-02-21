@@ -56,9 +56,9 @@ const Dashboard = () => {
     );
   });
 
-  //get pos sales this month
+  //get pos sales
   const { data: posSales } = useQuery({
-    queryKey: ["pos-sales", { limit: 10 }],
+    queryKey: ["pos-sales"],
     queryFn: () =>
       posApi.getSales({
         status: "COMPLETED",
