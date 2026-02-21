@@ -461,6 +461,8 @@ export class SalesController {
       const validatedData = createCustomerSchema.parse(req.body);
       const { customerGroupId, mode, ...rest } = validatedData;
 
+      // console.log("Creating/updating customer with data:", validatedData);
+
       const existingCustomer = await prisma.customer.findUnique({
         where: { code: validatedData.code },
       });

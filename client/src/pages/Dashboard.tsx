@@ -61,20 +61,22 @@ const Dashboard = () => {
     queryKey: ["pos-sales", { limit: 10 }],
     queryFn: () =>
       posApi.getSales({
-        dateFrom: new Date(
-          new Date().getFullYear(),
-          new Date().getMonth(),
-          1,
-        ).toISOString(),
-        dateTo: new Date(
-          new Date().getFullYear(),
-          new Date().getMonth() + 1,
-          0,
-        ).toISOString(),
         status: "COMPLETED",
       }),
   });
-  // console.log("POS Sales Data:", posSales);
+  console.log("POS Sales Data:", posSales);
+
+  //Filter pos sales to only this month
+  if (posSales) {
+    posSales.sales = posSales.sales.filter((sale: any) => {
+      const saleDate = new Date(sale.createdAt);
+      const now = new Date();
+      return (
+        saleDate.getMonth() === now.getMonth() &&
+        saleDate.getFullYear() === now.getFullYear()
+      );
+    });
+  }
 
   //if user is not accountant or gm, filter pos sales to only those created by the user
   if (posSales && !canviewall) {
