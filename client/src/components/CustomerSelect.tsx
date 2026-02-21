@@ -28,6 +28,7 @@ export function CustomerSelect({
   const [query, setQuery] = useState("");
 
   const [search, setSearch] = useState("");
+  const [loadedCustomers, setLoadedCustomers] = useState<Customer[]>([]);
   const [page, setPage] = useState(1);
 
   // debounce search
@@ -56,6 +57,16 @@ export function CustomerSelect({
   const customers: Customer[] = data?.customers ?? [];
   const total = data?.pagination?.total ?? 0;
 
+  useEffect(() => {
+    if (!customers) return;
+
+    setLoadedCustomers((prev) =>
+      page === 1 ? customers : [...prev, ...customers],
+    );
+  }, [customers, page]);
+
+  const allCustomers = loadedCustomers;
+
   // pagination — simple "load more" when scrolling
   const handleScroll = (e: React.UIEvent<HTMLUListElement>) => {
     const bottom =
@@ -67,14 +78,15 @@ export function CustomerSelect({
     }
   };
 
-  const filtered =
-    query === ""
-      ? customers
-      : customers.filter((c) =>
-          `${c.code} ${c.name} ${c.phone || ""}`
-            .toLowerCase()
-            .includes(query.toLowerCase()),
-        );
+  // //filter customers based on query - this is client-side filtering on already fetched data, you can remove if your API handles search
+  // const filtered =
+  //   query === ""
+  //     ? customers
+  //     : customers.filter((c) =>
+  //         `${c.code} ${c.name} ${c.phone || ""}`
+  //           .toLowerCase()
+  //           .includes(query.toLowerCase()),
+  //       );
 
   return (
     <div>
@@ -84,7 +96,7 @@ export function CustomerSelect({
             <Combobox.Input
               className="w-full border-none py-2 pl-3 pr-10 leading-5 text-gray-900 focus:ring-0"
               displayValue={(id: string) =>
-                customers.find((c) => c.id === id)?.name || ""
+                allCustomers.find((c) => c.id === id)?.name || ""
               }
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search customer with name, code or phone number..."

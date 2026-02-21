@@ -283,6 +283,7 @@ export class SalesController {
           { name: { contains: search as string, mode: "insensitive" } },
           { code: { contains: search as string, mode: "insensitive" } },
           { email: { contains: search as string, mode: "insensitive" } },
+          { phone: { contains: search as string, mode: "insensitive" } },
         ];
       }
 

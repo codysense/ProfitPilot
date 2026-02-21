@@ -15,6 +15,7 @@ import { PosSale } from "../../types/api";
 // import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 import DetailPOSSaleModal from "./DetailPOSSaleModal";
+import { useAuthStore } from "../../store/authStore";
 
 const PosSalesHistory = () => {
   const [page, setPage] = useState(1);
@@ -51,6 +52,19 @@ const PosSalesHistory = () => {
         ...(paymentMethod && { paymentMethod: paymentMethod }),
       }),
   });
+
+  const { user } = useAuthStore();
+
+  //Filter sales to only those created by the user if they don't have permission to view all sales
+  const canviewall =
+    user?.roles?.includes("General Manager") ||
+    user?.roles?.includes("Accountant");
+  if (data && !canviewall) {
+    data.sales = data.sales.filter(
+      (sale: any) => sale.user?.name === user?.name,
+    );
+  }
+
   // console.log("Sales history data:", data);
 
   const { data: companyInformations } = useQuery({

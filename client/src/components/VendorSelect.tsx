@@ -20,15 +20,22 @@ interface VendorSelectProps {
   typeFilter?: string; // optional filter if your API supports it
 }
 
-export function VendorSelect({ vendors, value, onChange, error, typeFilter }: VendorSelectProps) {
+export function VendorSelect({
+  //vendors,
+  value,
+  onChange,
+  error,
+  typeFilter,
+}: VendorSelectProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(search, 500);
+  const [loadedVendors, setLoadedVendors] = useState<Vendor[]>([]);
 
   // Reset page on search or filter change
   useEffect(() => setPage(1), [debouncedSearch, typeFilter]);
 
-  // 🔹 Fetch vendors dynamically
+  //  Fetch vendors dynamically
   const { data, isLoading } = useQuery({
     queryKey: ["vendors", { page, search: debouncedSearch, type: typeFilter }],
     queryFn: () =>
@@ -44,10 +51,22 @@ export function VendorSelect({ vendors, value, onChange, error, typeFilter }: Ve
   const remoteVendors: Vendor[] = data?.vendors ?? [];
   const total = data?.pagination?.total ?? 0;
 
-  // 🔹 Merge static + fetched
-  const allVendors = vendors?.length ? vendors : remoteVendors;
+  useEffect(() => {
+    setLoadedVendors([]);
+    setPage(1);
+  }, [debouncedSearch, typeFilter]);
 
-  // 🔹 Infinite scroll handler
+  useEffect(() => {
+    if (!remoteVendors) return;
+
+    setLoadedVendors((prev) =>
+      page === 1 ? remoteVendors : [...prev, ...remoteVendors],
+    );
+  }, [remoteVendors, page]);
+
+  const allVendors = loadedVendors;
+
+  //  Infinite scroll handler
   const handleScroll = (e: React.UIEvent<HTMLUListElement>) => {
     const bottom =
       e.currentTarget.scrollHeight - e.currentTarget.scrollTop <=
@@ -76,7 +95,12 @@ export function VendorSelect({ vendors, value, onChange, error, typeFilter }: Ve
             </Combobox.Button>
           </div>
 
-          <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+          <Transition
+            as={Fragment}
+            leave="transition ease-in duration-100"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
             <Combobox.Options
               className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm"
               onScroll={handleScroll}
