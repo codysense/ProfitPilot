@@ -900,6 +900,20 @@ export const posApi = {
         params ? "?" + new URLSearchParams(params as any).toString() : ""
       }`,
     ),
+
+  getSalesForDashboard: (params?: {
+    dateFrom?: string;
+    dateTo?: string;
+    status?: string;
+    paymentMethod?: string;
+    userId?: string;
+  }) =>
+    api.get(
+      `/pos/sales/dashboard${
+        params ? "?" + new URLSearchParams(params as any).toString() : ""
+      }`,
+    ),
+
   printReceipt: (saleId: string) => api.get(`/pos/sales/${saleId}/print`),
 
   // Returns

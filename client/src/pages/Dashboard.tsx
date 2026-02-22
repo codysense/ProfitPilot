@@ -60,7 +60,7 @@ const Dashboard = () => {
   const { data: posSales } = useQuery({
     queryKey: ["pos-sales"],
     queryFn: () =>
-      posApi.getSales({
+      posApi.getSalesForDashboard({
         status: "COMPLETED",
         dateFrom: new Date(
           new Date().getFullYear(),

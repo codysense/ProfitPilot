@@ -40,6 +40,13 @@ router.get(
   requireRole(["POS User", "Senior Accountant", "Accountant"]),
   posController.getSales,
 );
+//Get Sales for Dashboard
+router.get(
+  "/sales/dashboard",
+  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  posController.getSalesForDashboard,
+);
+
 router.get(
   "/sales/:id/print",
   requireRole(["POS User", "Senior Accountant", "Accountant"]),
