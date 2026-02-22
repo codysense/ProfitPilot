@@ -723,7 +723,7 @@ export class PosController {
     try {
       const {
         page = 1,
-        limit = 20,
+        limit,
         sessionId,
         customerId,
         dateFrom,
@@ -732,9 +732,46 @@ export class PosController {
         paymentMethod,
         userId,
       } = req.query;
-
-      const skip = (Number(page) - 1) * Number(limit);
       const where: any = {};
+
+      // Date range
+      if (dateFrom || dateTo) {
+        where.createdAt = {};
+        if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+        if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+      }
+
+      //optimize to return all if no limit provided, otherwise apply pagination and filters
+      if (limit) {
+        const skip = (Number(page) - 1) * Number(limit);
+      } else {
+        // If no limit is provided, return all sales
+        const sales = await prisma.posSale.findMany({
+          where,
+          include: {
+            customer: { select: { code: true, name: true } },
+            warehouse: { select: { code: true, name: true } },
+            cashAccount: { select: { code: true, name: true } },
+            session: { select: { sessionNo: true } },
+            saleLines: {
+              include: {
+                item: { select: { sku: true, name: true, uom: true } },
+              },
+            },
+            payments: {
+              select: {
+                method: true,
+                amount: true,
+                cashAccountId: true,
+              },
+            },
+            user: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        return res.json({ sales });
+      }
 
       // Warehouse-based restriction for non-management users
       if (

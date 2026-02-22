@@ -56,27 +56,39 @@ const Dashboard = () => {
     );
   });
 
-  //get pos sales
+  //get pos sales for this month
   const { data: posSales } = useQuery({
     queryKey: ["pos-sales"],
     queryFn: () =>
       posApi.getSales({
         status: "COMPLETED",
+        dateFrom: new Date(
+          new Date().getFullYear(),
+          new Date().getMonth(),
+          1,
+        ).toISOString(),
+        dateTo: new Date(
+          new Date().getFullYear(),
+          new Date().getMonth() + 1,
+          0,
+        ).toISOString(),
       }),
   });
   console.log("POS Sales Data:", posSales);
 
-  //Filter pos sales to only this month
-  if (posSales) {
-    posSales.sales = posSales.sales.filter((sale: any) => {
-      const saleDate = new Date(sale.createdAt);
-      const now = new Date();
-      return (
-        saleDate.getMonth() === now.getMonth() &&
-        saleDate.getFullYear() === now.getFullYear()
-      );
-    });
-  }
+  //Filter pos sales to only this
+  // if (posSales) {
+  //   posSales.sales = posSales.sales.filter((sale: any) => {
+  //     const saleDate = new Date(sale.createdAt);
+  //     const now = new Date();
+  //     return (
+  //       saleDate.getMonth() === now.getMonth() &&
+  //       saleDate.getFullYear() === now.getFullYear()
+  //     );
+  //   });
+  // }
+
+  console.log("Filtered POS Sales for this month:", posSales);
 
   //if user is not accountant or gm, filter pos sales to only those created by the user
   if (posSales && !canviewall) {
