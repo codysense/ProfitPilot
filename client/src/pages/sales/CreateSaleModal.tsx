@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, Controller, set } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { X, Plus, Trash2 } from "lucide-react";
@@ -104,15 +104,15 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
   // }, [watchedItemIds, items, customerId, setValue, watchedLines, customers?.customers]);
 
   useEffect(() => {
-    watchedLines.forEach((line, index) => {
+    //const setPrices = async () => {
+    watchedLines.forEach(async (line, index) => {
       if (line.itemId && items?.items) {
-        let selectedItem = items.items.find(
-          (item: any) => item.id === line.itemId,
-        );
+        // const selectedItem = items.items.find(
+        //   (item: any) => item.id === line.itemId,
+        // );
 
-        if (!selectedItem) {
-          selectedItem = inventoryApi.getItemById(line.itemId); // Fetch item details if not in the initial list
-        }
+        const selectedItem = await inventoryApi.getItemById(line.itemId); // Fetch item details including price list
+
         const selectedCustomer = customers?.customers?.find(
           (customer: any) => customer.id === customerId,
         );
@@ -134,6 +134,8 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
         }
       }
     });
+    // };
+    // setPrices();
   }, [
     watchedItemIds,
     items,
