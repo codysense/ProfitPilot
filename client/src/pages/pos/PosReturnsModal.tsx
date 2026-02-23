@@ -115,6 +115,12 @@ const PosReturnsModal = ({
       }),
   });
 
+  const { data: serverData } = useQuery({
+    queryKey: ["sale-by-number", saleSearch],
+    queryFn: () => posApi.getSalesBySalesNo(saleSearch),
+    enabled: !!saleSearch && recentSales.length === 0,
+  });
+
   const handleSaleSelect = (sale: PosSale) => {
     setSelectedSale(sale);
 
@@ -148,6 +154,8 @@ const PosReturnsModal = ({
     onReturnComplete();
   };
 
+  //filter sales based on search input but if no results found, try searching by sale number from the server
+
   let filteredSales =
     recentSales?.sales?.filter(
       (sale: PosSale) =>
@@ -156,12 +164,12 @@ const PosReturnsModal = ({
           sale.customer?.name.toLowerCase().includes(saleSearch.toLowerCase())),
     ) || [];
 
-  if (!filteredSales.length && saleSearch) {
-    filteredSales = async () => {
-      const { data } = await posApi.getSalesBySalesNo(saleSearch);
-      return data.sales.filter((sale: PosSale) => sale.status === "COMPLETED");
-    };
-  }
+  const serverFiltered =
+    serverData?.data?.sales?.filter(
+      (sale: PosSale) => sale.status === "COMPLETED",
+    ) || [];
+
+  filteredSales = filteredSales.length > 0 ? filteredSales : serverFiltered;
 
   const calculateReturnTotal = () => {
     return (
