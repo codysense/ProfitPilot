@@ -909,6 +909,42 @@ export class PosController {
     }
   }
 
+  async getSalesBySalesNo(req: AuthRequest, res: Response) {
+    try {
+      const { saleNo } = req.params;
+      const sale = await prisma.posSale.findUnique({
+        where: { saleNo },
+        include: {
+          customer: { select: { code: true, name: true } },
+          warehouse: { select: { code: true, name: true } },
+          session: { select: { sessionNo: true } },
+          saleLines: {
+            include: {
+              item: { select: { sku: true, name: true, uom: true } },
+            },
+          },
+          payments: {
+            select: {
+              method: true,
+              amount: true,
+              cashAccountId: true,
+            },
+          },
+          user: { select: { id: true, name: true } },
+        },
+      });
+
+      if (!sale) {
+        return res.status(404).json({ error: "POS sale not found" });
+      }
+
+      res.json(sale);
+    } catch (error) {
+      console.error("Get POS sales by sales no error:", error);
+      res.status(500).json({ error: "Failed to fetch POS sale by sales no" });
+    }
+  }
+
   async getPOSsalePayments(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;

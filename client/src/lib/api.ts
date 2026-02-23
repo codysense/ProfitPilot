@@ -914,6 +914,9 @@ export const posApi = {
       }`,
     ),
 
+  getSalesBySalesNo: (salesNo: string) =>
+    api.get(`/pos/sales/search/${salesNo}`),
+
   printReceipt: (saleId: string) => api.get(`/pos/sales/${saleId}/print`),
 
   // Returns

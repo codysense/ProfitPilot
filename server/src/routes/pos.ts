@@ -47,6 +47,13 @@ router.get(
   posController.getSalesForDashboard,
 );
 
+//Get Sale by Sale No
+router.get(
+  "/sales/search/:saleNo",
+  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  posController.getSalesBySalesNo,
+);
+
 router.get(
   "/sales/:id/print",
   requireRole(["POS User", "Senior Accountant", "Accountant"]),

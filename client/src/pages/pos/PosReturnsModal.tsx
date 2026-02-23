@@ -108,7 +108,7 @@ const PosReturnsModal = ({
     queryKey: ["recent-pos-sales"],
     queryFn: () =>
       posApi.getSales({
-        limit: 50,
+        limit: 100,
         dateFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
           .toISOString()
           .split("T")[0], // Last 7 days
@@ -116,46 +116,52 @@ const PosReturnsModal = ({
   });
 
   const handleSaleSelect = (sale: PosSale) => {
-  setSelectedSale(sale);
+    setSelectedSale(sale);
 
-  reset({
-    originalSaleId: sale.id,
-    sessionId: session.id,
-    reason: undefined,
-    returnLines: sale.saleLines.map(line => ({
-      originalLineId: line.id,
-      itemId: line.itemId,
-      qtyReturned: 0,
-      unitPrice: line.unitPrice,
-    })),
-  });
-};
+    reset({
+      originalSaleId: sale.id,
+      sessionId: session.id,
+      reason: undefined,
+      returnLines: sale.saleLines.map((line) => ({
+        originalLineId: line.id,
+        itemId: line.itemId,
+        qtyReturned: 0,
+        unitPrice: line.unitPrice,
+      })),
+    });
+  };
 
   const onSubmit = async (data: PosReturnFormData) => {
-  const validReturnLines = data.returnLines.filter(l => l.qtyReturned > 0);
+    const validReturnLines = data.returnLines.filter((l) => l.qtyReturned > 0);
 
-  if (validReturnLines.length === 0) {
-    toast.error("Please specify quantities to return");
-    return;
-  }
+    if (validReturnLines.length === 0) {
+      toast.error("Please specify quantities to return");
+      return;
+    }
 
-  await posApi.createReturn({
-    ...data,
-    returnLines: validReturnLines,
-  });
+    await posApi.createReturn({
+      ...data,
+      returnLines: validReturnLines,
+    });
 
-  toast.success("Return processed successfully");
-  onReturnComplete();
-};
+    toast.success("Return processed successfully");
+    onReturnComplete();
+  };
 
-
-  const filteredSales =
+  let filteredSales =
     recentSales?.sales?.filter(
       (sale: PosSale) =>
         sale.status === "COMPLETED" &&
         (sale.saleNo.toLowerCase().includes(saleSearch.toLowerCase()) ||
           sale.customer?.name.toLowerCase().includes(saleSearch.toLowerCase())),
     ) || [];
+
+  if (!filteredSales.length && saleSearch) {
+    filteredSales = async () => {
+      const { data } = await posApi.getSalesBySalesNo(saleSearch);
+      return data.sales.filter((sale: PosSale) => sale.status === "COMPLETED");
+    };
+  }
 
   const calculateReturnTotal = () => {
     return (
