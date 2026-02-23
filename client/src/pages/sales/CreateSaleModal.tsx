@@ -22,7 +22,7 @@ const createSaleSchema = z.object({
         itemId: z.string().min(1, "Item is required"),
         qty: z.number().positive("Quantity must be positive"),
         unitPrice: z.number().positive("Unit price must be positive"),
-      })
+      }),
     )
     .min(1, "At least one line item is required"),
 });
@@ -83,9 +83,10 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
 
   const { data: items } = useQuery({
     queryKey: ["items-ready-for-sale", "FINISHED_GOODS"],
-    queryFn: () => inventoryApi.getItems({type:'FINISHED_GOODS', limit: 100 }),
+    queryFn: () =>
+      inventoryApi.getItems({ type: "FINISHED_GOODS", limit: 100 }),
   });
-  console.log("Item Data", items);
+  //console.log("Item Data", items);
 
   // useEffect(() => {
   //   watchedLines.forEach((line, index) => {
@@ -105,21 +106,25 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
   useEffect(() => {
     watchedLines.forEach((line, index) => {
       if (line.itemId && items?.items) {
-        const selectedItem = items.items.find(
-          (item: any) => item.id === line.itemId
+        let selectedItem = items.items.find(
+          (item: any) => item.id === line.itemId,
         );
+
+        if (!selectedItem) {
+          selectedItem = inventoryApi.getItemById(line.itemId); // Fetch item details if not in the initial list
+        }
         const selectedCustomer = customers?.customers?.find(
-          (customer: any) => customer.id === customerId
+          (customer: any) => customer.id === customerId,
         );
 
         if (selectedItem && selectedCustomer) {
           // find the matching price for this customer's group
           const customerGroup = selectedCustomer.customerGroup.name; // adjust key if different
           const groupPrice = selectedItem.priceList?.find(
-            (priceObj: any) => priceObj.customerGroup === customerGroup
+            (priceObj: any) => priceObj.customerGroup === customerGroup,
           );
-          console.log("selected customer", selectedCustomer);
-          console.log("selected item", selectedItem);
+          //console.log("selected customer", selectedCustomer);
+          //console.log("selected item", selectedItem);
           // fallback if no group-specific price found
           const unitPrice = groupPrice
             ? groupPrice.price
@@ -162,7 +167,7 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
       : customers?.customers?.filter((customer: any) =>
           `${customer.name} ${customer.phone || ""} ${customer.code}`
             .toLowerCase()
-            .includes(customerQuery.toLowerCase())
+            .includes(customerQuery.toLowerCase()),
         );
 
   return (
