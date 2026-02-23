@@ -83,6 +83,7 @@ const PosReturnsModal = ({
 }: PosReturnsModalProps) => {
   const [selectedSale, setSelectedSale] = useState<PosSale | null>(null);
   const [saleSearch, setSaleSearch] = useState("");
+  const [serverSales, setServerSales] = useState<PosSale[]>([]);
 
   const {
     register,
@@ -113,12 +114,6 @@ const PosReturnsModal = ({
           .toISOString()
           .split("T")[0], // Last 7 days
       }),
-  });
-
-  const { data: serverData } = useQuery({
-    queryKey: ["sale-by-number", saleSearch],
-    queryFn: () => posApi.getSalesBySalesNo(saleSearch),
-    enabled: !!saleSearch && recentSales.length === 0,
   });
 
   const handleSaleSelect = (sale: PosSale) => {
@@ -163,6 +158,15 @@ const PosReturnsModal = ({
         (sale.saleNo.toLowerCase().includes(saleSearch.toLowerCase()) ||
           sale.customer?.name.toLowerCase().includes(saleSearch.toLowerCase())),
     ) || [];
+
+  const { data: serverData } = useQuery({
+    queryKey: ["sale-by-number", saleSearch],
+    queryFn: () => posApi.getSalesBySalesNo(saleSearch),
+    enabled: !!saleSearch,
+  });
+
+  console.log("Filtered Sales:", filteredSales);
+  console.log("Server Data:", serverData);
 
   const serverFiltered =
     serverData?.data?.sales?.filter(
