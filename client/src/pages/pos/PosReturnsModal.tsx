@@ -181,7 +181,7 @@ const PosReturnsModal = ({
     recentSales?.sales?.filter(
       (sale: PosSale) =>
         sale.status === "COMPLETED" &&
-        (sale.saleNo.toLowerCase().includes(saleSearch.toLowerCase()) ||
+        (sale.saleNo.toLowerCase() === saleSearch.toLowerCase() ||
           sale.customer?.name
             ?.toLowerCase()
             .includes(saleSearch.toLowerCase())),
@@ -190,8 +190,14 @@ const PosReturnsModal = ({
   const serverFiltered =
     serverSale && serverSale.status === "COMPLETED" ? [serverSale] : [];
 
-  const filteredSales =
-    localFiltered.length > 0 ? localFiltered : serverFiltered;
+  // Merge and remove duplicates
+  const filteredSales = [
+    ...localFiltered,
+    ...serverFiltered.filter(
+      (serverSale) =>
+        !localFiltered.some((local) => local.id === serverSale.id),
+    ),
+  ];
 
   const calculateReturnTotal = () => {
     return (
