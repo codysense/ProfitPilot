@@ -151,29 +151,47 @@ const PosReturnsModal = ({
 
   //filter sales based on search input but if no results found, try searching by sale number from the server
 
-  let filteredSales =
+  // let filteredSales =
+  //   recentSales?.sales?.filter(
+  //     (sale: PosSale) =>
+  //       sale.status === "COMPLETED" &&
+  //       (sale.saleNo.toLowerCase().includes(saleSearch.toLowerCase()) ||
+  //         sale.customer?.name.toLowerCase().includes(saleSearch.toLowerCase())),
+  //   ) || [];
+
+  // const filteredSales =
+  //   localFiltered.length > 0 ? localFiltered : serverFiltered;
+
+  const { data: serverSale } = useQuery({
+    queryKey: ["sale-by-number", saleSearch],
+    queryFn: async () => {
+      const res = await posApi.getSalesBySalesNo(saleSearch);
+      return res.data;
+    },
+    enabled: saleSearch.length > 8, // avoid firing too early
+    retry: false,
+  });
+
+  // const serverFiltered =
+  //   serverSale && serverSale.status === "COMPLETED" ? [serverSale] : [];
+
+  // filteredSales = filteredSales.length > 0 ? filteredSales : serverFiltered;
+
+  const localFiltered =
     recentSales?.sales?.filter(
       (sale: PosSale) =>
         sale.status === "COMPLETED" &&
         (sale.saleNo.toLowerCase().includes(saleSearch.toLowerCase()) ||
-          sale.customer?.name.toLowerCase().includes(saleSearch.toLowerCase())),
+          sale.customer?.name
+            ?.toLowerCase()
+            .includes(saleSearch.toLowerCase())),
     ) || [];
-
-  const { data: serverData } = useQuery({
-    queryKey: ["sale-by-number", saleSearch],
-    queryFn: () => posApi.getSalesBySalesNo(saleSearch),
-    enabled: !!saleSearch,
-  });
-
-  console.log("Filtered Sales:", filteredSales);
-  console.log("Server Data:", serverData);
 
   const serverFiltered =
-    serverData?.data?.sales?.filter(
-      (sale: PosSale) => sale.status === "COMPLETED",
-    ) || [];
+    serverSale && serverSale.status === "COMPLETED" ? [serverSale] : [];
 
-  filteredSales = filteredSales.length > 0 ? filteredSales : serverFiltered;
+  const filteredSales =
+    localFiltered.length > 0 ? localFiltered : serverFiltered;
 
   const calculateReturnTotal = () => {
     return (
