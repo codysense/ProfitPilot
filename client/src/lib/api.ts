@@ -886,6 +886,7 @@ export const posApi = {
     api.get(`/pos/sales/${saleId}/payments`),
   getSales: (params?: {
     page?: number;
+    search?: string;
     limit?: number;
     sessionId?: string;
     customerId?: string;
@@ -914,8 +915,7 @@ export const posApi = {
       }`,
     ),
 
-  getSalesBySalesNo: (saleNo: string) =>
-    api.get(`/pos/sales/search/${saleNo}`),
+  getSalesBySalesNo: (saleNo: string) => api.get(`/pos/sales/search/${saleNo}`),
 
   printReceipt: (saleId: string) => api.get(`/pos/sales/${saleId}/print`),
 

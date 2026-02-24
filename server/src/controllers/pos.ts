@@ -719,6 +719,104 @@ export class PosController {
     }
   }
 
+  // async getSales(req: AuthRequest, res: Response) {
+  //   try {
+  //     const {
+  //       page = 1,
+  //       limit = 20,
+  //       sessionId,
+  //       customerId,
+  //       dateFrom,
+  //       dateTo,
+  //       status,
+  //       paymentMethod,
+  //       userId,
+  //     } = req.query;
+  //     const where: any = {};
+
+  //     const skip = (Number(page) - 1) * Number(limit);
+
+  //     // Warehouse-based restriction for non-management users
+  //     if (
+  //       !req.user!.roles.includes("CFO") &&
+  //       !req.user!.roles.includes("General Manager")
+  //     ) {
+  //       const user = await prisma.user.findUnique({
+  //         where: { id: req.user!.id },
+  //         select: { warehouseId: true },
+  //       });
+
+  //       if (user?.warehouseId) {
+  //         where.warehouseId = user.warehouseId;
+  //       }
+  //     }
+
+  //     // Basic filters
+  //     if (sessionId) where.sessionId = sessionId;
+  //     if (customerId) where.customerId = customerId;
+  //     if (status) where.status = status;
+  //     if (userId) where.userId = userId;
+
+  //     // Date range
+  //     if (dateFrom || dateTo) {
+  //       where.createdAt = {};
+  //       if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+  //       if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+  //     }
+
+  //     // Payment method filter (relation-based)
+  //     if (paymentMethod) {
+  //       where.payments = {
+  //         some: {
+  //           method: paymentMethod,
+  //         },
+  //       };
+  //     }
+
+  //     const [sales, total] = await Promise.all([
+  //       prisma.posSale.findMany({
+  //         where,
+  //         skip,
+  //         take: Number(limit),
+  //         include: {
+  //           customer: { select: { code: true, name: true } },
+  //           warehouse: { select: { code: true, name: true } },
+  //           cashAccount: { select: { code: true, name: true } },
+  //           session: { select: { sessionNo: true } },
+  //           saleLines: {
+  //             include: {
+  //               item: { select: { sku: true, name: true, uom: true } },
+  //             },
+  //           },
+  //           payments: {
+  //             select: {
+  //               method: true,
+  //               amount: true,
+  //               cashAccountId: true,
+  //             },
+  //           },
+  //           user: { select: { id: true, name: true } },
+  //         },
+  //         orderBy: { createdAt: "desc" },
+  //       }),
+  //       prisma.posSale.count({ where }),
+  //     ]);
+
+  //     res.json({
+  //       sales,
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         total,
+  //         pages: Math.ceil(total / Number(limit)),
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("Get POS sales error:", error);
+  //     res.status(500).json({ error: "Failed to fetch POS sales" });
+  //   }
+  // }
+
   async getSales(req: AuthRequest, res: Response) {
     try {
       const {
@@ -731,12 +829,15 @@ export class PosController {
         status,
         paymentMethod,
         userId,
+        search,
       } = req.query;
-      const where: any = {};
 
+      const where: any = {};
       const skip = (Number(page) - 1) * Number(limit);
 
-      // Warehouse-based restriction for non-management users
+      /* =========================
+       Warehouse Restriction
+    ========================== */
       if (
         !req.user!.roles.includes("CFO") &&
         !req.user!.roles.includes("General Manager")
@@ -751,20 +852,26 @@ export class PosController {
         }
       }
 
-      // Basic filters
+      /* =========================
+       Basic Filters
+    ========================== */
       if (sessionId) where.sessionId = sessionId;
       if (customerId) where.customerId = customerId;
       if (status) where.status = status;
       if (userId) where.userId = userId;
 
-      // Date range
+      /* =========================
+       Date Range
+    ========================== */
       if (dateFrom || dateTo) {
         where.createdAt = {};
         if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
         if (dateTo) where.createdAt.lte = new Date(dateTo as string);
       }
 
-      // Payment method filter (relation-based)
+      /* =========================
+       Payment Method Filter
+    ========================== */
       if (paymentMethod) {
         where.payments = {
           some: {
@@ -773,6 +880,39 @@ export class PosController {
         };
       }
 
+      /* =========================
+        SEARCH (Optional)
+    ========================== */
+      if (search && String(search).trim() !== "") {
+        where.OR = [
+          {
+            saleNo: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+          {
+            customer: {
+              name: {
+                contains: String(search),
+                mode: "insensitive",
+              },
+            },
+          },
+          {
+            customer: {
+              code: {
+                contains: String(search),
+                mode: "insensitive",
+              },
+            },
+          },
+        ];
+      }
+
+      /* =========================
+       Query Execution
+    ========================== */
       const [sales, total] = await Promise.all([
         prisma.posSale.findMany({
           where,
