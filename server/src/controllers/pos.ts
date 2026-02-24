@@ -911,9 +911,9 @@ export class PosController {
 
   async getSalesBySalesNo(req: AuthRequest, res: Response) {
     try {
-      const { saleNo } = req.params;
+      const { saleSearch } = req.params;
       const sale = await prisma.posSale.findUnique({
-        where: { saleNo },
+        where: { saleNo: saleSearch },
         include: {
           customer: { select: { code: true, name: true } },
           warehouse: { select: { code: true, name: true } },
