@@ -71,6 +71,7 @@ const PosTerminal = ({
   onSaleComplete,
 }: PosTerminalProps) => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [itemStocks, setItemStocks] = useState<Record<string, number>>({});
 
   const {
     register,
@@ -156,6 +157,12 @@ const PosTerminal = ({
 
         try {
           const selectedItem = await inventoryApi.getItemById(line.itemId);
+
+          // Save stockQty
+          setItemStocks((prev) => ({
+            ...prev,
+            [line.itemId]: selectedItem.stockQty || 0,
+          }));
 
           const customerGroup = selectedCustomer.customerGroupName;
 
@@ -605,7 +612,7 @@ const PosTerminal = ({
                             Item *
                           </label>
                           <ItemSelect
-                            // items={items?.items || []}
+                            noZeroItem={true}
                             value={watch(`saleLines.${index}.itemId`)}
                             typeFilter="FINISHED_GOODS"
                             onChange={(val) =>
@@ -622,12 +629,36 @@ const PosTerminal = ({
                           <input
                             {...register(`saleLines.${index}.qty`, {
                               valueAsNumber: true,
+                              validate: (value) => {
+                                const itemId = watchedLines[index]?.itemId;
+                                if (!itemId) return true;
+
+                                const stock = itemStocks[itemId] ?? 0;
+
+                                if (value > stock) {
+                                  return `Only ${stock} in stock`;
+                                }
+
+                                return true;
+                              },
                             })}
                             type="number"
                             step="0.1"
+                            min="0"
+                            max={
+                              watchedLines[index]?.itemId
+                                ? (itemStocks[watchedLines[index]?.itemId] ??
+                                  undefined)
+                                : undefined
+                            }
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             placeholder="1"
                           />
+                          {errors.saleLines?.[index]?.qty && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {errors.saleLines[index]?.qty?.message}
+                            </p>
+                          )}
                         </div>
 
                         <div>

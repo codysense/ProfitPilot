@@ -17,6 +17,7 @@ interface ItemSelectProps {
   onChange: (value: string) => void;
   error?: string;
   typeFilter?: string;
+  noZeroItem?: boolean;
 }
 
 export function ItemSelect({
@@ -24,6 +25,7 @@ export function ItemSelect({
   onChange,
   error,
   typeFilter,
+  noZeroItem,
 }: ItemSelectProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -50,6 +52,7 @@ export function ItemSelect({
         limit: 20,
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(typeFilter && { type: typeFilter }),
+        ...(noZeroItem && { noZeroItem: true }),
       }),
     placeholderData: keepPreviousData,
   });
