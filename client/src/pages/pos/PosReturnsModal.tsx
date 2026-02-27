@@ -11,20 +11,25 @@ import toast from "react-hot-toast";
 const posReturnSchema = z.object({
   originalSaleId: z.string().cuid(),
   sessionId: z.string().cuid(),
-  reason: z.enum([
-    "DEFECTIVE",
-    "WRONG_ITEM",
-    "CUSTOMER_CHANGE_MIND",
-    "DAMAGED",
-    "OTHER",
-  ]),
+  reason: z
+    .enum([
+      "DEFECTIVE",
+      "WRONG_ITEM",
+      "CUSTOMER_CHANGE_MIND",
+      "DAMAGED",
+      "OTHER",
+    ])
+    .refine((val) => val !== undefined, {
+      message: "Return reason is required",
+    }),
+
   returnLines: z
     .array(
       z.object({
         originalLineId: z.string().cuid(),
         itemId: z.string().cuid(),
         qtyReturned: z.number().int().nonnegative(),
-        unitPrice: z.number().positive(),
+        //unitPrice: z.number().positive(),
       }),
     )
     .min(1),
@@ -78,6 +83,12 @@ const PosReturnsModal = ({
     // enabled: saleSearch.length > 2,
   });
 
+  React.useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.log("Return form errors:", errors);
+    }
+  }, [errors]);
+
   const sales: PosSale[] = data?.sales || [];
 
   const handleSaleSelect = (sale: PosSale) => {
@@ -91,33 +102,70 @@ const PosReturnsModal = ({
         originalLineId: line.id,
         itemId: line.itemId,
         qtyReturned: 0,
-        unitPrice: line.unitPrice,
+        unitPrice: Number(line.unitPrice),
       })),
     });
   };
 
   const calculateReturnTotal = () =>
     watch("returnLines")?.reduce(
-      (sum, line) => sum + (line.qtyReturned || 0) * (line.unitPrice || 0),
+      (sum, line) =>
+        sum + (line.qtyReturned || 0) * Number(line.unitPrice || 0),
       0,
     ) || 0;
 
   const onSubmit = async (formData: PosReturnFormData) => {
-    const validLines = formData.returnLines.filter((l) => l.qtyReturned > 0);
+    try {
+      const validLines = formData.returnLines
+        .filter((l) => l.qtyReturned > 0)
+        .map((line) => {
+          const originalLine = selectedSale!.saleLines.find(
+            (sl) => sl.id === line.originalLineId,
+          );
 
-    if (!validLines.length) {
-      toast.error("Please specify quantities to return");
-      return;
+          return {
+            ...line,
+            unitPrice: Number(originalLine!.unitPrice), // inject safely here
+          };
+        });
+
+      if (!validLines.length) {
+        toast.error("Please specify quantities to return");
+        return;
+      }
+
+      await posApi.createReturn({
+        ...formData,
+        returnLines: validLines,
+      });
+
+      toast.success("Return processed successfully");
+      onReturnComplete();
+    } catch (error) {
+      console.error("POS return ", error);
     }
-
-    await posApi.createReturn({
-      ...formData,
-      returnLines: validLines,
-    });
-
-    toast.success("Return processed successfully");
-    onReturnComplete();
   };
+
+  // const onSubmit = async (formData: PosReturnFormData) => {
+  //   try {
+  //     const validLines = formData.returnLines.filter((l) => l.qtyReturned > 0);
+
+  //     if (!validLines.length) {
+  //       toast.error("Please specify quantities to return");
+  //       return;
+  //     }
+
+  //     await posApi.createReturn({
+  //       ...formData,
+  //       returnLines: validLines,
+  //     });
+
+  //     toast.success("Return processed successfully");
+  //     onReturnComplete();
+  //   } catch (error) {
+  //     console.error("POS return ", error);
+  //   }
+  // };
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 flex justify-center items-center p-4">
@@ -237,6 +285,12 @@ const PosReturnsModal = ({
               <option value="OTHER">Other</option>
             </select>
 
+            {errors.reason && (
+              <p className="text-sm text-red-600 mt-1">
+                {errors.reason.message}
+              </p>
+            )}
+
             {fields.map((field, index) => {
               const originalLine = selectedSale.saleLines.find(
                 (l) => l.id === field.originalLineId,
@@ -258,9 +312,20 @@ const PosReturnsModal = ({
                       max={originalLine.qty}
                       {...register(`returnLines.${index}.qtyReturned`, {
                         valueAsNumber: true,
+                        validate: (value) => {
+                          if (value > originalLine.qty) {
+                            return `Cannot return more than ${originalLine.qty}`;
+                          }
+                          return true;
+                        },
                       })}
                       className="border px-2 py-1 rounded w-24"
                     />
+                    {errors.returnLines?.[index]?.qtyReturned && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {errors.returnLines[index]?.qtyReturned?.message}
+                      </p>
+                    )}
                   </div>
                 </div>
               );

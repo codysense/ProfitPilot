@@ -36,7 +36,9 @@ const PurchaseOrders = () => {
 
   // Check if user can perform actions (CFO or GM only)
   const canPerformActions =
-    user?.roles.includes("CFO") || user?.roles.includes("General Manager");
+    user?.roles.includes("Senior Accountant") ||
+    user?.roles.includes("General Manager") ||
+    user?.roles.includes("Inventory Manager");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["purchases", { page, status: statusFilter }],

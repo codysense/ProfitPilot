@@ -58,40 +58,75 @@ const IssueMaterialsModal = ({
     queryFn: () => inventoryApi.getItems({ type: "RAW_MATERIAL", limit: 100 }),
   });
 
+  const bomItemIds = order.bom?.bomLines.map((l) => l.componentItemId) ?? [];
+
+  const missingBomIds = bomItemIds.filter(
+    (id) => !rawMaterials?.items?.some((item: any) => item.id === id),
+  );
+
+  const { data: missingBomItems } = useQuery({
+    queryKey: ["missing-bom-materials", missingBomIds],
+    queryFn: async () => {
+      const results = await Promise.all(
+        missingBomIds.map((id) => inventoryApi.getItemById(id)),
+      );
+      return results;
+    },
+    enabled: missingBomIds.length > 0,
+  });
+
+  const allMaterials = React.useMemo(() => {
+    const base = rawMaterials?.items ?? [];
+    const extra = missingBomItems ?? [];
+
+    const merged = [...base];
+
+    extra.forEach((item: any) => {
+      if (!merged.some((m: any) => m.id === item.id)) {
+        merged.push(item);
+      }
+    });
+
+    return merged;
+  }, [rawMaterials, missingBomItems]);
+
   // Get stock information for materials
   type StockInfo = {
     qty: number;
     avgCost: number;
   };
 
-  const { data: stockData } = useQuery({
-    queryKey: ["materials-stock", order.warehouseId],
-    queryFn: async () => {
-      if (!rawMaterials?.items) return {};
+  const selectedItemIds = watch("materials")
+    .map((m) => m.itemId)
+    .filter(Boolean);
 
-      const stockPromises = rawMaterials.items.map(async (item: any) => {
+  const { data: stockData } = useQuery({
+    queryKey: ["materials-stock", selectedItemIds, order.warehouseId],
+    queryFn: async () => {
+      const stockPromises = selectedItemIds.map(async (itemId) => {
         try {
           const stock = await inventoryApi.getItemStock(
-            item.id,
+            itemId,
             order.warehouseId,
           );
+
           return {
-            itemId: item.id,
+            itemId,
             qty: stock.qty,
             avgCost: stock.avgCost,
           };
         } catch {
           return {
-            itemId: item.id,
+            itemId,
             qty: 0,
             avgCost: 0,
           };
         }
       });
 
-      const stockResults = await Promise.all(stockPromises);
+      const results = await Promise.all(stockPromises);
 
-      return stockResults.reduce(
+      return results.reduce(
         (acc, result) => {
           acc[result.itemId] = {
             qty: result.qty,
@@ -99,11 +134,52 @@ const IssueMaterialsModal = ({
           };
           return acc;
         },
-        {} as Record<string, StockInfo>,
+        {} as Record<string, { qty: number; avgCost: number }>,
       );
     },
-    enabled: !!rawMaterials?.items,
+    enabled: selectedItemIds.length > 0,
   });
+
+  // const { data: stockData } = useQuery({
+  //   queryKey: ["materials-stock", order.warehouseId],
+  //   queryFn: async () => {
+  //     if (!rawMaterials?.items) return {};
+
+  //     const stockPromises = rawMaterials.items.map(async (item: any) => {
+  //       try {
+  //         const stock = await inventoryApi.getItemStock(
+  //           item.id,
+  //           order.warehouseId,
+  //         );
+  //         return {
+  //           itemId: item.id,
+  //           qty: stock.qty,
+  //           avgCost: stock.avgCost,
+  //         };
+  //       } catch {
+  //         return {
+  //           itemId: item.id,
+  //           qty: 0,
+  //           avgCost: 0,
+  //         };
+  //       }
+  //     });
+
+  //     const stockResults = await Promise.all(stockPromises);
+
+  //     return stockResults.reduce(
+  //       (acc, result) => {
+  //         acc[result.itemId] = {
+  //           qty: result.qty,
+  //           avgCost: result.avgCost,
+  //         };
+  //         return acc;
+  //       },
+  //       {} as Record<string, StockInfo>,
+  //     );
+  //   },
+  //   enabled: !!rawMaterials?.items,
+  // });
 
   // Auto-calculate materials from BOM
   const calculateFromBOM = () => {
@@ -294,7 +370,12 @@ const IssueMaterialsModal = ({
                             {rawMaterials
                               ? "Select material"
                               : "Loading materials..."}
-                            {rawMaterials?.items?.map((item: any) => (
+                            {allMaterials.map((item: any) => (
+                              <option key={item.id} value={item.id}>
+                                {item.sku} - {item.name}
+                              </option>
+                            ))}
+                            {/* {rawMaterials?.items?.map((item: any) => (
                               <option key={item.id} value={item.id}>
                                 {item.sku} - {item.name}
                                 (Stock: {stockData?.[item.id]?.qty ?? 0}{" "}
@@ -303,7 +384,7 @@ const IssueMaterialsModal = ({
                                   ? ` - ₦${stockData[item.id].avgCost.toLocaleString()}`
                                   : ""}
                               </option>
-                            ))}
+                            ))} */}
                           </select>
                           {errors.materials?.[index]?.itemId && (
                             <p className="mt-1 text-sm text-red-600">
@@ -396,7 +477,8 @@ const IssueMaterialsModal = ({
                   </span>
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
-                  Based on inventory average costs of selected materials(warehouse-specific).
+                  Based on inventory average costs of selected
+                  materials(warehouse-specific).
                 </div>
               </div>
 

@@ -606,7 +606,20 @@ export class PosController {
 
           const glEntries: any[] = [];
 
+          let count = 1;
+
+          const lastTx = await tx.cashTransaction.findFirst({
+            orderBy: { createdAt: "desc" },
+          });
+
+          let baseNumber = lastTx
+            ? parseInt(lastTx.transactionNo.replace(/^CT/, ""), 10)
+            : 0;
+
           for (const payment of input.payments) {
+            const nextNumber = baseNumber + count;
+            const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
+            count++;
             const amount = Number(payment.amount);
 
             if (Number.isNaN(amount) || amount <= 0) {
@@ -639,17 +652,20 @@ export class PosController {
               orderBy: { createdAt: "desc" },
             });
 
-            let nextNumber = 1;
-            if (lastTx) {
-              // Extract the numeric part of the transactionNo
-              const lastNumber = parseInt(
-                lastTx.transactionNo.replace(/^CT/, ""),
-                10,
-              );
-              nextNumber = lastNumber + 1;
-            }
+            // let nextNumber = count;
+            // if (lastTx) {
+            //   // Extract the numeric part of the transactionNo
+            //   const lastNumber = parseInt(
+            //     lastTx.transactionNo.replace(/^CT/, ""),
+            //     10,
+            //   );
+            //   nextNumber = lastNumber + count;
+            // }
 
-            const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
+            // const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
+
+            console.log("TransactionNo ", transactionNo);
+            console.log("Payment count ", count);
 
             await tx.cashTransaction.create({
               data: {
@@ -1504,9 +1520,22 @@ export class PosController {
 
         // Cash transaction
 
+        let paymentCount = 1;
+
+        const lastTx = await tx.cashTransaction.findFirst({
+          orderBy: { createdAt: "desc" },
+        });
+
+        let baseNumber = lastTx
+          ? parseInt(lastTx.transactionNo.replace(/^CT/, ""), 10)
+          : 0;
+
         for (const payment of originalSale.payments) {
-          const txCount = await tx.cashTransaction.count();
-          const transactionNo = `CT${String(txCount + 1).padStart(6, "0")}`;
+          const nextNumber = baseNumber + paymentCount;
+
+          const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
+          paymentCount++;
+
           await tx.cashTransaction.create({
             data: {
               transactionNo,
