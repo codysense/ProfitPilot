@@ -4,6 +4,8 @@ import jwt, { Secret, SignOptions } from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import { loginSchema, registerSchema } from "../types/auth";
 import { AuthRequest } from "../middleware/auth";
+import { date } from "zod";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -43,7 +45,7 @@ export class AuthController {
       });
 
       if (!user || user.status !== "ACTIVE") {
-        return res.status(401).json({ error: "Invalid credentials" });
+        return res.status(401).json({ error: "Non-Active User" });
       }
 
       const isValidPassword = await bcrypt.compare(password, user.password);
@@ -52,41 +54,62 @@ export class AuthController {
       }
 
       // Update last login
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+
+        // const refreshToken = jwt.sign(
+        //   { userId: user.id },
+        //   process.env.REFRESH_SECRET!,
+        //   { expiresIn: "7d" },
+        // );
+
+        const refreshToken = generateToken(
+          { userId: user.id },
+          process.env.JWT_REFRESH_SECRET as string,
+          process.env.JWT_REFRESH_EXPIRY as string,
+        );
+
+        const hashedRefreshToken = crypto
+          .createHash("sha256")
+          .update(refreshToken)
+          .digest("hex");
+
+        await tx.refreshToken.create({
+          data: {
+            token: hashedRefreshToken,
+            userId: user.id,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          },
+        });
+        const accessToken = generateToken(
+          { userId: user.id, email: user.email },
+          process.env.JWT_SECRET as string,
+          process.env.JWT_ACCESS_EXPIRY as string,
+        );
+
+        // Extract user roles & permissions
+        const roles = user.userRoles.map((ur) => ur.role.name);
+        const permissions = user.userRoles.flatMap((ur) =>
+          ur.role.rolePermissions.map((rp) => rp.permission.name),
+        );
+
+        res.json({
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            roles,
+            permissions,
+          },
+          accessToken,
+          refreshToken,
+        });
       });
 
       // Generate tokens
-      const accessToken = generateToken(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET as string,
-        process.env.JWT_ACCESS_EXPIRY as string,
-      );
-
-      const refreshToken = generateToken(
-        { userId: user.id },
-        process.env.JWT_REFRESH_SECRET as string,
-        process.env.JWT_REFRESH_EXPIRY as string,
-      );
-
-      // Extract user roles & permissions
-      const roles = user.userRoles.map((ur) => ur.role.name);
-      const permissions = user.userRoles.flatMap((ur) =>
-        ur.role.rolePermissions.map((rp) => rp.permission.name),
-      );
-
-      res.json({
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          roles,
-          permissions,
-        },
-        accessToken,
-        refreshToken,
-      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(400).json({ error: "Invalid request data" });
@@ -141,11 +164,28 @@ export class AuthController {
         return res.status(401).json({ error: "Refresh token required" });
       }
 
+      // 1️ Verify JWT signature
       const payload = jwt.verify(
         refreshToken,
         process.env.JWT_REFRESH_SECRET as string,
       ) as { userId: string };
 
+      // 2️ Hash incoming token
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(refreshToken)
+        .digest("hex");
+
+      // 3️ Check if token exists in DB
+      const existingToken = await prisma.refreshToken.findUnique({
+        where: { token: hashedToken },
+      });
+
+      if (!existingToken) {
+        return res.status(401).json({ error: "Invalid refresh token" });
+      }
+
+      // 4️ Check user still valid
       const user = await prisma.user.findUnique({
         where: { id: payload.userId },
         select: { id: true, email: true, status: true },
@@ -155,7 +195,12 @@ export class AuthController {
         return res.status(401).json({ error: "Invalid refresh token" });
       }
 
-      // Rotate tokens (best practice)
+      // 5️ Delete old refresh token (rotation)
+      await prisma.refreshToken.delete({
+        where: { id: existingToken.id },
+      });
+
+      // 6️ Generate new tokens
       const newAccessToken = generateToken(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET as string,
@@ -168,7 +213,25 @@ export class AuthController {
         process.env.JWT_REFRESH_EXPIRY as string,
       );
 
-      res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+      // 7️ Hash new refresh token before storing
+      const newHashedToken = crypto
+        .createHash("sha256")
+        .update(newRefreshToken)
+        .digest("hex");
+
+      await prisma.refreshToken.create({
+        data: {
+          token: newHashedToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      // 8️ Return new tokens
+      res.json({
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      });
     } catch (error) {
       console.error("Refresh error:", error);
       res.status(401).json({ error: "Invalid refresh token" });
@@ -180,14 +243,32 @@ export class AuthController {
   }
 
   async logout(req: AuthRequest, res: Response) {
-    // In production, you'd invalidate refresh tokens here (e.g. store a blacklist in Redis)
+    const refreshToken = req.body.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token required" });
+    }
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(refreshToken)
+      .digest("hex");
+
+    await prisma.refreshToken.deleteMany({
+      where: { token: hashedToken },
+    });
+
+    // await prisma.refreshToken.deleteMany({
+    //   where: { token: refreshToken },
+    // });
+
     res.json({ message: "Logged out successfully" });
   }
 
   async getUsers(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("Senior Accountant") &&
         !req.user?.roles.includes("General Manager")
       ) {
         return res.status(403).json({ error: "Insufficient permissions" });
@@ -251,7 +332,7 @@ export class AuthController {
   async createUser(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("Senior Accountant") &&
         !req.user?.roles.includes("General Manager")
       ) {
         return res.status(403).json({ error: "Insufficient permissions" });
@@ -304,7 +385,7 @@ export class AuthController {
   async updateUser(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("Senior Accountant") &&
         !req.user?.roles.includes("General Manager")
       ) {
         return res.status(403).json({ error: "Insufficient permissions" });
@@ -385,7 +466,7 @@ export class AuthController {
   async updateUserStatus(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("Senior Accountant") &&
         !req.user?.roles.includes("General Manager")
       ) {
         return res.status(403).json({ error: "Insufficient permissions" });
@@ -414,7 +495,7 @@ export class AuthController {
   async getRoles(req: AuthRequest, res: Response) {
     try {
       if (
-        !req.user?.roles.includes("CFO") &&
+        !req.user?.roles.includes("Senior Accountant") &&
         !req.user?.roles.includes("General Manager")
       ) {
         return res.status(403).json({ error: "Insufficient permissions" });

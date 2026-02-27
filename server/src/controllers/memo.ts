@@ -219,8 +219,22 @@ export class MemoController {
       // console.log("request user ", req.user);
 
       const result = await prisma.$transaction(async (tx) => {
-        const memoCount = await tx.memo.count();
-        const memoNo = `M${String(memoCount + 1).padStart(6, "0")}`;
+        // const memoCount = await tx.memo.count();
+        // const memoNo = `M${String(memoCount + 1).padStart(6, "0")}`;
+        // Fetch the last memo ordered by creationDate
+        const lastTx = await prisma.memo.findFirst({
+          orderBy: { createdAt: "desc" },
+        });
+
+        let nextNumber = 1;
+        if (lastTx) {
+          // Extract the numeric part of the transactionNo
+          const lastNumber = parseInt(lastTx.memoNo.replace(/^M/, ""), 10);
+          nextNumber = lastNumber + 1;
+        }
+
+        const memoNo = `M${String(nextNumber).padStart(6, "0")}`;
+
         let finalAmount = 0;
         let category: "SALES_RETURN" | "PURCHASE_RETURN" | "FINANCIAL" =
           "FINANCIAL";
@@ -251,6 +265,7 @@ export class MemoController {
 
           // Reverse AR
           await glService.postJournal(
+            tx,
             [
               {
                 accountCode: "4000",
@@ -295,6 +310,7 @@ export class MemoController {
             const unitCost = inventoryValue.avgCost;
 
             await costingService.receiveInventory(
+              tx,
               line.itemId,
               warehouseId,
               Number(line.qty),
@@ -331,6 +347,7 @@ export class MemoController {
           finalAmount = Number(purchase.totalAmount);
 
           await glService.postJournal(
+            tx,
             [
               {
                 accountCode: "2000",
@@ -355,6 +372,7 @@ export class MemoController {
             if (!line.itemId) continue;
 
             await costingService.issueInventory(
+              tx,
               line.itemId,
               warehouseId,
               Number(line.qty),
@@ -388,6 +406,7 @@ export class MemoController {
 
           if (memoType === "CREDIT") {
             await glService.postJournal(
+              tx,
               [
                 {
                   accountCode: coa.code,
@@ -409,6 +428,7 @@ export class MemoController {
             );
           } else {
             await glService.postJournal(
+              tx,
               [
                 {
                   accountCode: controlAccount,

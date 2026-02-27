@@ -200,8 +200,19 @@ export class AssetsService {
   async createAsset(data: any, userId: string) {
     return await prisma.$transaction(async (tx) => {
       // Generate asset number
-      const count = await tx.asset.count();
-      const assetNo = `AST${String(count + 1).padStart(6, "0")}`;
+      // const count = await tx.asset.count();
+
+      const lastAsset = await tx.asset.findFirst({
+        orderBy: { createdAt: "desc" },
+      });
+
+      let nextNumber = 1;
+      if (lastAsset) {
+        // Extract the numeric part of the orderNo
+        const lastNumber = parseInt(lastAsset.assetNo.replace(/^AST/, ""), 10);
+        nextNumber = lastNumber + 1;
+      }
+      const assetNo = `AST${String(nextNumber + 1).padStart(6, "0")}`;
 
       // Get category defaults if not provided
       // const category = await tx.assetCategory.findUnique({
@@ -266,6 +277,7 @@ export class AssetsService {
 
       // Post capitalization to GL
       await glService.postJournal(
+        tx,
         [
           {
             accountCode: category.glAssetAccount.code,
@@ -378,6 +390,7 @@ export class AssetsService {
 
         // Post capitalization to GL
         await glService.postJournal(
+          tx,
           [
             {
               accountCode: "1510", //Asset Clearing Account
@@ -569,6 +582,7 @@ export class AssetsService {
         // Post consolidated depreciation journal entry
         if (totalDepreciation > 0) {
           const journalId = await glService.postJournal(
+            tx,
             [
               {
                 accountCode: "6300", // Depreciation Expense (will be updated per category)
@@ -730,6 +744,7 @@ export class AssetsService {
         }
 
         const journalId = await glService.postJournal(
+          tx,
           journalEntries,
           `Asset disposal: ${asset.name} - ${data.disposalMethod}`,
           userId,

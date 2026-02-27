@@ -70,12 +70,22 @@ model User {
   salesPaid      Sale[] @relation("SalePayer")
 
   // ───── Purchase stage actors ─────
-  purchasesPrepared Purchase[] @relation("PurchasePreparer")
-  purchasesReceived Purchase[] @relation("PurchaseReceiver")
-  purchasesInvoiced Purchase[] @relation("PurchaseInvoicer")
-  purchasesPaid     Purchase[] @relation("PurchasePayer")
+  purchasesPrepared Purchase[]     @relation("PurchasePreparer")
+  purchasesReceived Purchase[]     @relation("PurchaseReceiver")
+  purchasesInvoiced Purchase[]     @relation("PurchaseInvoicer")
+  purchasesPaid     Purchase[]     @relation("PurchasePayer")
+  refreshTokens     RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model Role {

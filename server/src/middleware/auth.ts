@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-import { AuthUser, JwtPayload } from '../types/auth';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
+import { AuthUser, JwtPayload } from "../types/auth";
 
 const prisma = new PrismaClient();
 
@@ -9,17 +9,21 @@ export interface AuthRequest extends Request {
   user?: AuthUser;
 }
 
-export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticate = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
+
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
     }
 
     const token = authHeader.substring(7);
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
-    
+
     // Fetch user with roles and permissions
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
@@ -30,24 +34,24 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
               include: {
                 rolePermissions: {
                   include: {
-                    permission: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
-    if (!user || user.status !== 'ACTIVE') {
-      return res.status(401).json({ error: 'User not found or inactive' });
+    if (!user || user.status !== "ACTIVE") {
+      return res.status(401).json({ error: "User not found or inactive" });
     }
 
     // Extract roles and permissions
-    const roles = user.userRoles.map(ur => ur.role.name);
-    const permissions = user.userRoles.flatMap(ur => 
-      ur.role.rolePermissions.map(rp => rp.permission.name)
+    const roles = user.userRoles.map((ur) => ur.role.name);
+    const permissions = user.userRoles.flatMap((ur) =>
+      ur.role.rolePermissions.map((rp) => rp.permission.name),
     );
 
     req.user = {
@@ -55,19 +59,17 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       email: user.email,
       name: user.name,
       roles,
-      permissions
+      permissions,
     };
     // console.log("AUTH middleware user:", user?.id);
     // console.log("Token payload:", payload);
 
-
     next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
+  } catch (error: any) {
+    // console.log("JWT ERROR:", error.message);
+    return res.status(401).json({ error: "Invalid token" });
   }
 };
-
-
 
 // export const requireRole = (requiredRole: []) => {
 //   return (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -82,7 +84,6 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 //     next();
 //   };
 // };
-
 
 // import { Response, NextFunction } from "express";
 // import { AuthRequest } from "../types"; // adjust import path
@@ -110,17 +111,16 @@ export const requireRole = (requiredRoles: string[]) => {
   };
 };
 
-
 export const authorize = (requiredPermission: string) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     // Check if user has the required permission or is a CFO/General Manager with full access
     // const hasPermission = req.user.permissions.includes(requiredPermission);
     // const hasFullAccess = req.user.roles.includes('Auditor') || req.user.roles.includes('General Manager');
-    
+
     // if (!hasPermission && !hasFullAccess) {
     //   return res.status(403).json({ error: 'Insufficient permissions' });
     // }
@@ -128,7 +128,3 @@ export const authorize = (requiredPermission: string) => {
     next();
   };
 };
-
-
-
-

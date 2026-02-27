@@ -98,9 +98,22 @@ export class SalesController {
       const sale = await prisma.$transaction(
         async (tx) => {
           // Generate order number
-          const count = await tx.sale.count();
-          const orderNo = `SO${String(count + 1).padStart(6, "0")}`;
-          // console.log(orderNo)
+
+          const lastSale = await prisma.sale.findFirst({
+            orderBy: { createdAt: "desc" },
+          });
+
+          let nextNumber = 1;
+          if (lastSale) {
+            // Extract the numeric part of the orderNo
+            const lastNumber = parseInt(
+              lastSale.orderNo.replace(/^SO/, ""),
+              10,
+            );
+            nextNumber = lastNumber + 1;
+          }
+
+          const orderNo = `SO${String(nextNumber).padStart(6, "0")}`;
 
           // Calculate total amount
           const totalAmount = validatedData.saleLines.reduce((sum, line) => {
@@ -182,6 +195,7 @@ export class SalesController {
 
             const itemType = await getItemTypeById(sale.saleLines[0].itemId);
             await glService.postJournal(
+              tx,
               [
                 {
                   accountCode: "1200",
@@ -230,6 +244,7 @@ export class SalesController {
 
             // Issue inventory using costing service
             await costingService.issueInventory(
+              tx,
               saleLine.itemId,
               deliveryLine.warehouseId,
               deliveryLine.qtyDelivered,

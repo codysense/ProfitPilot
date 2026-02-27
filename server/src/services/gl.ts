@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaClient, Prisma } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 const prisma = new PrismaClient();
 
@@ -13,63 +13,67 @@ interface JournalEntry {
 
 export class GeneralLedgerService {
   async postJournal(
+    tx: Prisma.TransactionClient,
     entries: JournalEntry[],
     memo: string,
     userId: string,
-    date: Date = new Date()
+    date: Date = new Date(),
   ): Promise<string> {
-    return await prisma.$transaction(async (tx) => {
-      // Validate double-entry (debits = credits)
-      const totalDebits = entries.reduce((sum, entry) => sum + entry.debit, 0);
-      const totalCredits = entries.reduce((sum, entry) => sum + entry.credit, 0);
+    //return await prisma.$transaction(
+    //async (tx) => {
+    // Validate double-entry (debits = credits)
+    const totalDebits = entries.reduce((sum, entry) => sum + entry.debit, 0);
+    const totalCredits = entries.reduce((sum, entry) => sum + entry.credit, 0);
 
-      if (Math.abs(totalDebits - totalCredits) > 0.01) {
-        throw new Error(`Journal entries are not balanced. Debits: ${totalDebits}, Credits: ${totalCredits}`);
-      }
+    if (Math.abs(totalDebits - totalCredits) > 0.01) {
+      throw new Error(
+        `Journal entries are not balanced. Debits: ${totalDebits}, Credits: ${totalCredits}`,
+      );
+    }
 
-      // Generate journal number
-      const count = await tx.journal.count();
-      const journalNo = `J${String(count + 1).padStart(6, '0')}`;
+    // Generate journal number
+    const count = await tx.journal.count();
+    const journalNo = `J${String(count + 1).padStart(6, "0")}`;
 
-      // Create journal header
-      const journal = await tx.journal.create({
-        data: {
-          journalNo,
-          date,
-          memo,
-          postedBy: userId
-        }
+    // Create journal header
+    const journal = await tx.journal.create({
+      data: {
+        journalNo,
+        date,
+        memo,
+        postedBy: userId,
+      },
+    });
+
+    // Create journal lines
+    for (const entry of entries) {
+      const account = await tx.chartOfAccount.findUnique({
+        where: { code: entry.accountCode },
       });
 
-      // Create journal lines
-      for (const entry of entries) {
-        const account = await tx.chartOfAccount.findUnique({
-          where: { code: entry.accountCode }
-        });
-
-        if (!account) {
-          throw new Error(`Account code ${entry.accountCode} not found`);
-        }
-
-        await tx.journalLine.create({
-          data: {
-            journalId: journal.id,
-            accountId: account.id,
-            debit: new Decimal(entry.debit),
-            credit: new Decimal(entry.credit),
-            refType: entry.refType,
-            refId: entry.refId
-          }
-        });
+      if (!account) {
+        throw new Error(`Account code ${entry.accountCode} not found`);
       }
 
-      return journal.id;
-    },
-    {
-  maxWait: 5000,  // 5s wait for connection
-  timeout: 20000  // 20s max runtime
-}
-  );
+      await tx.journalLine.create({
+        data: {
+          journalId: journal.id,
+          accountId: account.id,
+          debit: new Decimal(entry.debit),
+          credit: new Decimal(entry.credit),
+          refType: entry.refType,
+          refId: entry.refId,
+        },
+      });
+    }
+
+    return journal.id;
+    // },
+    // {
+    //   maxWait: 5000, // 5s wait for connection
+    //   timeout: 20000, // 20s max runtime
+    // },
+    //);
   }
 
   async getTrialBalance(asOfDate: Date) {
@@ -79,17 +83,23 @@ export class GeneralLedgerService {
         journalLines: {
           where: {
             journal: {
-              date: { lte: asOfDate }
-            }
-          }
-        }
+              date: { lte: asOfDate },
+            },
+          },
+        },
       },
-      orderBy: { code: 'asc' }
+      orderBy: { code: "asc" },
     });
 
-    return accounts.map(account => {
-      const totalDebits = account.journalLines.reduce((sum, line) => sum.plus(line.debit), new Decimal(0));
-      const totalCredits = account.journalLines.reduce((sum, line) => sum.plus(line.credit), new Decimal(0));
+    return accounts.map((account) => {
+      const totalDebits = account.journalLines.reduce(
+        (sum, line) => sum.plus(line.debit),
+        new Decimal(0),
+      );
+      const totalCredits = account.journalLines.reduce(
+        (sum, line) => sum.plus(line.credit),
+        new Decimal(0),
+      );
       const balance = totalDebits.minus(totalCredits);
 
       return {
@@ -98,7 +108,7 @@ export class GeneralLedgerService {
         accountType: account.accountType,
         debits: totalDebits.toNumber(),
         credits: totalCredits.toNumber(),
-        balance: balance.toNumber()
+        balance: balance.toNumber(),
       };
     });
   }
@@ -107,7 +117,7 @@ export class GeneralLedgerService {
     const accounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
-        accountType: { in: ['REVENUE', 'EXPENSE'] }
+        accountType: { in: ["REVENUE", "EXPENSE"] },
       },
       include: {
         journalLines: {
@@ -115,13 +125,13 @@ export class GeneralLedgerService {
             journal: {
               date: {
                 gte: fromDate,
-                lte: toDate
-              }
-            }
-          }
-        }
+                lte: toDate,
+              },
+            },
+          },
+        },
       },
-      orderBy: [{ accountType: 'asc' }, { code: 'asc' }]
+      orderBy: [{ accountType: "asc" }, { code: "asc" }],
     });
 
     const revenues: any[] = [];
@@ -129,20 +139,27 @@ export class GeneralLedgerService {
     let totalRevenue = 0;
     let totalExpense = 0;
 
-    accounts.forEach(account => {
-      const totalDebits = account.journalLines.reduce((sum, line) => sum.plus(line.debit), new Decimal(0));
-      const totalCredits = account.journalLines.reduce((sum, line) => sum.plus(line.credit), new Decimal(0));
-      const netAmount = account.accountType === 'REVENUE' 
-        ? totalCredits.minus(totalDebits).toNumber()
-        : totalDebits.minus(totalCredits).toNumber();
+    accounts.forEach((account) => {
+      const totalDebits = account.journalLines.reduce(
+        (sum, line) => sum.plus(line.debit),
+        new Decimal(0),
+      );
+      const totalCredits = account.journalLines.reduce(
+        (sum, line) => sum.plus(line.credit),
+        new Decimal(0),
+      );
+      const netAmount =
+        account.accountType === "REVENUE"
+          ? totalCredits.minus(totalDebits).toNumber()
+          : totalDebits.minus(totalCredits).toNumber();
 
       const accountData = {
         accountCode: account.code,
         accountName: account.name,
-        amount: Math.abs(netAmount)
+        amount: Math.abs(netAmount),
       };
 
-      if (account.accountType === 'REVENUE') {
+      if (account.accountType === "REVENUE") {
         revenues.push(accountData);
         totalRevenue += netAmount;
       } else {
@@ -158,7 +175,7 @@ export class GeneralLedgerService {
       expenses,
       totalRevenue,
       totalExpense,
-      netIncome
+      netIncome,
     };
   }
 
@@ -166,18 +183,18 @@ export class GeneralLedgerService {
     const accounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
-        accountType: { in: ['ASSET', 'LIABILITY', 'EQUITY'] }
+        accountType: { in: ["ASSET", "LIABILITY", "EQUITY"] },
       },
       include: {
         journalLines: {
           where: {
             journal: {
-              date: { lte: asOfDate }
-            }
-          }
-        }
+              date: { lte: asOfDate },
+            },
+          },
+        },
       },
-      orderBy: [{ accountType: 'asc' }, { code: 'asc' }]
+      orderBy: [{ accountType: "asc" }, { code: "asc" }],
     });
 
     const assets: any[] = [];
@@ -187,23 +204,30 @@ export class GeneralLedgerService {
     let totalLiabilities = 0;
     let totalEquity = 0;
 
-    accounts.forEach(account => {
-      const totalDebits = account.journalLines.reduce((sum, line) => sum.plus(line.debit), new Decimal(0));
-      const totalCredits = account.journalLines.reduce((sum, line) => sum.plus(line.credit), new Decimal(0));
-      const balance = account.accountType === 'ASSET'
-        ? totalDebits.minus(totalCredits).toNumber()
-        : totalCredits.minus(totalDebits).toNumber();
+    accounts.forEach((account) => {
+      const totalDebits = account.journalLines.reduce(
+        (sum, line) => sum.plus(line.debit),
+        new Decimal(0),
+      );
+      const totalCredits = account.journalLines.reduce(
+        (sum, line) => sum.plus(line.credit),
+        new Decimal(0),
+      );
+      const balance =
+        account.accountType === "ASSET"
+          ? totalDebits.minus(totalCredits).toNumber()
+          : totalCredits.minus(totalDebits).toNumber();
 
       const accountData = {
         accountCode: account.code,
         accountName: account.name,
-        balance: Math.abs(balance)
+        balance: Math.abs(balance),
       };
 
-      if (account.accountType === 'ASSET') {
+      if (account.accountType === "ASSET") {
         assets.push(accountData);
         totalAssets += balance;
-      } else if (account.accountType === 'LIABILITY') {
+      } else if (account.accountType === "LIABILITY") {
         liabilities.push(accountData);
         totalLiabilities += balance;
       } else {
@@ -218,7 +242,7 @@ export class GeneralLedgerService {
       equity,
       totalAssets,
       totalLiabilities,
-      totalEquity
+      totalEquity,
     };
   }
 }

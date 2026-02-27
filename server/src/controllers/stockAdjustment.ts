@@ -111,6 +111,7 @@ export class AdjustmentController {
               // console.log(accountCode, itemType)
               if (adjustmentLine.adjustmentType === "SURPLUS") {
                 await costingService.receiveInventory(
+                  tx,
                   adjustmentLine.itemId,
                   newAdjustment.warehouseId,
                   adjustmentLine.quantity,
@@ -120,6 +121,7 @@ export class AdjustmentController {
                   req.user!.id,
                 );
                 await glService.postJournal(
+                  tx,
                   [
                     {
                       accountCode:
@@ -142,6 +144,7 @@ export class AdjustmentController {
                 );
               } else {
                 await costingService.issueInventory(
+                  tx,
                   adjustmentLine.itemId,
                   newAdjustment.warehouseId,
                   adjustmentLine.quantity,
@@ -150,6 +153,7 @@ export class AdjustmentController {
                   req.user!.id,
                 );
                 await glService.postJournal(
+                  tx,
                   [
                     {
                       accountCode:

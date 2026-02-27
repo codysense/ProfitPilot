@@ -9,7 +9,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 const prisma = new PrismaClient();
 
 export class CostingService {
-  // ✅ use tx for transaction safety
+  // use tx for transaction safety
   async getCostingMethod(
     tx: Prisma.TransactionClient,
     itemId: string,
@@ -36,6 +36,7 @@ export class CostingService {
   }
 
   async issueInventory(
+    tx: Prisma.TransactionClient,
     itemId: string,
     warehouseId: string,
     qty: number,
@@ -43,37 +44,37 @@ export class CostingService {
     refId: string,
     userId?: string,
   ): Promise<{ unitCost: number; value: number; ledgerEntries: any[] }> {
-    return prisma.$transaction(
-      async (tx) => {
-        const costingMethod = await this.getCostingMethod(tx, itemId);
+    // return prisma.$transaction(
+    // (tx) => {
+    const costingMethod = await this.getCostingMethod(tx, itemId);
 
-        if (
-          costingMethod === CostingMethod.WEIGHTED_AVG ||
-          costingMethod === "GLOBAL"
-        ) {
-          return this.issueWeightedAverage(
-            tx,
-            itemId,
-            warehouseId,
-            qty,
-            refType,
-            refId,
-            userId,
-          );
-        } else {
-          return this.issueFifo(
-            tx,
-            itemId,
-            warehouseId,
-            qty,
-            refType,
-            refId,
-            userId,
-          );
-        }
-      },
-      { timeout: 15000 },
-    );
+    if (
+      costingMethod === CostingMethod.WEIGHTED_AVG ||
+      costingMethod === "GLOBAL"
+    ) {
+      return this.issueWeightedAverage(
+        tx,
+        itemId,
+        warehouseId,
+        qty,
+        refType,
+        refId,
+        userId,
+      );
+    } else {
+      return this.issueFifo(
+        tx,
+        itemId,
+        warehouseId,
+        qty,
+        refType,
+        refId,
+        userId,
+      );
+    }
+    // },
+    // { timeout: 15000 },
+    //);
   }
 
   async issueInventoryForTransfer(
@@ -168,6 +169,7 @@ export class CostingService {
   }
 
   async receiveInventory(
+    tx: Prisma.TransactionClient,
     itemId: string,
     warehouseId: string,
     qty: number,
@@ -176,59 +178,59 @@ export class CostingService {
     refId: string,
     userId?: string,
   ): Promise<void> {
-    await prisma.$transaction(
-      async (tx) => {
-        const costingMethod = await this.getCostingMethod(tx, itemId);
+    // await prisma.$transaction(
+    //async (tx) => {
+    const costingMethod = await this.getCostingMethod(tx, itemId);
 
-        // Get current running totals
-        const lastEntry = await tx.inventoryLedger.findFirst({
-          where: { itemId, warehouseId },
-          orderBy: { postedAt: "desc" },
-        });
+    // Get current running totals
+    const lastEntry = await tx.inventoryLedger.findFirst({
+      where: { itemId, warehouseId },
+      orderBy: { postedAt: "desc" },
+    });
 
-        const currentQty = lastEntry?.runningQty || new Decimal(0);
-        const currentValue = lastEntry?.runningValue || new Decimal(0);
+    const currentQty = lastEntry?.runningQty || new Decimal(0);
+    const currentValue = lastEntry?.runningValue || new Decimal(0);
 
-        const newQty = currentQty.plus(qty);
-        const newValue = currentValue.plus(new Decimal(qty).mul(unitCost));
-        const newAvgCost = newQty.gt(0) ? newValue.div(newQty) : new Decimal(0);
+    const newQty = currentQty.plus(qty);
+    const newValue = currentValue.plus(new Decimal(qty).mul(unitCost));
+    const newAvgCost = newQty.gt(0) ? newValue.div(newQty) : new Decimal(0);
 
-        // Create inventory ledger entry
-        await tx.inventoryLedger.create({
-          data: {
-            itemId,
-            warehouseId,
-            refType,
-            refId,
-            direction: LedgerDirection.IN,
-            qty: new Decimal(qty),
-            unitCost: new Decimal(unitCost),
-            value: new Decimal(qty).mul(unitCost),
-            runningQty: newQty,
-            runningValue: newValue,
-            runningAvgCost: newAvgCost,
-            userId,
-          },
-        });
-
-        // For FIFO, create inventory batch
-        if (costingMethod === CostingMethod.FIFO) {
-          await tx.inventoryBatch.create({
-            data: {
-              itemId,
-              warehouseId,
-              qtyOnHand: new Decimal(qty),
-              unitCost: new Decimal(unitCost),
-              receivedAt: new Date(),
-            },
-          });
-        }
+    // Create inventory ledger entry
+    await tx.inventoryLedger.create({
+      data: {
+        itemId,
+        warehouseId,
+        refType,
+        refId,
+        direction: LedgerDirection.IN,
+        qty: new Decimal(qty),
+        unitCost: new Decimal(unitCost),
+        value: new Decimal(qty).mul(unitCost),
+        runningQty: newQty,
+        runningValue: newValue,
+        runningAvgCost: newAvgCost,
+        userId,
       },
-      {
-        maxWait: 5000, // 5s wait for connection
-        timeout: 20000, // 20s max runtime
-      },
-    );
+    });
+
+    // For FIFO, create inventory batch
+    if (costingMethod === CostingMethod.FIFO) {
+      await tx.inventoryBatch.create({
+        data: {
+          itemId,
+          warehouseId,
+          qtyOnHand: new Decimal(qty),
+          unitCost: new Decimal(unitCost),
+          receivedAt: new Date(),
+        },
+      });
+    }
+    //},
+    // {
+    //   maxWait: 5000, // 5s wait for connection
+    //   timeout: 20000, // 20s max runtime
+    // },
+    //);
   }
 
   private async issueWeightedAverage(
@@ -384,6 +386,7 @@ export class CostingService {
   }
 
   async getInventoryValue(
+    // tx: Prisma.TransactionClient,
     itemId: string,
     warehouseId: string,
   ): Promise<{ qty: number; value: number; avgCost: number }> {

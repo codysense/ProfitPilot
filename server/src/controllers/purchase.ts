@@ -174,67 +174,73 @@ export class PurchaseController {
       const { id } = req.params;
       const validatedData = receivePurchaseSchema.parse(req.body);
 
-      // 1. Fetch all purchase lines outside of transaction
-      const purchaseLines = await prisma.purchaseLine.findMany({
-        where: {
-          id: { in: validatedData.receiptLines.map((r) => r.purchaseLineId) },
-        },
-        include: { item: true },
-      });
+      await prisma.$transaction(async (tx) => {
+        // 1️ Fetch purchase lines INSIDE transaction
+        const purchaseLines = await tx.purchaseLine.findMany({
+          where: {
+            id: { in: validatedData.receiptLines.map((r) => r.purchaseLineId) },
+          },
+          include: { item: true },
+        });
 
-      // Build a quick lookup
-      const purchaseLineMap = new Map(purchaseLines.map((pl) => [pl.id, pl]));
+        const purchaseLineMap = new Map(purchaseLines.map((pl) => [pl.id, pl]));
 
-      // 2. Run only the DB updates in a batched transaction
-      await prisma.$transaction([
-        prisma.purchase.update({
+        // 2️ Update purchase header
+        await tx.purchase.update({
           where: { id },
           data: {
             status: "RECEIVED",
             receivedBy: req.user!.id,
             receivedAt: new Date(),
           },
-        }),
-        ...validatedData.receiptLines.map((receiptLine) => {
+        });
+
+        // 3️ Update each purchase line
+        for (const receiptLine of validatedData.receiptLines) {
           const purchaseLine = purchaseLineMap.get(receiptLine.purchaseLineId);
+
           if (!purchaseLine) {
             throw new Error(
               `Purchase line ${receiptLine.purchaseLineId} not found`,
             );
           }
 
-          // update line quantities here if needed
-          return prisma.purchaseLine.update({
+          await tx.purchaseLine.update({
             where: { id: receiptLine.purchaseLineId },
-            data: { qty: purchaseLine.qty }, // adjust if needed
+            data: {
+              qty: receiptLine.qtyReceived,
+            },
           });
-        }),
-      ]);
 
-      // 3. Call costing service *outside* the transaction
-      for (const receiptLine of validatedData.receiptLines) {
-        const purchaseLine = purchaseLineMap.get(receiptLine.purchaseLineId)!;
+          // 4️ Inventory costing INSIDE transaction
+          await costingService.receiveInventory(
+            tx,
+            purchaseLine.itemId,
+            receiptLine.warehouseId,
+            receiptLine.qtyReceived,
+            receiptLine.unitCost,
+            "PURCHASE",
+            id,
+            req.user!.id,
+          );
+        }
 
-        await costingService.receiveInventory(
-          purchaseLine.itemId,
-          receiptLine.warehouseId,
-          receiptLine.qtyReceived,
-          receiptLine.unitCost,
-          "PURCHASE",
-          id,
-          req.user!.id,
-        );
-      }
+        // 5️ Calculate total value
+        const totalValue = validatedData.receiptLines.reduce((sum, line) => {
+          return sum + line.qtyReceived * line.unitCost;
+        }, 0);
 
-      // 4. Post GL entry outside transaction
-      const totalValue = validatedData.receiptLines.reduce((sum, line) => {
-        return sum + line.qtyReceived * line.unitCost;
-      }, 0);
+        const purchase = await tx.purchase.findUnique({ where: { id } });
 
-      const purchase = await prisma.purchase.findUnique({ where: { id } });
-      const itemType = await getItemTypeById(purchaseLines[0].itemId);
-      if (purchase) {
+        const itemType = await getItemTypeById(purchaseLines[0].itemId);
+
+        if (!purchase) {
+          throw new Error("Purchase not found");
+        }
+
+        // 6️ Post GL INSIDE transaction
         await glService.postJournal(
+          tx,
           [
             {
               accountCode: itemType === "FINISHED_GOODS" ? "1350" : "1300",
@@ -254,7 +260,7 @@ export class PurchaseController {
           `Purchase receipt: ${purchase.orderNo}`,
           req.user!.id,
         );
-      }
+      });
 
       res.json({ message: "Purchase received successfully" });
     } catch (error) {
@@ -267,43 +273,45 @@ export class PurchaseController {
     try {
       const { id } = req.params;
 
-      // Transaction: update purchase status
-      const purchase = await prisma.$transaction(
-        (tx) =>
-          tx.purchase.update({
+      await prisma.$transaction(
+        async (tx) => {
+          // 1️ Update purchase status
+          const purchase = await tx.purchase.update({
             where: { id },
             data: {
               status: "INVOICED",
               invoicedBy: req.user!.id,
               invoicedAt: new Date(),
             },
-          }),
-        {
-          maxWait: 5000, // 5s wait for connection
-          timeout: 20000, // 20s max runtime
-        },
-      );
+          });
 
-      // Outside transaction: GL posting
-      await glService.postJournal(
-        [
-          {
-            accountCode: "2000",
-            debit: 0,
-            credit: Number(purchase.totalAmount),
-            refType: "PURCHASE",
-            refId: id,
-          },
-          {
-            accountCode: "2150",
-            debit: Number(purchase.totalAmount),
-            credit: 0,
-            refType: "PURCHASE",
-            refId: id,
-          },
-        ],
-        `Purchase invoice: ${purchase.orderNo}`,
-        req.user!.id,
+          // 2️ Post GL INSIDE transaction
+          await glService.postJournal(
+            tx, // 👈 pass transaction client
+            [
+              {
+                accountCode: "2000",
+                debit: 0,
+                credit: Number(purchase.totalAmount),
+                refType: "PURCHASE",
+                refId: id,
+              },
+              {
+                accountCode: "2150",
+                debit: Number(purchase.totalAmount),
+                credit: 0,
+                refType: "PURCHASE",
+                refId: id,
+              },
+            ],
+            `Purchase invoice: ${purchase.orderNo}`,
+            req.user!.id,
+          );
+        },
+        {
+          maxWait: 5000,
+          timeout: 20000,
+        },
       );
 
       res.json({ message: "Purchase invoiced successfully" });

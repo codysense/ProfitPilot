@@ -545,6 +545,7 @@ export class PosController {
           });
 
           const totalCogs = await calculateCogs(
+            tx,
             input.saleLines,
             session.warehouseId,
             // tx,
@@ -562,9 +563,9 @@ export class PosController {
             // 10. COGS
 
             const costInfo = await costingService.getInventoryValue(
+              // tx, // IMPORTANT: same transaction
               line.itemId,
               session.warehouseId,
-              //tx, // IMPORTANT: same transaction
             );
 
             await tx.posSaleLine.create({
@@ -582,13 +583,13 @@ export class PosController {
             });
 
             await costingService.issueInventory(
+              tx, // IMPORTANT
               line.itemId,
               session.warehouseId,
               qty,
               "POS_SALE",
               posSale.id,
               req.user!.id,
-              // tx, // IMPORTANT
             );
           }
 
@@ -633,8 +634,22 @@ export class PosController {
               where: { id: updatedCashAccount.glAccountId },
             });
 
-            const txCount = await tx.cashTransaction.count();
-            const transactionNo = `CT${String(txCount + 1).padStart(6, "0")}`;
+            // Fetch the last CashTransaction ordered by creationDate
+            const lastTx = await prisma.cashTransaction.findFirst({
+              orderBy: { createdAt: "desc" },
+            });
+
+            let nextNumber = 1;
+            if (lastTx) {
+              // Extract the numeric part of the transactionNo
+              const lastNumber = parseInt(
+                lastTx.transactionNo.replace(/^CT/, ""),
+                10,
+              );
+              nextNumber = lastNumber + 1;
+            }
+
+            const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
 
             await tx.cashTransaction.create({
               data: {
@@ -694,10 +709,10 @@ export class PosController {
           );
 
           await glService.postJournal(
+            tx, // if supported
             glEntries,
             `POS Sale: ${saleNo}`,
             req.user!.id,
-            // tx, // if supported
           );
 
           return posSale;
@@ -707,13 +722,6 @@ export class PosController {
 
       res.status(201).json(sale);
     } catch (error) {
-      // if (error instanceof ZodError) {
-      //   return res.status(422).json({
-      //     error: "Validation failed",
-      //     issues: error.errors,
-      //   });
-      // }
-
       console.error("Create POS sale error:", error);
       res.status(500).json({ error: "Failed to create POS sale" });
     }
@@ -1465,6 +1473,7 @@ export class PosController {
           });
 
           await costingService.receiveInventory(
+            tx,
             line.itemId,
             originalSale.warehouseId,
             line.qtyReturned,
@@ -1521,6 +1530,7 @@ export class PosController {
 
         // GL reversal
         await glService.postJournal(
+          tx,
           [
             { accountCode: "4000", debit: returnTotal, credit: 0 },
             { accountCode: "1100", debit: 0, credit: returnTotal },
@@ -1793,6 +1803,7 @@ export class PosController {
   // Helper method to calculate COGS
 }
 async function calculateCogs(
+  tx,
   saleLines: any[],
   warehouseId: string,
 ): Promise<number> {

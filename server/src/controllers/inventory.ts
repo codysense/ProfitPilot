@@ -311,6 +311,7 @@ export class InventoryController {
           if (validatedData.adjustmentType === "IN") {
             // Inventory increase
             await costingService.receiveInventory(
+              tx,
               validatedData.itemId,
               validatedData.warehouseId,
               validatedData.qty,
@@ -323,6 +324,7 @@ export class InventoryController {
             // Post to general ledger
             const value = validatedData.qty * (validatedData.unitCost || 0);
             await glService.postJournal(
+              tx,
               [
                 {
                   accountCode: "1300",
@@ -345,6 +347,7 @@ export class InventoryController {
           } else {
             // Inventory decrease
             const result = await costingService.issueInventory(
+              tx,
               validatedData.itemId,
               validatedData.warehouseId,
               validatedData.qty,
@@ -355,6 +358,7 @@ export class InventoryController {
 
             // Post to general ledger
             await glService.postJournal(
+              tx,
               [
                 {
                   accountCode: "8100",
@@ -440,7 +444,7 @@ export class InventoryController {
       const refId = `TRF-${Date.now()}`;
 
       await prisma.$transaction(async (tx) => {
-        // 1️⃣ Create transfer header
+        // 1️ Create transfer header
         const transfer = await tx.inventoryTransfer.create({
           data: {
             refId,
@@ -450,7 +454,7 @@ export class InventoryController {
           },
         });
 
-        // 2️⃣ Process items
+        // 2️ Process items
         for (const item of data.transferItems) {
           const issueResult = await costingService.issueInventoryForTransfer(
             tx,
@@ -473,7 +477,7 @@ export class InventoryController {
             req.user!.id,
           );
 
-          // 3️⃣ Create transfer line
+          // 3️ Create transfer line
           await tx.inventoryTransferItem.create({
             data: {
               transferId: transfer.id,
@@ -1102,7 +1106,7 @@ export class InventoryController {
         ];
       }
 
-      // ✅ Apply warehouse filtering for non-admin users BEFORE queries
+      //  Apply warehouse filtering for non-admin users BEFORE queries
       if (
         !req.user!.roles.includes("CFO") &&
         !req.user!.roles.includes("General Manager")

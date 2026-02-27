@@ -17,7 +17,7 @@ export class CashController {
       // Apply warehouse filtering for non-admin users
       let where: any = { isActive: true };
       if (
-        !req.user!.roles.includes("CFO") &&
+        !req.user!.roles.includes("Senior Accountant") &&
         !req.user!.roles.includes("General Manager")
       ) {
         const user = await prisma.user.findUnique({
@@ -164,9 +164,22 @@ export class CashController {
 
       const cashTransaction = await prisma.$transaction(
         async (tx) => {
-          // Generate transaction number
-          const count = await tx.cashTransaction.count();
-          const transactionNo = `CT${String(count + 1).padStart(6, "0")}`;
+          // Fetch the last CashTransaction ordered by creationDate
+          const lastTx = await prisma.cashTransaction.findFirst({
+            orderBy: { createdAt: "desc" },
+          });
+
+          let nextNumber = 1;
+          if (lastTx) {
+            // Extract the numeric part of the transactionNo
+            const lastNumber = parseInt(
+              lastTx.transactionNo.replace(/^CT/, ""),
+              10,
+            );
+            nextNumber = lastNumber + 1;
+          }
+
+          const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
 
           // Calculate total amount from transaction lines
           const totalAmount = validatedData.transactionLines.reduce(
