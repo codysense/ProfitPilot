@@ -70,7 +70,7 @@ const PosReturnsHistory = () => {
   ];
 
   const totalRefund = (data?.data ?? []).reduce(
-    (sum, ret) => sum + Number(ret.totalAmount ?? 0),
+    (sum, ret) => sum + Number(ret.refundAmount ?? 0),
     0,
   );
 
@@ -79,7 +79,7 @@ const PosReturnsHistory = () => {
 
   const totalRefundToday = (data?.data ?? [])
     .filter((ret) => new Date(ret.createdAt) >= today)
-    .reduce((sum, ret) => sum + Number(ret.totalAmount ?? 0), 0);
+    .reduce((sum, ret) => sum + Number(ret.refundAmount ?? 0), 0);
 
   return (
     <div className="space-y-6">

@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, DollarSign, Building, Calendar, Printer, Package, Trash2, Eye, Edit } from 'lucide-react';
-import { cashApi, managementApi, purchaseApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import CreateVendorPaymentModal from './CreateVendorPaymentModal';
-import StatusBadge from '../../components/StatusBadge';
-import { toast } from 'react-hot-toast';
-import { useAuthStore } from '../../store/authStore';
-import EditVendorPaymentModal from './EditVendorPaymentModal';
-import ViewVendorPaymentModal from './ViewVendorPaymentModal';
-import QRCode from 'qrcode'
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Plus,
+  DollarSign,
+  Building,
+  Calendar,
+  Printer,
+  Package,
+  Trash2,
+  Eye,
+  Edit,
+} from "lucide-react";
+import { cashApi, managementApi, purchaseApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import CreateVendorPaymentModal from "./CreateVendorPaymentModal";
+import StatusBadge from "../../components/StatusBadge";
+import { toast } from "react-hot-toast";
+import { useAuthStore } from "../../store/authStore";
+import EditVendorPaymentModal from "./EditVendorPaymentModal";
+import ViewVendorPaymentModal from "./ViewVendorPaymentModal";
+import QRCode from "qrcode";
 
 interface VendorPayment {
   id: string;
@@ -45,64 +55,66 @@ interface VendorPayment {
   };
 }
 
-   
-
 const VendorPayments = () => {
   const [page, setPage] = useState(1);
-  const [vendorId, setVendorId] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [vendorId, setVendorId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedVendorPayment, setselectedVendorPayment] = useState<VendorPayment | null>(null);
+  const [selectedVendorPayment, setselectedVendorPayment] =
+    useState<VendorPayment | null>(null);
   const { user } = useAuthStore();
 
-     const canPerformActions = user?.roles.includes('Accountant') || user?.roles.includes('General Manager');
+  const canPerformActions =
+    user?.roles.includes("Accountant") ||
+    user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['vendor-payments', { page, vendorId, statusFilter }],
+    queryKey: ["vendor-payments", { page, vendorId, statusFilter }],
     queryFn: () =>
       cashApi.getVendorPayments({
         page,
         limit: 10,
         ...(vendorId && { vendorId }),
-        ...(statusFilter && { status: statusFilter })
+        ...(statusFilter && { status: statusFilter }),
       }),
   });
 
-const {data:companyInformations} = useQuery({
-  queryKey:['company-informatio'],
-  queryFn:()=>managementApi.getCompanySettings()
-});
-
-  const { data: vendors } = useQuery({
-    queryKey: ['vendors-for-payments'],
-    queryFn: () => purchaseApi.getVendors({ limit: 100 }),
+  const { data: companyInformations } = useQuery({
+    queryKey: ["company-informatio"],
+    queryFn: () => managementApi.getCompanySettings(),
   });
 
+  const { data: vendors } = useQuery({
+    queryKey: ["vendors-for-payments"],
+    queryFn: () => purchaseApi.getVendors({ limit: 100 }),
+  });
+  console.log("Vendor payments ", data);
+
   const handlePrintPayment = async (vendorPayment: VendorPayment) => {
-              try {
-                const printData = await cashApi.printVendorPayment(vendorPayment.id);
-            
-                const company = companyInformations;
-                const receipt = printData.printData;
-                console.log(printData)
-            
-                // Generate QR Code using receipt document number
-                const qrData = await QRCode.toDataURL(`Receipt:${receipt.documentNo}`);
-            
-                // Logo from backend or fallback
-                //const logoUrl = company.logoUrl || "/logo.png";
-            
-                // Open browser print window
-                const printWindow = window.open("", "_blank", "width=900,height=1000");
-            
-                if (!printWindow) {
-                  toast.error("Unable to open print window");
-                  return;
-                }
-            
-                printWindow.document.write(`
+    try {
+      const printData = await cashApi.printVendorPayment(vendorPayment.id);
+
+      const company = companyInformations;
+      const receipt = printData.printData;
+      console.log(printData);
+
+      // Generate QR Code using receipt document number
+      const qrData = await QRCode.toDataURL(`Receipt:${receipt.documentNo}`);
+
+      // Logo from backend or fallback
+      //const logoUrl = company.logoUrl || "/logo.png";
+
+      // Open browser print window
+      const printWindow = window.open("", "_blank", "width=900,height=1000");
+
+      if (!printWindow) {
+        toast.error("Unable to open print window");
+        return;
+      }
+
+      printWindow.document.write(`
                   <html>
                   <head>
                     <title>Receipt - ${receipt.documentNo}</title>
@@ -239,7 +251,7 @@ const {data:companyInformations} = useQuery({
                             <td style="text-align:right;">₦${Number(line.lineAmount).toLocaleString()}</td>
                             <td style="text-align:right;">${line.description}</td>
                           </tr>
-                        `
+                        `,
                           )
                           .join("")}
                       </tbody>
@@ -279,79 +291,80 @@ const {data:companyInformations} = useQuery({
                   </body>
                   </html>
                 `);
-            
-                printWindow.document.close();
-            
-                // Auto-print when window loads
-                printWindow.onload = () => {
-                  printWindow.focus();
-                  printWindow.print();
-                };
-              } catch (error) {
-                console.error("Print receipt error:", error);
-              }
-            };
+
+      printWindow.document.close();
+
+      // Auto-print when window loads
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+    } catch (error) {
+      console.error("Print receipt error:", error);
+    }
+  };
 
   const columns = [
     {
-      key: 'paymentNo',
-      header: 'Payment No',
-      width: 'w-32',
+      key: "paymentNo",
+      header: "Payment No",
+      width: "w-32",
     },
     {
-      key: 'vendor.name',
-      header: 'Vendor',
-      width: 'w-48',
+      key: "vendor.name",
+      header: "Vendor",
+      width: "w-48",
     },
     {
-      key: 'totalAmount',
-      header: 'Amount',
+      key: "totalAmount",
+      header: "Amount",
       cell: (p: VendorPayment) => `₦${p.totalAmount.toLocaleString()}`,
-      width: 'w-32',
+      width: "w-32",
     },
     {
-      key: 'status',
-      header: 'Status',
+      key: "status",
+      header: "Status",
       cell: (p: VendorPayment) => <StatusBadge status={p.status} />,
-      width: 'w-32',
+      width: "w-32",
     },
     {
-      key: 'cashAccount.name',
-      header: 'Cash Account',
+      key: "cashAccount.name",
+      header: "Cash Account",
       cell: (p: VendorPayment) => (
         <div>
           <div className="font-medium">{p.cashAccount.name}</div>
-          <div className="text-xs text-gray-500">{p.cashAccount.accountType}</div>
+          <div className="text-xs text-gray-500">
+            {p.cashAccount.accountType}
+          </div>
         </div>
       ),
-      width: 'w-48',
+      width: "w-48",
     },
     {
-      key: 'paymentDate',
-      header: 'Date',
-      cell: (p: VendorPayment) =>
-        new Date(p.paymentDate).toLocaleDateString(),
-      width: 'w-32',
+      key: "paymentDate",
+      header: "Date",
+      cell: (p: VendorPayment) => new Date(p.paymentDate).toLocaleDateString(),
+      width: "w-32",
     },
     {
-      key: 'preparer.name',
-      header: 'Prepared By',
-      width: 'w-32',
+      key: "preparer.name",
+      header: "Prepared By",
+      width: "w-32",
     },
     {
-      key: 'approver.name',
-      header: 'Approved By',
-      width: 'w-32',
+      key: "approver.name",
+      header: "Approved By",
+      width: "w-32",
     },
     {
-      key: 'authorizer.name',
-      header: 'Authorized By',
-      width: 'w-32',
+      key: "authorizer.name",
+      header: "Authorized By",
+      width: "w-32",
     },
     {
-      key: 'payer.name',
-      header: 'Paid By',
-      width: 'w-32',
+      key: "payer.name",
+      header: "Paid By",
+      width: "w-32",
     },
     // {
     //   key: 'actions',
@@ -368,128 +381,128 @@ const {data:companyInformations} = useQuery({
     // },
   ];
 
-   const handleEditVendorPayment = () => {
-      refetch();
-      setShowEditModal(false);
-      setselectedVendorPayment(null);
-    };
+  const handleEditVendorPayment = () => {
+    refetch();
+    setShowEditModal(false);
+    setselectedVendorPayment(null);
+  };
   const handleViewVendorPayment = () => {
-      refetch();
-      setShowDetailsModal(false);
-      setselectedVendorPayment(null);
-  }    
-  
+    refetch();
+    setShowDetailsModal(false);
+    setselectedVendorPayment(null);
+  };
+
   const handleApproveTransaction = async (vendorPayment: VendorPayment) => {
-        try {
-          await cashApi.approveVendorPayment(vendorPayment.id);
-          toast.success('Vendor Payment approved successfully');
-          refetch();
-        } catch (error) {
-          console.error('Vendor Payment approval:', error);
-        }
-      };
-    const handleAuthorizeTransaction = async (vendorPayment: VendorPayment) => {
-        try {
-          await cashApi.authorizeVendorPayment(vendorPayment.id);
-          toast.success('Vendor Payment authorized successfully');
-          refetch();
-        } catch (error) {
-          console.error('Vendor Payment authorize:', error);
-        }
-      };
-    const handlePayTransaction = async (vendorPayment: VendorPayment) => {
-        try {
-          await cashApi.payVendorPayment(vendorPayment.id);
-          toast.success('Vendor Payment paid successfully');
-          refetch();
-        } catch (error) {
-          console.error('Vendor Payment pay:', error);
-        }
-      };
-    const handleDeleteVendorPayment = async (vendorPayment: VendorPayment) => {
-        try {
-          await cashApi.deleteVendorPayment(vendorPayment.id);
-          toast.success('Vendor Payment deleted successfully');
-          refetch();
-        } catch (error) {
-          console.error('Vendor Payment Delete:', error);
-        }
-      };  
+    try {
+      await cashApi.approveVendorPayment(vendorPayment.id);
+      toast.success("Vendor Payment approved successfully");
+      refetch();
+    } catch (error) {
+      console.error("Vendor Payment approval:", error);
+    }
+  };
+  const handleAuthorizeTransaction = async (vendorPayment: VendorPayment) => {
+    try {
+      await cashApi.authorizeVendorPayment(vendorPayment.id);
+      toast.success("Vendor Payment authorized successfully");
+      refetch();
+    } catch (error) {
+      console.error("Vendor Payment authorize:", error);
+    }
+  };
+  const handlePayTransaction = async (vendorPayment: VendorPayment) => {
+    try {
+      await cashApi.payVendorPayment(vendorPayment.id);
+      toast.success("Vendor Payment paid successfully");
+      refetch();
+    } catch (error) {
+      console.error("Vendor Payment pay:", error);
+    }
+  };
+  const handleDeleteVendorPayment = async (vendorPayment: VendorPayment) => {
+    try {
+      await cashApi.deleteVendorPayment(vendorPayment.id);
+      toast.success("Vendor Payment deleted successfully");
+      refetch();
+    } catch (error) {
+      console.error("Vendor Payment Delete:", error);
+    }
+  };
 
-
-   const actions = (vendorPayment: VendorPayment) => (
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                setselectedVendorPayment(vendorPayment);
-                setShowDetailsModal(true);
-              }}
-              className="text-blue-600 hover:text-blue-900"
-              title="View Details"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-            {['PREPARED', 'AUTHORIZED', 'APPROVED'].includes(vendorPayment.status) && canPerformActions && (
-              <button
-                onClick={() => {
-                 setselectedVendorPayment(vendorPayment);
-                setShowEditModal(true);
-                }}
-                className="text-blue-600 hover:text-blue-900"
-                title="Edit VendorPayment"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-            )}
-            {['PREPARED'].includes(vendorPayment.status) && canPerformActions && (
-              <button
-                onClick={() => handleDeleteVendorPayment(vendorPayment)}
-                className="text-red-600 hover:text-red-900"
-                title="Delete VendorPayment"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-            {[ 'PAID'].includes(vendorPayment.status) && (
-              <button
-                onClick={() => handlePrintPayment(vendorPayment)}
-                className="text-purple-600 hover:text-purple-900"
-                title="Print Invoice"
-              >
-                <Printer className="h-4 w-4" />
-              </button>
-            )}
-            {vendorPayment.status === 'PREPARED' && canPerformActions && (
-              <button
-                onClick={() => {
-                 handleApproveTransaction(vendorPayment)
-                }}
-                className="text-green-600 hover:text-green-900"
-                title="Approve"
-              >
-                <DollarSign className="h-4 w-4" />
-              </button>
-            )}
-            {vendorPayment.status === 'APPROVED' && canPerformActions && (
-              <button
-                onClick={() => handleAuthorizeTransaction(vendorPayment)}
-                className="text-purple-600 hover:text-purple-900"
-                title="Authorize"
-              >
-                <DollarSign className="h-4 w-4" />
-              </button>
-            )}
-            {vendorPayment.status === 'AUTHORIZED' && canPerformActions && (
-              <button
-                onClick={() => handlePayTransaction(vendorPayment)}
-                className="text-purple-600 hover:text-purple-900"
-                title="Pay"
-              >
-                <DollarSign className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        );
+  const actions = (vendorPayment: VendorPayment) => (
+    <div className="flex space-x-2">
+      <button
+        onClick={() => {
+          setselectedVendorPayment(vendorPayment);
+          setShowDetailsModal(true);
+        }}
+        className="text-blue-600 hover:text-blue-900"
+        title="View Details"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+      {["PREPARED", "AUTHORIZED", "APPROVED"].includes(vendorPayment.status) &&
+        canPerformActions && (
+          <button
+            onClick={() => {
+              setselectedVendorPayment(vendorPayment);
+              setShowEditModal(true);
+            }}
+            className="text-blue-600 hover:text-blue-900"
+            title="Edit VendorPayment"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+        )}
+      {["PREPARED"].includes(vendorPayment.status) && canPerformActions && (
+        <button
+          onClick={() => handleDeleteVendorPayment(vendorPayment)}
+          className="text-red-600 hover:text-red-900"
+          title="Delete VendorPayment"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+      {["PAID"].includes(vendorPayment.status) && (
+        <button
+          onClick={() => handlePrintPayment(vendorPayment)}
+          className="text-purple-600 hover:text-purple-900"
+          title="Print Invoice"
+        >
+          <Printer className="h-4 w-4" />
+        </button>
+      )}
+      {vendorPayment.status === "PREPARED" && canPerformActions && (
+        <button
+          onClick={() => {
+            handleApproveTransaction(vendorPayment);
+          }}
+          className="text-green-600 hover:text-green-900"
+          title="Approve"
+        >
+          <DollarSign className="h-4 w-4" />
+        </button>
+      )}
+      {vendorPayment.status === "APPROVED" && canPerformActions && (
+        <button
+          onClick={() => handleAuthorizeTransaction(vendorPayment)}
+          className="text-purple-600 hover:text-purple-900"
+          title="Authorize"
+        >
+          <DollarSign className="h-4 w-4" />
+        </button>
+      )}
+      {vendorPayment.status === "AUTHORIZED" && canPerformActions && (
+        <button
+          onClick={() => handlePayTransaction(vendorPayment)}
+          className="text-purple-600 hover:text-purple-900"
+          title="Pay"
+        >
+          <DollarSign className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -544,38 +557,47 @@ const {data:companyInformations} = useQuery({
       </div>
 
       {/* Stats */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-                      {['PREPARED',  'APPROVED','AUTHORIZED', 'PAID'].map(status => {
-                        const count = data?.data.filter((p: data) => p.status === status).length || 0;
-                        const total = data?.data.filter((p: data) => p.status === status)
-                          .reduce((sum: number, p: VendorPayment) => sum + Number(p.totalAmount), 0) || 0;
-              
-                        return (
-                          <div key={status} className="bg-white overflow-hidden shadow rounded-lg">
-                            <div className="p-5">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                  <Package className="h-6 w-6 text-gray-400" />
-                                </div>
-                                <div className="ml-5 w-0 flex-1">
-                                  <dl>
-                                    <dt className="text-sm font-medium text-gray-500 truncate">
-                                      {status}
-                                    </dt>
-                                    <dd className="text-lg font-semibold text-gray-900">
-                                      {count} payments
-                                    </dd>
-                                    <dd className="text-sm text-gray-500">
-                                      ₦{total.toLocaleString()}
-                                    </dd>
-                                  </dl>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+        {["PREPARED", "APPROVED", "AUTHORIZED", "PAID"].map((status) => {
+          const count =
+            data?.data.filter((p: data) => p.status === status).length || 0;
+          const total =
+            data?.data
+              .filter((p: data) => p.status === status)
+              .reduce(
+                (sum: number, p: VendorPayment) => sum + Number(p.totalAmount),
+                0,
+              ) || 0;
+
+          return (
+            <div
+              key={status}
+              className="bg-white overflow-hidden shadow rounded-lg"
+            >
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Package className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        {status}
+                      </dt>
+                      <dd className="text-lg font-semibold text-gray-900">
+                        {count} payments
+                      </dd>
+                      <dd className="text-sm text-gray-500">
+                        ₦{total.toLocaleString()}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="bg-white p-5 rounded shadow">
@@ -609,11 +631,7 @@ const {data:companyInformations} = useQuery({
         columns={columns}
         loading={isLoading}
         actions={actions}
-        pagination={{
-          total: data?.totalItems,
-          page,
-          totalPages: data?.totalPages,
-        }}
+        pagination={data?.pagination}
         onPageChange={setPage}
       />
 
@@ -627,21 +645,20 @@ const {data:companyInformations} = useQuery({
         />
       )}
 
-
       {showEditModal && (
-              <EditVendorPaymentModal
-                payment={selectedVendorPayment}
-                onClose={() => setShowEditModal(false)}
-                onSuccess={handleEditVendorPayment}
-              />
-            )}
-            {showDetailsModal && (
-              <ViewVendorPaymentModal
-                payment={selectedVendorPayment}
-                onClose={() => setShowDetailsModal(false)}
-                onSuccess={handleViewVendorPayment}
-              />
-            )}
+        <EditVendorPaymentModal
+          payment={selectedVendorPayment}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditVendorPayment}
+        />
+      )}
+      {showDetailsModal && (
+        <ViewVendorPaymentModal
+          payment={selectedVendorPayment}
+          onClose={() => setShowDetailsModal(false)}
+          onSuccess={handleViewVendorPayment}
+        />
+      )}
     </div>
   );
 };

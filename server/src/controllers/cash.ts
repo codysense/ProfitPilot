@@ -1515,10 +1515,12 @@ export class CashController {
 
       res.json({
         data: payments,
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        totalPages: Math.ceil(total / Number(limit)),
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit)),
+        },
       });
     } catch (err) {
       console.error(err);
@@ -2418,9 +2420,12 @@ export class CashController {
 
       res.json({
         data: payments,
-        page: Number(page),
-        totalPages: Math.ceil(count / limit),
-        totalItems: count,
+        pagination: {
+          limit: Number(limit),
+          page: Number(page),
+          pages: Math.ceil(count / Number(limit)),
+          total: count,
+        },
       });
     } catch (err) {
       res.status(400).json({ error: "Failed to fetch vendor payments" });

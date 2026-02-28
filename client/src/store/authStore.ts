@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { User } from '../types/api';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { User } from "../types/api";
 
 interface AuthState {
   user: User | null;
@@ -20,43 +20,43 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      
+
       setAuth: (user: User, accessToken: string, refreshToken: string) => {
         set({
           user,
           accessToken,
           refreshToken,
-          isAuthenticated: true
+          isAuthenticated: true,
         });
       },
-      
+
       clearAuth: () => {
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
-          isAuthenticated: false
+          isAuthenticated: false,
         });
       },
-      
+
       hasPermission: (permission: string) => {
         const { user } = get();
         return user?.permissions?.includes(permission) ?? false;
       },
-      
+
       hasRole: (role: string) => {
         const { user } = get();
         return user?.roles?.includes(role) ?? false;
-      }
+      },
     }),
     {
-      name: 'auth-storage',
+      name: "auth-storage",
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
-        isAuthenticated: state.isAuthenticated
-      })
-    }
-  )
+        isAuthenticated: state.isAuthenticated,
+      }),
+    },
+  ),
 );

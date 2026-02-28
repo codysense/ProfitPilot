@@ -26,6 +26,8 @@ const PosDashboard = () => {
     queryFn: () => posApi.getCurrentSession(),
   });
 
+  // console.log("Current User ", user);
+
   const today = new Date().toISOString().split("T")[0]; // "2025-09-03"
 
   const { data: todaySales } = useQuery({
@@ -46,18 +48,18 @@ const PosDashboard = () => {
     );
   }
 
-  const { data: warehouseItems } = useQuery({
-    queryKey: ["warehouse-items", user?.warehouseId],
-    queryFn: () =>
-      inventoryApi.getItems({
-        type: "FINISHED_GOODS",
-        limit: 100,
-        includeStock: "true",
-      }),
-    enabled: !!user?.warehouseId,
-  });
+  // const { data: warehouseItems } = useQuery({
+  //   queryKey: ["warehouse-items", user?.warehouseId],
+  //   queryFn: () =>
+  //     inventoryApi.getItems({
+  //       type: "FINISHED_GOODS",
+  //       limit: 100,
+  //       includeStock: "true",
+  //     }),
+  //   enabled: !!user?.warehouseId,
+  // });
 
-  // console.log(warehouseItems)
+  // console.log(warehouseItems);
   const { data: cashAccounts } = useQuery({
     queryKey: ["pos-cash-accounts"],
     queryFn: () => cashApi.getCashAccounts(),
@@ -100,12 +102,12 @@ const PosDashboard = () => {
       icon: DollarSign,
       color: "text-green-600",
     },
-    {
-      name: "Available Items",
-      value: warehouseItems?.items?.length || 0,
-      icon: Package,
-      color: "text-purple-600",
-    },
+    // {
+    //   name: "Available Items",
+    //   value: warehouseItems?.items?.length || 0,
+    //   icon: Package,
+    //   color: "text-purple-600",
+    // },
     {
       name: "Session Status",
       value: currentSession?.session ? "OPEN" : "CLOSED",
@@ -189,7 +191,7 @@ const PosDashboard = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         {stats.map((stat) => (
           <div
             key={stat.name}
