@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { record, z } from "zod";
 import { X, Plus, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { salesApi, inventoryApi } from "../../lib/api";
+import { salesApi, inventoryApi, posApi } from "../../lib/api";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore";
 // import { Combobox } from '@headlessui/react';
@@ -61,7 +61,8 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
 
   const { user } = useAuthStore();
   const canPerformActions =
-    user?.roles.includes("CFO") || user?.roles.includes("General Manager");
+    user?.roles.includes("Senior Accountant") ||
+    user?.roles.includes("General Manager");
 
   const watchedLines = watch("saleLines");
   const watchedItemIds = watchedLines.map((line) => line.itemId);
@@ -69,7 +70,7 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
 
   const { data: customers } = useQuery({
     queryKey: ["customers-for-sale"],
-    queryFn: () => salesApi.getCustomers({ limit: 100 }),
+    queryFn: () => salesApi.getCustomers(),
     select: (data) => ({
       ...data,
       customers: data.customers
@@ -81,7 +82,12 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
     }),
   });
 
-  // console.log('Customers Data', customers)
+  const { data: customersWithBalances } = useQuery({
+    queryKey: ["customers-with-balances"],
+    queryFn: () => posApi.getCustomersWithBalances(),
+  });
+
+  console.log("Customers Data", customersWithBalances);
 
   const { data: items } = useQuery({
     queryKey: ["items-ready-for-sale", "FINISHED_GOODS"],
@@ -90,7 +96,6 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
   });
 
   useEffect(() => {
-    //const setPrices = async () => {
     watchedLines.forEach(async (line, index) => {
       if (line.itemId && items?.items) {
         // const selectedItem = items.items.find(
@@ -99,30 +104,33 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
 
         const selectedItem = await inventoryApi.getItemById(line.itemId);
 
+        console.log("Selected Item ", selectedItem);
+
         // Save stockQty
         setItemStocks((prev) => ({
           ...prev,
           [line.itemId]: selectedItem.stockQty || 0,
         }));
 
-        const selectedCustomer = customers?.customers?.find(
+        const selectedCustomer = customersWithBalances?.customers?.find(
           (customer: any) => customer.id === customerId,
         );
-
+        console.log("Selected Customer ", selectedCustomer);
         if (selectedItem && selectedCustomer) {
           // find the matching price for this customer's group
-          const customerGroup = selectedCustomer.customerGroup.name; // adjust key if different
+          const customerGroup = selectedCustomer.customerGroupName; // adjust key if different
           const groupPrice = selectedItem.priceList?.find(
             (priceObj: any) => priceObj.customerGroup === customerGroup,
           );
+
           //console.log("selected customer", selectedCustomer);
           //console.log("selected item", selectedItem);
           // fallback if no group-specific price found
-          const unitPrice = groupPrice
-            ? groupPrice.price
-            : selectedItem.defaultPrice || 0;
+          const unitPrice = groupPrice ? groupPrice.price : 0;
 
           setValue(`saleLines.${index}.unitPrice`, unitPrice);
+        } else {
+          setValue(`saleLines.${index}.unitPrice`, 0);
         }
       }
     });
@@ -134,7 +142,7 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
     customerId,
     setValue,
     watchedLines,
-    customers?.customers,
+    customersWithBalances,
   ]);
 
   const calculateTotal = () => {
@@ -195,7 +203,7 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                     Customer *
                   </label>
                   <CustomerSelect
-                    customers={customers?.customers || []}
+                    customers={customersWithBalances?.customers || []}
                     value={watch("customerId")}
                     onChange={(val) =>
                       reset({ ...getValues(), customerId: val })

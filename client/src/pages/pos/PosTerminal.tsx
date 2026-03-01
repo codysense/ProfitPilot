@@ -149,7 +149,7 @@ const PosTerminal = ({
 
   useEffect(() => {
     const setPrices = async () => {
-      if (!selectedCustomer) return;
+      //if (!selectedCustomer) return;
 
       for (let index = 0; index < watchedLines.length; index++) {
         const line = watchedLines[index];
@@ -164,20 +164,24 @@ const PosTerminal = ({
             [line.itemId]: selectedItem.stockQty || 0,
           }));
 
-          const customerGroup = selectedCustomer.customerGroupName;
+          if (selectedCustomer && selectedItem) {
+            const customerGroup = selectedCustomer.customerGroupName;
 
-          const groupPrice = selectedItem.priceList?.find(
-            (p: any) => p.customerGroup === customerGroup,
-          );
+            const groupPrice = selectedItem.priceList?.find(
+              (p: any) => p.customerGroup === customerGroup,
+            );
 
-          const unitPrice = groupPrice
-            ? groupPrice.price
-            : selectedItem.defaultPrice || 0;
+            const unitPrice = groupPrice
+              ? groupPrice.price
+              : selectedItem.defaultPrice || 0;
 
-          setValue(`saleLines.${index}.unitPrice`, unitPrice, {
-            shouldDirty: true,
-            shouldValidate: true,
-          });
+            setValue(`saleLines.${index}.unitPrice`, unitPrice, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+          } else {
+            setValue(`saleLines.${index}.unitPrice`, 0);
+          }
         } catch (err) {
           console.error("Failed to fetch item price", err);
         }
