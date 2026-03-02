@@ -90,8 +90,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    ,
-    "Production Manage",
+    "Production Manager",
   ]),
   inventoryController.getInventoryLedger,
 );
@@ -101,7 +100,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   inventoryController.exportInventoryLedger,
 );
@@ -111,7 +110,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   inventoryController.getInventoryValuation,
 );
@@ -134,19 +133,19 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   inventoryController.getWarehousesList,
 );
 router.post(
   "/warehouses",
-  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manager"]),
   auditLogger("CREATE", "WAREHOUSE"),
   inventoryController.createWarehouse,
 );
 router.put(
   "/warehouses/:id",
-  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manager"]),
   auditLogger("UPDATE", "WAREHOUSE"),
   inventoryController.updateWarehouse,
 );
@@ -158,19 +157,19 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   inventoryController.getLocations,
 );
 router.post(
   "/locations",
-  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manager"]),
   auditLogger("CREATE", "LOCATION"),
   inventoryController.createLocation,
 );
 router.put(
   "/locations/:id",
-  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manager"]),
   auditLogger("UPDATE", "LOCATION"),
   inventoryController.updateLocation,
 );
@@ -193,7 +192,7 @@ router.post(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   auditLogger("CREATE", "UOM"),
   inventoryController.createUOM,
@@ -204,7 +203,7 @@ router.put(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   auditLogger("UPDATE", "UOM"),
   inventoryController.updateUOM,
@@ -215,7 +214,7 @@ router.delete(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   auditLogger("DELETE", "UOM"),
   inventoryController.deleteUOM,
@@ -228,7 +227,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   inventoryController.getInventoryTransfers,
 );
@@ -240,7 +239,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
-    "Production Manage",
+    "Production Manager",
   ]),
   inventoryController.printInventoryTransfer,
 );
