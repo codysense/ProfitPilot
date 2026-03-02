@@ -269,7 +269,8 @@ export class AuthController {
     try {
       if (
         !req.user?.roles.includes("Senior Accountant") &&
-        !req.user?.roles.includes("General Manager")
+        !req.user?.roles.includes("General Manager") &&
+        !req.user?.roles.includes("Production Manager")
       ) {
         return res.status(403).json({ error: "Insufficient permissions" });
       }
