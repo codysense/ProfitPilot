@@ -36,7 +36,7 @@ router.get(
 
 router.post(
   "/items",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant, Production Manager"]),
   auditLogger("CREATE", "ITEM"),
   inventoryController.createItem,
 );
@@ -62,13 +62,13 @@ router.post(
 // Inventory transactions
 router.post(
   "/adjust",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountantr", "Production Manage"]),
   auditLogger("ADJUST", "INVENTORY"),
   inventoryController.adjustInventory,
 );
 router.post(
   "/transfer",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manager"]),
   auditLogger("TRANSFER", "INVENTORY"),
   inventoryController.transferInventoryBulk,
 );
@@ -78,6 +78,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manager",
   ]),
   inventoryController.getInventoryTransfers,
 );
@@ -89,6 +90,8 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    ,
+    "Production Manage",
   ]),
   inventoryController.getInventoryLedger,
 );
@@ -98,6 +101,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   inventoryController.exportInventoryLedger,
 );
@@ -107,6 +111,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   inventoryController.getInventoryValuation,
 );
@@ -129,18 +134,19 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   inventoryController.getWarehousesList,
 );
 router.post(
   "/warehouses",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
   auditLogger("CREATE", "WAREHOUSE"),
   inventoryController.createWarehouse,
 );
 router.put(
   "/warehouses/:id",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
   auditLogger("UPDATE", "WAREHOUSE"),
   inventoryController.updateWarehouse,
 );
@@ -152,18 +158,19 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   inventoryController.getLocations,
 );
 router.post(
   "/locations",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
   auditLogger("CREATE", "LOCATION"),
   inventoryController.createLocation,
 );
 router.put(
   "/locations/:id",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Production Manage"]),
   auditLogger("UPDATE", "LOCATION"),
   inventoryController.updateLocation,
 );
@@ -186,6 +193,7 @@ router.post(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   auditLogger("CREATE", "UOM"),
   inventoryController.createUOM,
@@ -196,6 +204,7 @@ router.put(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   auditLogger("UPDATE", "UOM"),
   inventoryController.updateUOM,
@@ -206,6 +215,7 @@ router.delete(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   auditLogger("DELETE", "UOM"),
   inventoryController.deleteUOM,
@@ -218,6 +228,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   inventoryController.getInventoryTransfers,
 );
@@ -229,6 +240,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Production Manage",
   ]),
   inventoryController.printInventoryTransfer,
 );
