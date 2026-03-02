@@ -62,7 +62,11 @@ router.post(
 // Inventory transactions
 router.post(
   "/adjust",
-  requireRole(["Inventory Manager", "Senior Accountantr", "Production Manage"]),
+  requireRole([
+    "Inventory Manager",
+    "Senior Accountantr",
+    "Production Manager",
+  ]),
   auditLogger("ADJUST", "INVENTORY"),
   inventoryController.adjustInventory,
 );
