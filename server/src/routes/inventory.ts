@@ -18,6 +18,8 @@ router.get(
     "Production Manager",
     "Inventory Manager",
     "Assistant Inventory Manager",
+    "Manager",
+    "Auditor",
   ]),
   inventoryController.getItems,
 );
@@ -30,13 +32,19 @@ router.get(
     "Production Manager",
     "Inventory Manager",
     "Assistant Inventory Manager",
+    "Manager",
+    "Auditor",
   ]),
   inventoryController.getItemById,
 );
 
 router.post(
   "/items",
-  requireRole(["Inventory Manager", "Senior Accountant, Production Manager"]),
+  requireRole([
+    "Inventory Manager",
+    "Senior Accountant, Production Manager",
+    "Manager",
+  ]),
   auditLogger("CREATE", "ITEM"),
   inventoryController.createItem,
 );
@@ -49,6 +57,7 @@ router.get(
     "Assistant Inventory Manager",
     "Production Manager",
     "Senior Accountant",
+    "Auditor",
   ]),
   inventoryController.getBoms,
 );
@@ -83,6 +92,7 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Production Manager",
+    "Auditor",
   ]),
   inventoryController.getInventoryTransfers,
 );
@@ -95,6 +105,7 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Production Manager",
+    "Auditor",
   ]),
   inventoryController.getInventoryLedger,
 );
@@ -105,6 +116,7 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Production Manager",
+    "Auditor",
   ]),
   inventoryController.exportInventoryLedger,
 );
@@ -115,6 +127,7 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Production Manager",
+    "Auditor",
   ]),
   inventoryController.getInventoryValuation,
 );
@@ -128,6 +141,8 @@ router.get(
     "Senior Accountant",
     "POS User",
     "Production Manager",
+    "Auditor",
+    "Manager",
   ]),
   inventoryController.getWarehouses,
 );
@@ -138,6 +153,8 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Production Manager",
+    "Auditor",
+    "Manager",
   ]),
   inventoryController.getWarehousesList,
 );
@@ -162,6 +179,8 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Production Manager",
+    "Auditor",
+    "Manager",
   ]),
   inventoryController.getLocations,
 );
@@ -187,6 +206,7 @@ router.get(
     "Senior Accountant",
     "Accountant",
     "Production Manager",
+    "Auditor",
   ]),
   inventoryController.getUOMs,
 );
@@ -231,6 +251,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Auditor",
     "Production Manager",
   ]),
   inventoryController.getInventoryTransfers,
@@ -243,6 +264,7 @@ router.get(
     "Inventory Manager",
     "Assistant Inventory Manager",
     "Senior Accountant",
+    "Auditor",
     "Production Manager",
   ]),
   inventoryController.printInventoryTransfer,
@@ -258,6 +280,8 @@ router.get(
     "POS User",
     "Accountant",
     "Senior Accountant",
+    "Auditor",
+    "Manager",
   ]),
   inventoryController.getItemStock,
 );

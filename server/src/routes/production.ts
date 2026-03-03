@@ -12,7 +12,7 @@ router.use(authenticate);
 // Production Orders Production Manager
 router.get(
   "/orders",
-  requireRole(["Production Manager"]),
+  requireRole(["Production Manager", "Auditor"]),
   productionController.getProductionOrders,
 );
 router.post(
@@ -35,7 +35,7 @@ router.delete(
 );
 router.get(
   "/orders/:id/print",
-  requireRole(["Production Manager"]),
+  requireRole(["Production Manager", "Auditor"]),
   productionController.printProductionOrder,
 );
 router.post(
@@ -78,7 +78,7 @@ router.post(
 // Reports
 router.get(
   "/wip-summary",
-  requireRole(["Production Manager"]),
+  requireRole(["Production Manager", "Manager"]),
   productionController.getWipSummary,
 );
 

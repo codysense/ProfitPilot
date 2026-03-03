@@ -34,8 +34,9 @@ const SalesOrders = () => {
 
   // Check if user can perform actions (Accountant or GM only)
   const canPerformActions =
-    user?.roles.includes("Accountant") ||
-    user?.roles.includes("General Manager");
+    user?.roles.includes("Senior Accountant") ||
+    user?.roles.includes("General Manager") ||
+    user?.roles.includes("Manager");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["sales", { page, status: statusFilter }],

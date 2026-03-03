@@ -33,7 +33,7 @@ router.get(
 );
 router.put(
   "/costing-policy",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("UPDATE", "COSTING_POLICY"),
   managementController.updateCostingPolicy,
 );
@@ -46,7 +46,7 @@ router.get(
 );
 router.post(
   "/fiscal-years",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("CREATE", "FISCAL_YEAR"),
   managementController.createFiscalYear,
 );
@@ -57,13 +57,13 @@ router.get(
 );
 router.patch(
   "/fiscal-periods/:id/activate",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("ACTIVATE", "FISCAL_PERIOD"),
   managementController.activateFiscalPeriod,
 );
 router.patch(
   "/fiscal-periods/:id/close",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("CLOSE", "FISCAL_PERIOD"),
   managementController.closeFiscalPeriod,
 );
@@ -76,7 +76,7 @@ router.get(
 );
 router.post(
   "/approval-workflows",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("CREATE", "APPROVAL_WORKFLOW"),
   managementController.createApprovalWorkflow,
 );
@@ -87,7 +87,7 @@ router.get(
 );
 router.post(
   "/approval-requests/:id/action",
-  requireRole(["Auditor", "General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant"]),
   auditLogger("APPROVAL_ACTION", "APPROVAL_REQUEST"),
   managementController.processApprovalAction,
 );
@@ -108,25 +108,25 @@ router.get(
 );
 router.post(
   "/roles",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("CREATE", "ROLE"),
   managementController.createRole,
 );
 router.put(
   "/roles/:id",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("UPDATE", "ROLE"),
   managementController.updateRole,
 );
 router.delete(
   "/roles/:id",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("DELETE", "ROLE"),
   managementController.deleteRole,
 );
 router.get(
   "/permissions",
-  requireRole(["Auditor", "Senior Accountant"]),
+  requireRole(["Senior Accountant"]),
   managementController.getAllPermissions,
 );
 
@@ -134,7 +134,6 @@ router.get(
 router.get(
   "/users",
   requireRole([
-    "Auditor",
     "Senior Accountant",
     "Inventory Manager",
     "Assistant Inventory Manager",
@@ -144,7 +143,7 @@ router.get(
 );
 router.put(
   "/users/:id/roles",
-  requireRole(["Auditor"]),
+  requireRole(["General Manager"]),
   auditLogger("UPDATE", "USER_ROLES"),
   managementController.updateUserRoles,
 );
@@ -152,7 +151,7 @@ router.put(
 // Chart of Accounts Management (CFO and GM only)
 router.get(
   "/chart-of-accounts",
-  requireRole(["Senior Accountant", "General Manager", "Accountant"]),
+  requireRole(["Senior Accountant", "General Manager", "Auditor"]),
   managementController.getChartOfAccounts,
 );
 // router.get('/chart-of-accounts', requireRole('Accountant'), managementController.getChartOfAccounts);
@@ -178,7 +177,12 @@ router.delete(
 // Cash Account Management (CFO and GM only)
 router.get(
   "/cash-accounts",
-  requireRole(["Accountant", "Senior Accountant", "General Manager"]),
+  requireRole([
+    "Accountant",
+    "Senior Accountant",
+    "General Manager",
+    "Auditor",
+  ]),
   managementController.getCashAccountsManagement,
 );
 router.post(

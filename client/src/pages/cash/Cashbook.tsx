@@ -76,7 +76,7 @@ const Cashbook = () => {
   const { user } = useAuthStore();
 
   const canPerformActions =
-    user?.roles.includes("Accountant") ||
+    user?.roles.includes("Senior Accountant") ||
     user?.roles.includes("General Manager");
 
   //   useEffect(() => {

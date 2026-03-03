@@ -12,7 +12,7 @@ router.use(authenticate);
 // POS Sessions
 router.post(
   "/sessions",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole(["POS User", "Senior Accountant", "Accountant", "Manager"]),
   auditLogger("CREATE", "POS_SESSION"),
   posController.createSession,
 );
@@ -24,7 +24,7 @@ router.patch(
 );
 router.get(
   "/sessions/current",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole(["POS User", "Senior Accountant", "Accountant", "Auditor"]),
   posController.getCurrentSession,
 );
 
@@ -37,53 +37,89 @@ router.post(
 );
 router.get(
   "/sales",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole([
+    "POS User",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   posController.getSales,
 );
 //Get Sales for Dashboard
 router.get(
   "/sales/dashboard",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole([
+    "POS User",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   posController.getSalesForDashboard,
 );
 
 //Get Sale by Sale No
 router.get(
   "/sales/search/:saleNo",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole([
+    "POS User",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   posController.getSalesBySalesNo,
 );
 
 router.get(
   "/sales/:id/print",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole([
+    "POS User",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   posController.printReceipt,
 );
 
 //PosSale Payment
 router.get(
   "/sales/:id/payments",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole([
+    "POS User",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   posController.getPOSsalePayments,
 );
 
 // POS Returns
 router.post(
   "/returns",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole(["POS User", "Senior Accountant", "Accountant", "Manager"]),
   auditLogger("CREATE", "POS_RETURN"),
   posController.createReturn,
 );
 router.get(
   "/returns",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole([
+    "POS User",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   posController.getReturns,
 );
 
 // Customers with balances
 router.get(
   "/customers-with-balances",
-  requireRole(["POS User", "Senior Accountant", "Accountant"]),
+  requireRole(["POS User", "Senior Accountant", "Accountant", "Manager"]),
   posController.getCustomersWithBalances,
 );
 

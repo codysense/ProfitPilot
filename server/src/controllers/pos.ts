@@ -863,7 +863,8 @@ export class PosController {
        Warehouse Restriction
     ========================== */
       if (
-        !req.user!.roles.includes("CFO") &&
+        !req.user!.roles.includes("Senior Accountant") ||
+        !req.user!.roles.includes("Manager") ||
         !req.user!.roles.includes("General Manager")
       ) {
         const user = await prisma.user.findUnique({
@@ -998,8 +999,9 @@ export class PosController {
 
       // Warehouse-based restriction for non-management users
       if (
-        !req.user!.roles.includes("CFO") &&
-        !req.user!.roles.includes("General Manager")
+        !req.user!.roles.includes("Manager") ||
+        !req.user!.roles.includes("General Manager") ||
+        !req.user!.roles.includes("Senior Accountant")
       ) {
         const user = await prisma.user.findUnique({
           where: { id: req.user!.id },
@@ -1227,8 +1229,9 @@ export class PosController {
 
       // Warehouse-based restriction
       if (
-        !req.user!.roles.includes("CFO") &&
-        !req.user!.roles.includes("General Manager")
+        !req.user!.roles.includes("Senior accountant") ||
+        !req.user!.roles.includes("General Manager") ||
+        !req.user!.roles.includes("Manager")
       ) {
         const user = await prisma.user.findUnique({
           where: { id: req.user!.id },

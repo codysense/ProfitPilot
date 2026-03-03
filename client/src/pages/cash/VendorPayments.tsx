@@ -67,7 +67,7 @@ const VendorPayments = () => {
   const { user } = useAuthStore();
 
   const canPerformActions =
-    user?.roles.includes("Accountant") ||
+    user?.roles.includes("Senior Accountant") ||
     user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({

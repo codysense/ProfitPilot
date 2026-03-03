@@ -58,7 +58,8 @@ const PosSalesHistory = () => {
   //Filter sales to only those created by the user if they don't have permission to view all sales
   const canviewall =
     user?.roles?.includes("General Manager") ||
-    user?.roles?.includes("Accountant");
+    user?.roles?.includes("Senior Accountant") ||
+    user?.roles.includes("Manager");
   if (data && !canviewall) {
     data.sales = data.sales.filter(
       (sale: any) => sale.user?.name === user?.name,

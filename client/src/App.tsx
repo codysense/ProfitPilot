@@ -106,6 +106,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 
   "General Manager": ["*"],
   "Senior Accountant": ["*"],
+  Auditor: ["*"],
+  Manager: ["*"],
   Accountant: ["dashboard", "sales", "cash"],
 };
 

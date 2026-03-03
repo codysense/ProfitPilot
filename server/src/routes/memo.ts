@@ -18,7 +18,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  requireRole(["Senior Accountant"]),
+  requireRole(["Senior Accountant", "Auditor"]),
   auditLogger("READ", "MEMO"),
   (req, res) => memoController.getMemos(req, res),
 );

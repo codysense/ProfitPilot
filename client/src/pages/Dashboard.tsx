@@ -28,8 +28,9 @@ const Dashboard = () => {
 
   const { user } = useAuthStore();
   const canviewall =
-    user?.roles.includes("Accountant") ||
-    user?.roles.includes("General Manager");
+    user?.roles.includes("Senior Accountant") ||
+    user?.roles.includes("General Manager") ||
+    user?.roles.includes("Manager");
 
   const { data: productionOrders } = useQuery({
     queryKey: ["production-orders", { limit: 10 }],

@@ -18,6 +18,7 @@ router.get(
     "Senior Accountant",
     "Accountant",
     "Auditor",
+    "Manager",
   ]),
   salesController.getSales,
 );
@@ -28,6 +29,7 @@ router.post(
     "POS User",
     "Senior Accountant",
     "Accountant",
+    "Manager",
   ]),
   auditLogger("CREATE", "SALES_ORDER"),
   salesController.createSale,
@@ -39,13 +41,14 @@ router.put(
     "POS User",
     "Senior Accountant",
     "Accountant",
+    "Manager",
   ]),
   auditLogger("UPDATE", "SALES_ORDER"),
   salesController.updateSale,
 );
 router.delete(
   "/orders/:id",
-  requireRole(["Senior Accountant", "POS User"]),
+  requireRole(["Senior Accountant"]),
   auditLogger("DELETE", "SALES_ORDER"),
   salesController.deleteSale,
 );
@@ -57,6 +60,7 @@ router.get(
     "Senior Accountant",
     "Accountant",
     "Auditor",
+    "Manager",
   ]),
   salesController.printSaleInvoice,
 );
@@ -64,13 +68,13 @@ router.get(
 // Sales Delivery and Invoicing
 router.post(
   "/orders/:id/deliver",
-  requireRole(["Senior Accountant", "Accountant", "POS User"]),
+  requireRole(["Senior Accountant", "Accountant", "Manager"]),
   auditLogger("DELIVER", "SALES_ORDER"),
   salesController.deliverSale,
 );
 router.post(
   "/orders/:id/invoice",
-  requireRole(["Senior Accountant", "Accountant", "POS User"]),
+  requireRole(["Senior Accountant", "Accountant", "Manager"]),
   auditLogger("INVOICE", "SALES_ORDER"),
   salesController.invoiceSale,
 );
@@ -78,30 +82,48 @@ router.post(
 // Customers
 router.get(
   "/customers",
-  requireRole(["Senior Accountant", "Accountant", "POS User"]),
+  requireRole([
+    "Senior Accountant",
+    "Accountant",
+    "POS User",
+    "Auditor",
+    "Manager",
+  ]),
   salesController.getCustomers,
 );
 // router.get('/customers', authorize('sales.customer.read'), salesController.getCustomers);
 router.post(
   "/customers",
-  requireRole(["Senior Accountant", "Accountant", "POS User"]),
+  requireRole(["Senior Accountant", "Accountant", "Manager"]),
   auditLogger("CREATE", "CUSTOMER"),
   salesController.createCustomer,
 );
 router.post(
   "/customer-groups",
-  requireRole(["Senior Accountant", "Accountant", "POS User"]),
+  requireRole(["Senior Accountant", "Accountant", "POS User", "Manager"]),
   auditLogger("CREATE", "CUSTOMER-GROUP"),
   salesController.createCustomerGroup,
 );
 router.get(
   "/customer-groups",
-  requireRole(["Senior Accountant", "Accountant", "POS User"]),
+  requireRole([
+    "Senior Accountant",
+    "Accountant",
+    "POS User",
+    "Auditor",
+    "Manager",
+  ]),
   salesController.getCustomerGroups,
 );
 router.put(
   "/customer-groups/:id",
-  requireRole(["Senior Accountant", "Accountant", "POS User"]),
+  requireRole([
+    "Senior Accountant",
+    "Accountant",
+    "POS User",
+    "Auditor",
+    "Manager",
+  ]),
   auditLogger("UPDATE", "CUSTOMER-GROUP"),
   salesController.updateCustomerGroup,
 );

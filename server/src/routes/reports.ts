@@ -11,57 +11,57 @@ router.use(authenticate);
 // Financial Reports
 router.get(
   "/balance-sheet",
-  requireRole(["General Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["General Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getBalanceSheet,
 );
 router.get(
   "/profit-loss",
-  requireRole(["General Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["General Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getProfitAndLoss,
 );
 router.get(
   "/trial-balance",
-  requireRole(["General Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["General Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getTrialBalance,
 );
 router.get(
   "/general-ledger",
-  requireRole(["General Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["General Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getGeneralLedger,
 );
 router.get(
   "/cash-flow",
-  requireRole(["General Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["General Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getCashFlow,
 );
 router.get(
   "/vendor-balances",
-  requireRole(["Inventory Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getVendorBalances,
 );
 router.get(
   "/customer-balances",
-  requireRole(["Senior Accountant", "Auditor"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager"]),
   reportsController.getCustomerBalances,
 );
 router.get(
   "/customer-ledger",
-  requireRole(["Senior Accountant", "Auditor"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager"]),
   reportsController.getCustomerLedger,
 );
 router.get(
   "/vendor-ledger",
-  requireRole(["Inventory Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getVendorLedger,
 );
 router.get(
   "/vendor-ledger",
-  requireRole(["Inventory Manager", "Auditor", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Auditor", "Manager", "Senior Accountant"]),
   reportsController.getVendorLedger,
 );
 router.get(
   "/cashAccount-balances",
-  requireRole(["Senior Accountant", "Auditor"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager"]),
   reportsController.getCashAccountBalances,
 );
 
@@ -73,6 +73,7 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Auditor",
+    "Manager",
   ]),
   reportsController.getInventoryAging,
 );
@@ -83,6 +84,7 @@ router.get(
     "Assistant Inventory Manager",
     "Senior Accountant",
     "Auditor",
+    "Manager",
   ]),
   reportsController.getStockCard,
 );
@@ -94,32 +96,33 @@ router.get(
     "Production Manager",
     "Senior Accountant",
     "Auditor",
+    "Manager",
   ]),
   reportsController.getProductionVariance,
 );
 router.get(
   "/sales-by-item",
-  requireRole(["Inventory Manager", "Senior Accountant", "Auditor"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Auditor", "Manager"]),
   reportsController.getSalesByItem,
 );
 router.get(
   "/pos-sales",
-  requireRole(["Senior Accountant", "Auditor", "POS User"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager", "POS User"]),
   reportsController.getPOSSalesReport,
 );
 router.get(
   "/sales-by-customer",
-  requireRole(["Senior Accountant", "Auditor", "POS User"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager", "POS User"]),
   reportsController.getSalesByCustomer,
 );
 router.get(
   "/purchases-by-vendor",
-  requireRole(["Senior Accountant", "Auditor", "Inventory Manager"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager", "Inventory Manager"]),
   reportsController.getPurchasesByVendor,
 );
 router.get(
   "/ar-ap-aging",
-  requireRole(["Senior Accountant", "Auditor", "Inventory Manager"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager", "Inventory Manager"]),
   reportsController.getArApAging,
 );
 router.get(
@@ -127,6 +130,7 @@ router.get(
   requireRole([
     "Senior Accountant",
     "Auditor",
+    "Manager",
     "Inventory Manager",
     "Production Manager",
   ]),
@@ -137,6 +141,7 @@ router.get(
   requireRole([
     "Senior Accountant",
     "Auditor",
+    "Manager",
     "Inventory Manager",
     "Production Manager",
   ]),
@@ -150,6 +155,7 @@ router.get(
     "Production Manger",
     "Senior Accountant",
     "Auditor",
+    "Manager",
   ]),
   reportsController.getMaterialUsage,
 );

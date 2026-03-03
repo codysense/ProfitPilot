@@ -12,7 +12,12 @@ router.use(authenticate);
 // Purchase Orders
 router.get(
   "/orders",
-  requireRole(["Inventory Manager", "Senior Accountant", "Accountant"]),
+  requireRole([
+    "Inventory Manager",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+  ]),
   purchaseController.getPurchases,
 );
 router.post(
@@ -35,7 +40,7 @@ router.delete(
 );
 router.get(
   "/orders/:id/print",
-  requireRole(["Inventory Manager", "Senior Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Auditor"]),
   purchaseController.printPurchaseOrder,
 );
 
@@ -56,7 +61,7 @@ router.post(
 // Vendors
 router.get(
   "/vendors",
-  requireRole(["Inventory Manager", "Senior Accountant", "Accountant"]),
+  requireRole(["Inventory Manager", "Senior Accountant", "Accountant", "Auditor"]),
   purchaseController.getVendors,
 );
 router.post(

@@ -62,7 +62,7 @@ router.delete(
 // Capitalization
 router.get(
   "/purchase-orders",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   assetsController.getPurchaseOrdersForCapitalization,
 );
 router.post(
@@ -81,7 +81,7 @@ router.post(
 );
 router.get(
   "/:id/depreciation",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   assetsController.getDepreciationSchedule,
 );
 
@@ -95,12 +95,12 @@ router.post(
 // Reports
 router.get(
   "/register",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   assetsController.getAssetRegister,
 );
 router.get(
   "/valuation",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   assetsController.getAssetValuation,
 );
 

@@ -37,7 +37,7 @@ const EnhancedUserManagement = () => {
 
   // Only CFO and GM can access user management
   const canManageUsers =
-    currentUser?.roles.includes("Accountant") ||
+    currentUser?.roles.includes("Senior Accountant") ||
     currentUser?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
@@ -275,7 +275,7 @@ const EnhancedUserManagement = () => {
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
                     {data?.users?.filter((u: UserWithDetails) =>
-                      u.roles.some((r) => r.name === "Accountant"),
+                      u.roles.some((r) => r.name === "Senior Accountant"),
                     ).length || 0}
                   </dd>
                 </dl>

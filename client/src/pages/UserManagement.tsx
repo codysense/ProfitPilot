@@ -24,7 +24,7 @@ const UserManagement = () => {
 
   // Only CFO and GM can access user management
   const canManageUsers =
-    currentUser?.roles.includes("Accountant") ||
+    currentUser?.roles.includes("Senior Accountant") ||
     currentUser?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({

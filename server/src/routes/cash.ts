@@ -13,7 +13,14 @@ router.use(authenticate);
 // router.get('/accounts', authorize('inventory.item.read'), cashController.getCashAccounts);
 router.get(
   "/accounts",
-  requireRole(["Accountant", "POS User", "Senior Accountant"]),
+  requireRole([
+    "Accountant",
+    "POS User",
+    "Senior Accountant",
+    "Manager",
+    "Auditor",
+    "Manager",
+  ]),
   cashController.getCashAccounts,
 );
 // router.post('/accounts', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_ACCOUNT'), cashController.createCashAccount);
@@ -42,13 +49,25 @@ router.delete(
 // router.get('/transactions', authorize('inventory.item.read'), cashController.getCashTransactions);
 router.get(
   "/transactions",
-  requireRole(["Accountant", "POS User", "Senior Accountant"]),
+  requireRole([
+    "Accountant",
+    "POS User",
+    "Senior Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   cashController.getCashTransactions,
 );
 // router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
 router.post(
   "/transactions",
-  requireRole(["Accountant", "POS User", "Senior Accountant"]),
+  requireRole([
+    "Accountant",
+    "POS User",
+    "Senior Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   auditLogger("CREATE", "CASH_TRANSACTION"),
   cashController.createCashTransaction,
 );
@@ -84,7 +103,13 @@ router.delete(
 );
 router.get(
   "/transactions/:id/print",
-  requireRole(["Accountant", "POS User", "Senior Accountant"]),
+  requireRole([
+    "Accountant",
+    "POS User",
+    "Senior Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   cashController.printCashReceipt,
 );
 // router.post('/transactions', authorize('inventory.item.create'), auditLogger('CREATE', 'CASH_TRANSACTION'), cashController.createCashTransaction);
@@ -93,12 +118,12 @@ router.get(
 // router.post('/customer-payments', authorize('sales.order.create'), auditLogger('CREATE', 'CUSTOMER_PAYMENT'), cashController.createCustomerPayment);
 router.get(
   "/customer-payments",
-  requireRole(["Accountant", "Senior Accountant"]),
+  requireRole(["Accountant", "Senior Accountant", "Auditor", "Manager"]),
   cashController.getCustomerPayments,
 );
 router.get(
   "/customer-payment/:id",
-  requireRole(["Accountant", "Senior Accountant"]),
+  requireRole(["Accountant", "Senior Accountant", "Auditor", "Manager"]),
   cashController.getCustomerPayment,
 );
 
@@ -146,12 +171,18 @@ router.post(
 );
 router.get(
   "/customer-refunds",
-  requireRole(["Accountant", "Senior Accountant"]),
+  requireRole(["Accountant", "Senior Accountant", "Auditor", "Manager"]),
   cashController.getCustomerRefunds,
 );
 router.get(
   "/customer-payments/:id/print",
-  requireRole(["Accountant", "POS User", "Senior Accountant"]),
+  requireRole([
+    "Accountant",
+    "POS User",
+    "Senior Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   cashController.printCustomerPayment,
 );
 
@@ -159,7 +190,7 @@ router.get(
 // router.get('/sales-receipts', authorize('inventory.item.read'), cashController.getSalesReceipts);
 router.get(
   "/sales-receipts",
-  requireRole(["Accountant", "Senior Accountant"]),
+  requireRole(["Accountant", "Senior Accountant", "Auditor", "Manager"]),
   cashController.getSalesReceipts,
 );
 router.post(
@@ -185,12 +216,12 @@ router.put(
 );
 router.get(
   "/vendor-payments/:id/",
-  requireRole(["Accountant", "Senior Accountant"]),
+  requireRole(["Accountant", "Senior Accountant", "Auditor", "Manager"]),
   cashController.getVendorPayment,
 );
 router.get(
   "/vendor-payments",
-  requireRole(["Accountant", "Senior Accountant"]),
+  requireRole(["Accountant", "Senior Accountant", "Auditor", "Manager"]),
   cashController.getVendorPayments,
 );
 router.post(
@@ -225,12 +256,18 @@ router.post(
 );
 router.get(
   "/vendor-refunds",
-  requireRole(["Accountant", "Senior Accountant"]),
+  requireRole(["Accountant", "Senior Accountant", "Auditor", "Manager"]),
   cashController.getVendorRefunds,
 );
 router.get(
   "/vendor-payments/:id/print",
-  requireRole(["Accountant", "POS User", "Senior Accountant"]),
+  requireRole([
+    "Accountant",
+    "POS User",
+    "Senior Accountant",
+    "Auditor",
+    "Manager",
+  ]),
   cashController.printVendorPayment,
 );
 
