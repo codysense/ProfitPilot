@@ -75,7 +75,7 @@ const Dashboard = () => {
         ).toISOString(),
       }),
   });
-  console.log("POS Sales Data:", posSales);
+  // console.log("POS Sales Data:", posSales);
 
   //Filter pos sales to only this
   // if (posSales) {

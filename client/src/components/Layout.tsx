@@ -17,6 +17,7 @@ import {
   Building,
 } from "lucide-react";
 import { Monitor } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface LayoutProps {
   children: ReactNode;
@@ -32,6 +33,7 @@ const Layout = ({ children }: LayoutProps) => {
   const handleLogout = () => {
     clearAuth();
     navigate("/login");
+    toast.success("Logout Successfully");
   };
 
   const navigation = [
@@ -43,7 +45,6 @@ const Layout = ({ children }: LayoutProps) => {
         "General Manager",
         "Auditor",
         "Manager",
-        ,
         "Inventory Manager",
         "Assistant Inventory Manager",
         "Production Manager",
@@ -60,7 +61,6 @@ const Layout = ({ children }: LayoutProps) => {
         "General Manager",
         "Auditor",
         "Manager",
-        ,
         "POS User",
         "Accountant",
         "Senior Accountant",

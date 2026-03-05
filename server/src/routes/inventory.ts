@@ -20,6 +20,7 @@ router.get(
     "Assistant Inventory Manager",
     "Manager",
     "Auditor",
+    "Accountant",
   ]),
   inventoryController.getItems,
 );

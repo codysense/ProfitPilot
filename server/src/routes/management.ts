@@ -151,7 +151,12 @@ router.put(
 // Chart of Accounts Management (CFO and GM only)
 router.get(
   "/chart-of-accounts",
-  requireRole(["Senior Accountant", "General Manager", "Auditor"]),
+  requireRole([
+    "Senior Accountant",
+    "General Manager",
+    "Auditor",
+    "Accountant",
+  ]),
   managementController.getChartOfAccounts,
 );
 // router.get('/chart-of-accounts', requireRole('Accountant'), managementController.getChartOfAccounts);
