@@ -77,7 +77,8 @@ const Cashbook = () => {
 
   const canPerformActions =
     user?.roles.includes("Senior Accountant") ||
-    user?.roles.includes("General Manager");
+    user?.roles.includes("General Manager") ||
+    user?.roles.includes("Accountant");
 
   //   useEffect(() => {
   //   console.log('Current page:', page);

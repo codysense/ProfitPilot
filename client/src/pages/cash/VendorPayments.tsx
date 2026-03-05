@@ -68,7 +68,8 @@ const VendorPayments = () => {
 
   const canPerformActions =
     user?.roles.includes("Senior Accountant") ||
-    user?.roles.includes("General Manager");
+    user?.roles.includes("General Manager") ||
+    user?.roles.includes("Accountant");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["vendor-payments", { page, vendorId, statusFilter }],

@@ -63,7 +63,8 @@ const CustomerPayments = () => {
 
   const canPerformActions =
     user?.roles.includes("Senior Accountant") ||
-    user?.roles.includes("General Manager");
+    user?.roles.includes("General Manager")||
+    user?.roles.includes("Accountant");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["customer-payments", { page, customerId: customerId }],
@@ -75,7 +76,7 @@ const CustomerPayments = () => {
         ...(customerId && { customerId: customerId }),
       }),
   });
-  console.log("customer payment", data);
+  // console.log("customer payment", data);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-information"],
