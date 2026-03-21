@@ -29,9 +29,9 @@ export const Memos = () => {
     queryFn: () => memoApi.getMemos(query),
   });
 
-  // console.log("Fetched memos data:", data);
+  console.log("Fetched memos data:", data);
 
-  const memos = data || [];
+  const memos = data?.data || [];
   const pagination = data?.pagination;
 
   // Filter customer/vendor locally like your old logic
@@ -148,7 +148,7 @@ export const Memos = () => {
                 setTypeFilter(e.target.value);
                 setPage(1);
               }}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Types</option>
               <option value="CREDIT">Credit</option>
@@ -163,7 +163,7 @@ export const Memos = () => {
             <select
               value={partyTypeFilter}
               onChange={(e) => setPartyTypeFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All</option>
               <option value="CUSTOMER">Customer</option>
@@ -182,7 +182,7 @@ export const Memos = () => {
                 setDateFilter(e.target.value);
                 setPage(1);
               }}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>

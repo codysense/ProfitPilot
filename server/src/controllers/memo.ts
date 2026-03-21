@@ -45,26 +45,65 @@ export class MemoController {
   async getMemos(req: AuthRequest, res: Response) {
     try {
       // const { id } = req.params;
+      const { page = 1, pageSize = 20, type, date } = req.query;
 
-      const memo = await prisma.memo.findMany({
-        include: {
-          account: true,
-          customer: true,
-          vendor: true,
-          user: true,
-          sale: { include: { saleLines: { include: { item: true } } } },
-          purchase: { include: { purchaseLines: { include: { item: true } } } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      const skip = (Number(page) - 1) * Number(pageSize);
+      const take = Number(pageSize);
 
-      if (!memo) {
+      const [memos, total] = await Promise.all([
+        prisma.memo.findMany({
+          where: {
+            memoType: type ? (type as MemoType) : undefined,
+            createdAt: date
+              ? {
+                  gte: new Date(String(date)),
+                  lt: new Date(new Date(String(date)).getTime() + 86400000),
+                }
+              : undefined,
+          },
+          take,
+          skip,
+          include: {
+            account: true,
+            customer: true,
+            vendor: true,
+            user: true,
+            sale: { include: { saleLines: { include: { item: true } } } },
+            purchase: {
+              include: { purchaseLines: { include: { item: true } } },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+
+        prisma.memo.count({
+          where: {
+            memoType: type ? (type as MemoType) : undefined,
+            createdAt: date
+              ? {
+                  gte: new Date(String(date)),
+                  lt: new Date(new Date(String(date)).getTime() + 86400000),
+                }
+              : undefined,
+          },
+        }),
+      ]);
+
+      if (memos.length === 0) {
         return res.status(404).json({ error: "Memo not found" });
       }
 
       // console.log("Fetched memos:", memo);
 
-      res.json(memo);
+      res.json({
+        data: memos,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(pageSize),
+          pages: Math.ceil(total / Number(pageSize)),
+        },
+      });
     } catch (error) {
       console.error("Get memo error:", error);
       res.status(400).json({ error: error.message });

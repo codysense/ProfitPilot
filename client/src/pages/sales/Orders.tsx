@@ -50,7 +50,7 @@ const SalesOrders = () => {
       }),
   });
 
-  console.log("Fetched sales data:", data);
+  // console.log("Fetched sales data:", data);
 
   //if user is not accountant or gm, filter sales to only those created by the user
   if (data && !canPerformActions) {
