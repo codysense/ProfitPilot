@@ -9,9 +9,40 @@ interface ProductionSummary {
   CumProduction: number; // Note: exact case as in SQL
 }
 
+function startOfDayUTC(date: Date) {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
+function endOfDayUTC(date: Date) {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
+}
+
 export class ReportsService {
   // Financial Reports
   async getBalanceSheet(fromDate: Date, asOfDate: Date) {
+    const endDate = endOfDayUTC(asOfDate);
+    const startDate = startOfDayUTC(fromDate);
+
     // Get chart of accounts
     const chartAccounts = await prisma.chartOfAccount.findMany({
       where: {
@@ -33,7 +64,7 @@ export class ReportsService {
         journalLines: {
           where: {
             journal: {
-              date: { lte: asOfDate },
+              date: { lte: endDate },
             },
           },
         },
@@ -115,7 +146,7 @@ export class ReportsService {
     //   totalCashBalance += balance;
     // });
 
-    const newDate = new Date(fromDate);
+    const newDate = new Date(startDate);
     newDate.setDate(newDate.getDate() - 1);
 
     const { netIncome: retainProfit } = await this.getProfitAndLoss(
@@ -124,8 +155,8 @@ export class ReportsService {
     );
 
     const { netIncome: netProfit } = await this.getProfitAndLoss(
-      fromDate,
-      asOfDate,
+      startDate,
+      endDate,
     );
 
     //  console.log("Net Profit", netProfit, 'retain Profit', retainProfit)
@@ -180,6 +211,9 @@ export class ReportsService {
     if (!fromDate) {
       fromDate = new Date("01/01/1900");
     }
+
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
     const accounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
@@ -192,8 +226,8 @@ export class ReportsService {
           where: {
             journal: {
               date: {
-                gte: fromDate,
-                lte: toDate,
+                gte: newFromDate,
+                lte: newToDate,
               },
             },
           },
@@ -279,6 +313,9 @@ export class ReportsService {
     const { dateFrom, dateTo, warehouseId, userId } = params;
     // console.log(dateFrom, dateTo, warehouseId, userId)
     // base query
+    const newToDate = endOfDayUTC(dateTo);
+    const newFromDate = startOfDayUTC(dateFrom);
+
     let query = `
     WITH report AS (
       SELECT 
@@ -296,7 +333,7 @@ export class ReportsService {
       WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date
   `;
 
-    const values: any[] = [dateFrom, dateTo];
+    const values: any[] = [newFromDate, newToDate];
     let paramIndex = 3;
 
     // add warehouse filter if present
@@ -343,6 +380,9 @@ export class ReportsService {
     // Get chart of accounts
     // For balance sheet accounts (equity, assets, liability)
     // For balance sheet accounts (equity, assets, liability) - EXCLUDING Cash and Bank
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
+
     const balanceSheetAccounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
@@ -367,7 +407,7 @@ export class ReportsService {
         journalLines: {
           where: {
             journal: {
-              date: { lte: toDate }, // From inception till toDate
+              date: { lte: newToDate }, // From inception till toDate
             },
           },
         },
@@ -386,7 +426,7 @@ export class ReportsService {
         journalLines: {
           where: {
             journal: {
-              date: { gte: fromDate, lte: toDate }, // Within date range
+              date: { gte: newFromDate, lte: newToDate }, // Within date range
             },
           },
         },
@@ -413,7 +453,7 @@ export class ReportsService {
         journalLines: {
           where: {
             journal: {
-              date: { gte: fromDate, lte: toDate }, // Within date range
+              date: { gte: newFromDate, lte: newToDate }, // Within date range
             },
           },
         },
@@ -457,7 +497,7 @@ export class ReportsService {
       });
     });
 
-    const newDate = new Date(fromDate);
+    const newDate = new Date(newFromDate);
     newDate.setDate(newDate.getDate() - 1);
 
     const { netIncome: retainProfit } = await this.getProfitAndLoss(
@@ -491,11 +531,13 @@ export class ReportsService {
   }
 
   async getGeneralLedger(fromDate: Date, toDate: Date, accountId?: string) {
+    const fromDateStart = startOfDayUTC(fromDate);
+    const toDateEnd = endOfDayUTC(toDate);
     const where: any = {
       journal: {
         date: {
-          gte: fromDate,
-          lte: toDate,
+          gte: fromDateStart,
+          lte: toDateEnd,
         },
       },
     };
@@ -525,7 +567,7 @@ export class ReportsService {
     const openingBalanceWhere: any = {
       journal: {
         date: {
-          lt: fromDate,
+          lt: fromDateStart,
         },
       },
     };
@@ -593,6 +635,8 @@ export class ReportsService {
   }
 
   async getCashAccountBalances(dateFrom: Date, dateTo: Date) {
+    const newToDate = endOfDayUTC(dateTo);
+    const newFromDate = startOfDayUTC(dateFrom);
     const rawResult = await prisma.$queryRawUnsafe<
       {
         SerialNo: number | null;
@@ -673,8 +717,8 @@ export class ReportsService {
     FROM report
     ORDER BY "SerialNo" NULLS LAST;
   `,
-      dateFrom,
-      dateTo,
+      newFromDate,
+      newToDate,
     );
 
     // Convert Decimals → numbers
@@ -692,6 +736,7 @@ export class ReportsService {
   }
 
   async getCustomerBalances(asOfDate: Date) {
+    const newAsOfDate = endOfDayUTC(asOfDate);
     const result = await prisma.$queryRawUnsafe<
       {
         customer_id: string;
@@ -789,7 +834,7 @@ LEFT JOIN (
 
 ORDER BY c.name;
 `,
-      asOfDate,
+      newAsOfDate,
     );
     //console.log("Customer Balances Result:", result);
 
@@ -797,6 +842,9 @@ ORDER BY c.name;
   }
 
   async getCustomerLedger(fromDate: Date, toDate: Date, customerId: string) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
+
     //  Opening Balance before period
     const opening = await prisma.$queryRawUnsafe<{ balance: number }[]>(
       `
@@ -849,7 +897,7 @@ WHERE m."customerId" = $1
 ) x;
     `,
       customerId,
-      fromDate,
+      newFromDate,
     );
 
     const openingBalance = Number(opening[0].balance || 0);
@@ -970,8 +1018,8 @@ ORDER BY date, transaction_type, reference;
 ;
     `,
       customerId,
-      fromDate,
-      toDate,
+      newFromDate,
+      newToDate,
     );
 
     //  Totals
@@ -997,7 +1045,10 @@ ORDER BY date, transaction_type, reference;
   }
 
   async getVendorLedger(fromDate: Date, toDate: Date, vendorId: string) {
-    // 🔹 Opening Balance before period
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
+
+    //  Opening Balance before period
     const opening = await prisma.$queryRawUnsafe<{ balance: number }[]>(
       `
     SELECT COALESCE(SUM(x.balance), 0) AS balance
@@ -1054,7 +1105,7 @@ FROM (
 
     `,
       vendorId,
-      fromDate,
+      newFromDate,
     );
 
     const openingBalance = Number(opening[0]?.balance || 0);
@@ -1186,8 +1237,8 @@ WHERE v."id" = $1
 ORDER BY date, transaction_type, reference;
     `,
       vendorId,
-      fromDate,
-      toDate,
+      newFromDate,
+      newToDate,
     );
 
     //  Totals
@@ -1230,6 +1281,7 @@ ORDER BY date, transaction_type, reference;
   }
 
   async getVendorBalances(asOfDate: Date) {
+    const newAsOfDate = endOfDayUTC(asOfDate);
     const result = await prisma.$queryRawUnsafe<
       {
         vendor_id: string;
@@ -1326,7 +1378,7 @@ ORDER BY v.name;
 
 
   `,
-      asOfDate,
+      newAsOfDate,
     );
 
     // console.log("Vendor Balances Result:", result);
@@ -1334,12 +1386,14 @@ ORDER BY v.name;
   }
 
   async getCashFlow(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
     // Get cash account transactions
     const cashTransactions = await prisma.cashTransaction.findMany({
       where: {
         transactionDate: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
       },
       include: {
@@ -1416,13 +1470,15 @@ ORDER BY v.name;
   // Operational Reports
 
   async getProductionSummary(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
     const result = await prisma.productionOrder.groupBy({
       by: ["itemId"],
       where: {
         status: "FINISHED",
         finishedAt: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
       },
       _sum: {
@@ -1449,12 +1505,15 @@ ORDER BY v.name;
 
   // Production Report
   async getProductionReport(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
+
     const orders = await prisma.productionOrder.findMany({
       where: {
         status: "FINISHED",
         finishedAt: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
       },
       include: {
@@ -1476,13 +1535,16 @@ ORDER BY v.name;
   }
 
   async getMaterialUsage(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
+
     const results = await prisma.inventoryLedger.findMany({
       where: {
         direction: "OUT",
         refType: "PRODUCTION",
         postedAt: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
       },
       include: {
@@ -1505,8 +1567,9 @@ ORDER BY v.name;
   }
 
   async getInventoryAging(asOfDate: Date, warehouseId?: string) {
+    const newAsOfDate = endOfDayUTC(asOfDate);
     const where: any = {
-      postedAt: { lte: asOfDate },
+      postedAt: { lte: newAsOfDate },
     };
     if (warehouseId) where.warehouseId = warehouseId;
 
@@ -1525,7 +1588,7 @@ ORDER BY v.name;
 
     // Group by item and calculate aging
     const agingMap = new Map();
-    const currentDate = new Date(asOfDate);
+    const currentDate = new Date(newAsOfDate);
 
     ledgerEntries.forEach((entry) => {
       const key = `${entry.itemId}-${entry.warehouseId}`;
@@ -1600,12 +1663,15 @@ ORDER BY v.name;
     fromDate?: Date,
     toDate?: Date,
   ) {
+    const newFromDate = fromDate ? startOfDayUTC(fromDate) : undefined;
+    const newToDate = toDate ? endOfDayUTC(toDate) : undefined;
+
     const where: any = { itemId };
     if (warehouseId) where.warehouseId = warehouseId;
-    if (fromDate || toDate) {
+    if (newFromDate || newToDate) {
       where.postedAt = {};
-      if (fromDate) where.postedAt.gte = fromDate;
-      if (toDate) where.postedAt.lte = toDate;
+      if (newFromDate) where.postedAt.gte = newFromDate;
+      if (newToDate) where.postedAt.lte = newToDate;
     }
 
     const entries = await prisma.inventoryLedger.findMany({
@@ -1640,11 +1706,13 @@ ORDER BY v.name;
   }
 
   async getProductionVariance(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
     const productionOrders = await prisma.productionOrder.findMany({
       where: {
         createdAt: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
         status: { in: ["FINISHED", "CLOSED"] },
       },
@@ -1719,11 +1787,13 @@ ORDER BY v.name;
   }
 
   async getSalesByItem(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
     const sales = await prisma.sale.findMany({
       where: {
         orderDate: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
         status: { in: ["DELIVERED", "INVOICED", "PAID"] },
       },
@@ -1765,11 +1835,13 @@ ORDER BY v.name;
   }
 
   async getSalesByCustomer(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
     const sales = await prisma.sale.findMany({
       where: {
         orderDate: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
         status: { in: ["DELIVERED", "INVOICED", "PAID"] },
       },
@@ -1806,11 +1878,13 @@ ORDER BY v.name;
   }
 
   async getPurchasesByVendor(fromDate: Date, toDate: Date) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
     const purchases = await prisma.purchase.findMany({
       where: {
         orderDate: {
-          gte: fromDate,
-          lte: toDate,
+          gte: newFromDate,
+          lte: newToDate,
         },
         status: { in: ["RECEIVED", "INVOICED", "PAID"] },
       },
@@ -1847,12 +1921,13 @@ ORDER BY v.name;
   }
 
   async getArApAging(asOfDate: Date, type: "AR" | "AP") {
+    const newAsOfDate = endOfDayUTC(asOfDate);
     if (type === "AR") {
       // Accounts Receivable Aging
       const invoicedSales = await prisma.sale.findMany({
         where: {
           status: { in: ["INVOICED"] },
-          orderDate: { lte: asOfDate },
+          orderDate: { lte: newAsOfDate },
         },
         include: {
           customer: {
@@ -1880,7 +1955,7 @@ ORDER BY v.name;
           const outstandingAmount =
             sale.totalAmount.toNumber() - totalReceived + totalRefunded;
           const daysPastDue = Math.floor(
-            (asOfDate.getTime() - sale.orderDate.getTime()) /
+            (newAsOfDate.getTime() - sale.orderDate.getTime()) /
               (1000 * 60 * 60 * 24),
           );
 
@@ -1909,7 +1984,7 @@ ORDER BY v.name;
       const invoicedPurchases = await prisma.purchase.findMany({
         where: {
           status: { in: ["INVOICED", "PARTIALLY_PAID"] },
-          orderDate: { lte: asOfDate },
+          orderDate: { lte: newAsOfDate },
         },
         include: {
           vendor: {
@@ -1935,7 +2010,7 @@ ORDER BY v.name;
           const outstandingAmount =
             purchase.balanceAmount.toNumber() + totalRefunds;
           const daysPastDue = Math.floor(
-            (asOfDate.getTime() - purchase.orderDate.getTime()) /
+            (newAsOfDate.getTime() - purchase.orderDate.getTime()) /
               (1000 * 60 * 60 * 24),
           );
 

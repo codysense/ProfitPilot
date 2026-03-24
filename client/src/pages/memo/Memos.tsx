@@ -29,7 +29,7 @@ export const Memos = () => {
     queryFn: () => memoApi.getMemos(query),
   });
 
-  console.log("Fetched memos data:", data);
+  // console.log("Fetched memos data:", data);
 
   const memos = data?.data || [];
   const pagination = data?.pagination;

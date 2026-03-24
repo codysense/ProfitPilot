@@ -47,6 +47,11 @@ export class MemoController {
       // const { id } = req.params;
       const { page = 1, pageSize = 20, type, date } = req.query;
 
+      const selectedDate = new Date(String(date));
+
+      const startDate = startOfDayUTC(selectedDate);
+      const endDate = addDaysUTC(startDate, 1);
+
       const skip = (Number(page) - 1) * Number(pageSize);
       const take = Number(pageSize);
 
@@ -54,10 +59,10 @@ export class MemoController {
         prisma.memo.findMany({
           where: {
             memoType: type ? (type as MemoType) : undefined,
-            createdAt: date
+            date: date
               ? {
-                  gte: new Date(String(date)),
-                  lt: new Date(new Date(String(date)).getTime() + 86400000),
+                  gte: startDate,
+                  lt: endDate,
                 }
               : undefined,
           },
@@ -73,16 +78,16 @@ export class MemoController {
               include: { purchaseLines: { include: { item: true } } },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { date: "desc" },
         }),
 
         prisma.memo.count({
           where: {
             memoType: type ? (type as MemoType) : undefined,
-            createdAt: date
+            date: date
               ? {
-                  gte: new Date(String(date)),
-                  lt: new Date(new Date(String(date)).getTime() + 86400000),
+                  gte: startDate,
+                  lt: endDate,
                 }
               : undefined,
           },
@@ -670,6 +675,27 @@ export class MemoController {
   //   });
   // }
 }
+
+function startOfDayUTC(date: Date) {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
+function addDaysUTC(date: Date, days: number) {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 async function getItemTypeById(itemId: string) {
   const item = await prisma.item.findUnique({
     where: { id: itemId },
