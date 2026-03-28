@@ -1,4 +1,4 @@
-import React from "react";
+import { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -50,6 +50,7 @@ const CreateCashTransactionModal = ({
     formState: { errors, isSubmitting },
   } = useForm<CreateCashTransactionFormData>({
     resolver: zodResolver(createCashTransactionSchema),
+    shouldUnregister: true,
     defaultValues: {
       transactionDate: new Date().toISOString().split("T")[0],
       transactionType: "RECEIPT",
@@ -68,6 +69,14 @@ const CreateCashTransactionModal = ({
   });
 
   const watchedType = watch("transactionType");
+
+  useEffect(() => {
+    setValue("transactionLines", [
+      { glAccountId: "", lineAmount: 0, description: "" },
+    ]);
+
+    setValue("cashAccountId", "");
+  }, [watchedType]);
 
   const onSubmit = async (data: CreateCashTransactionFormData) => {
     try {

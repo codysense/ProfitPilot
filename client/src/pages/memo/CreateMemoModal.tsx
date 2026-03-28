@@ -1,10 +1,10 @@
 import { Dialog } from "@headlessui/react";
-import { useForm } from "react-hook-form";
+import { useEffect } from "react";
+import { set, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateMemo } from "../../hooks/useMemo";
-// import { memoSchema } from '../../../../server/src/types/memo';
 import { z } from "zod";
 import { inventoryApi, managementApi, salesApi } from "../../lib/api";
 import { purchaseApi } from "../../lib/api";
@@ -67,11 +67,10 @@ export const MemoModal = ({
     handleSubmit,
     formState: { errors, isSubmitting },
     watch,
-    reset,
-    getValues,
     setValue,
   } = useForm<FormValues>({
     resolver: zodResolver(memoSchema),
+    shouldUnregister: true,
     defaultValues: {
       memoType: "CREDIT",
       description: "",
@@ -116,6 +115,23 @@ export const MemoModal = ({
     queryKey: ["warehouses-for-user"],
     queryFn: () => inventoryApi.getWarehouses(),
   });
+
+  useEffect(() => {
+    setValue("accountId", undefined);
+    setValue("amount", 0);
+    setValue("description", "");
+    if (selectedModule === "SALES") {
+      setValue("vendorId", undefined);
+      setValue("purchaseId", undefined);
+    }
+
+    if (selectedModule === "PURCHASES") {
+      setValue("customerId", undefined);
+      setValue("saleId", undefined);
+      // setValue("accountId", undefined);
+      // setValue("amount", 0);
+    }
+  }, [selectedModule]);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -278,7 +294,7 @@ export const MemoModal = ({
                     customers={customers?.customers || []}
                     value={watch("customerId")}
                     onChange={(val) =>
-                      reset({ ...getValues(), customerId: val })
+                      setValue("customerId", val, { shouldDirty: true })
                     }
                     error={errors.customerId?.message}
                   />
@@ -302,7 +318,7 @@ export const MemoModal = ({
                   >
                     <option value="">Standalone Memo</option>
                     {customerSales?.sales?.map((sale: any) =>
-                      //remove sale whose  status is confimmed or Ordered
+                      //remove sale whose  status is confimmed or delivered or returned
                       sale.status === "CONFIRMED" ||
                       sale.status === "DELIVERED" ||
                       sale.status === "RETURNED" ? null : (

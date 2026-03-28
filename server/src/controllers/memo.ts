@@ -261,7 +261,21 @@ export class MemoController {
       } = req.body;
 
       // console.log("request user ", req.user);
+      if (module === "SALES") {
+        if (vendorId || purchaseId) {
+          throw new Error("Invalid SALES memo payload");
+        }
+      }
 
+      if (module === "PURCHASES") {
+        if (customerId || saleId) {
+          throw new Error("Invalid PURCHASE memo payload");
+        }
+      }
+
+      if (saleId && purchaseId) {
+        throw new Error("Cannot link both sale and purchase");
+      }
       const result = await prisma.$transaction(async (tx) => {
         // const memoCount = await tx.memo.count();
         // const memoNo = `M${String(memoCount + 1).padStart(6, "0")}`;

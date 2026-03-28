@@ -50,6 +50,7 @@ const CreatePurchaseModal = ({
     formState: { errors, isSubmitting },
   } = useForm<CreatePurchaseFormData>({
     resolver: zodResolver(createPurchaseSchema),
+    shouldUnregister: true,
     defaultValues: {
       orderType: "INVENTORY",
       orderDate: new Date().toISOString().split("T")[0],
@@ -96,6 +97,8 @@ const CreatePurchaseModal = ({
         watchedLines.map((line) => ({
           ...line,
           assetName: null,
+          qty: 0,
+          unitPrice: 0,
         })),
       );
     } else {
@@ -104,6 +107,8 @@ const CreatePurchaseModal = ({
         watchedLines.map((line) => ({
           ...line,
           itemId: null,
+          qty: 0,
+          unitPrice: 0,
         })),
       );
     }
