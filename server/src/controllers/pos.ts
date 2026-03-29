@@ -664,8 +664,8 @@ export class PosController {
 
             // const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
 
-            console.log("TransactionNo ", transactionNo);
-            console.log("Payment count ", count);
+            // console.log("TransactionNo ", transactionNo);
+            // console.log("Payment count ", count);
 
             await tx.cashTransaction.create({
               data: {
@@ -689,7 +689,7 @@ export class PosController {
 
             /* ---- GL Debit: Cash / Bank account ---- */
             glEntries.push({
-              accountCode: cashAccountGL?.code ?? "1100",
+              accountCode: cashAccountGL?.code || "1100", // Default to 1100 if not found
               debit: amount,
               credit: 0,
               refType: "POS_SALE",
@@ -1511,13 +1511,27 @@ export class PosController {
           },
         });
 
+        const glEntries: any[] = [];
+
         // Refund cash
         for (const payment of originalSale.payments) {
-          await tx.cashAccount.update({
+          const updatedCashAccount = await tx.cashAccount.update({
             where: { id: payment.cashAccountId },
             data: {
               balance: { decrement: payment.amount.toNumber() },
             },
+          });
+
+          const cashaccountGL = await tx.chartOfAccount.findUnique({
+            where: { id: updatedCashAccount.glAccountId },
+          });
+
+          glEntries.push({
+            accountCode: cashaccountGL?.code || "1100", // Cash/Bank account (should ideally fetch from cash account)
+            debit: 0,
+            credit: payment.amount.toNumber(),
+            refType: "POS_RETURN",
+            refId: newReturn.id,
           });
         }
 
@@ -1560,15 +1574,35 @@ export class PosController {
           });
         }
 
+        glEntries.push({
+          accountCode: "4000",
+          debit: returnTotal,
+          credit: 0,
+          refType: "POS_RETURN",
+          refId: newReturn.id,
+        });
+
+        glEntries.push(
+          {
+            accountCode: "5000",
+            debit: 0,
+            credit: totalReturnCogs,
+            refType: "POS_RETURN",
+            refId: newReturn.id,
+          },
+          {
+            accountCode: "1350",
+            debit: totalReturnCogs,
+            credit: 0,
+            refType: "POS_RETURN",
+            refId: newReturn.id,
+          },
+        );
+
         // GL reversal
         await glService.postJournal(
           tx,
-          [
-            { accountCode: "4000", debit: returnTotal, credit: 0 },
-            { accountCode: "1100", debit: 0, credit: returnTotal },
-            { accountCode: "1350", debit: totalReturnCogs, credit: 0 },
-            { accountCode: "5000", debit: 0, credit: totalReturnCogs },
-          ].map((l) => ({ ...l, refType: "POS_RETURN", refId: newReturn.id })),
+          glEntries,
           `POS Return: ${returnNo}`,
           req.user!.id,
         );

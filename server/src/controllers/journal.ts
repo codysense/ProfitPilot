@@ -16,7 +16,7 @@ export class JournalController {
 
       // Build where filter
       const where: any = {
-        refType: "JOURNAL",
+        refType: { contains: "JOURNAL" },
         refId: { contains: "Journal Posting" },
         ...(id ? { journalId: id } : {}),
         ...(date
@@ -52,7 +52,12 @@ export class JournalController {
             },
             account: { select: { id: true, name: true } },
           },
-          orderBy: { journalId: "desc" },
+          //orderBy: { journal date: "desc" },
+          orderBy: {
+            journal: {
+              journalNo: "desc",
+            },
+          },
         }),
         prisma.journalLine.count({ where }),
       ]);
@@ -222,13 +227,97 @@ export class JournalController {
             },
           });
 
+          //Get cashAccount from journal lines  accountid if exists and debit or credit the cashAccount
+          let count = 1;
+          const lastTx = await tx.cashTransaction.findFirst({
+            orderBy: { createdAt: "desc" },
+          });
+
+          let baseNumber = lastTx
+            ? parseInt(lastTx.transactionNo.replace(/^CT/, ""), 10)
+            : 0;
+          for (const jl of validatedData.journalLines) {
+            const nextNumber = baseNumber + count;
+            const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
+            count++;
+            const cashAccount = await tx.cashAccount.findFirst({
+              where: {
+                glAccountId: jl.accountId,
+              },
+            });
+
+            if (cashAccount) {
+              if (jl.debit && jl.debit > 0) {
+                await tx.cashAccount.update({
+                  where: { id: cashAccount.id },
+                  data: {
+                    balance: {
+                      increment: jl.debit,
+                    },
+                  },
+                });
+                //create cash account transaction
+                await tx.cashTransaction.create({
+                  data: {
+                    transactionNo,
+                    cashAccountId: cashAccount.id,
+                    transactionType: "RECEIPT",
+                    amount: jl.debit,
+                    description: `Journal Entry - ${validatedData.note ?? "No description"}`,
+                    transactionDate: new Date(),
+                    reference: `Journal Posting`,
+                    refType: `JOURNAL - ${journalNo}`,
+                    refId: `Journal Posting - ${journalNo}`,
+                    userId: req.user!.id,
+                    preparedBy: req.user!.id,
+                    authorizedBy: req.user!.id,
+                    approvedBy: req.user!.id,
+                    paidBy: req.user!.id,
+                    status: "PAID",
+                  },
+                });
+              }
+              if (jl.credit && jl.credit > 0) {
+                await tx.cashAccount.update({
+                  where: { id: cashAccount.id },
+                  data: {
+                    balance: {
+                      decrement: jl.credit,
+                    },
+                  },
+                });
+
+                //create cash account transaction
+                await tx.cashTransaction.create({
+                  data: {
+                    transactionNo,
+                    cashAccountId: cashAccount.id,
+                    transactionType: "PAYMENT",
+                    amount: jl.credit,
+                    description: `Journal Entry - ${validatedData.note ?? "No description"}`,
+                    transactionDate: new Date(),
+                    reference: `Journal Posting`,
+                    refType: `JOURNAL - ${journalNo}`,
+                    refId: `Journal Posting - ${journalNo}`,
+                    userId: req.user!.id,
+                    preparedBy: req.user!.id,
+                    authorizedBy: req.user!.id,
+                    approvedBy: req.user!.id,
+                    paidBy: req.user!.id,
+                    status: "PAID",
+                  },
+                });
+              }
+            }
+          }
+
           // --- Build journal lines ---
           const journalLines = validatedData.journalLines.map((jl) => ({
             journalId: journal.id,
             accountId: jl.accountId,
             debit: jl.debit ?? 0,
             credit: jl.credit ?? 0,
-            refType: "JOURNAL",
+            refType: `JOURNAL - ${journalNo}`,
             refId: `Journal Posting ${journal.id}`,
           }));
 

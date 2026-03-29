@@ -117,7 +117,7 @@ export const MemoModal = ({
   });
 
   useEffect(() => {
-    setValue("accountId", undefined);
+    setValue("accountId", "");
     setValue("amount", 0);
     setValue("description", "");
     if (selectedModule === "SALES") {

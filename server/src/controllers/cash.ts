@@ -418,6 +418,20 @@ export class CashController {
                   },
                 ],
               });
+              //if Gl Account is linked with a cashacount, then credit the cash account too
+              const linkedCashAccount = await tx.cashAccount.findFirst({
+                where: { glAccountId: line.glAccountId },
+              });
+              if (linkedCashAccount) {
+                await tx.cashAccount.update({
+                  where: { id: linkedCashAccount.id },
+                  data: {
+                    balance: {
+                      decrement: new Decimal(line.lineAmount),
+                    },
+                  },
+                });
+              }
             } else {
               // PAYMENT: Debit GL Account, Credit Cash Account
               await tx.journalLine.createMany({
@@ -440,6 +454,21 @@ export class CashController {
                   },
                 ],
               });
+
+              //if Gl Account is linked with a cashacount, then debit the cash account too
+              const linkedCashAccount = await tx.cashAccount.findFirst({
+                where: { glAccountId: line.glAccountId },
+              });
+              if (linkedCashAccount) {
+                await tx.cashAccount.update({
+                  where: { id: linkedCashAccount.id },
+                  data: {
+                    balance: {
+                      increment: new Decimal(line.lineAmount),
+                    },
+                  },
+                });
+              }
             }
           }
 
