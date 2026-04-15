@@ -45,6 +45,13 @@ router.post(
   productionController.releaseProductionOrder,
 );
 
+router.post(
+  "/orders/:id/reverse",
+  requireRole(["General Manager"]),
+  auditLogger("REVERSE", "PRODUCTION_ORDER"),
+  productionController.reverseProductionOrder,
+);
+
 // Material Operations
 router.post(
   "/orders/:id/issue-materials",

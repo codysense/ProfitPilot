@@ -161,6 +161,7 @@ export class InventoryController {
 
       // Check if item can be deleted
       const item = await prisma.item.findUnique({
+        //check if item is active , quantity is zero not in any inventory transfer
         where: { sku },
         select: { isActive: true },
       });

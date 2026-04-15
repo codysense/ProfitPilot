@@ -274,6 +274,12 @@ export class AssetsService {
           createdBy: userId,
         },
       });
+      //Get category GL accounts from glAccountid from data
+      const glAssetAccount = data.glAssetAccountId
+        ? await tx.chartOfAccount.findUnique({
+            where: { id: data.glAssetAccountId },
+          })
+        : category.glAssetAccount;
 
       // Post capitalization to GL
       await glService.postJournal(
@@ -287,7 +293,7 @@ export class AssetsService {
             refId: asset.id,
           },
           {
-            accountCode: "1100", // Cash/Bank - will be updated based on payment method
+            accountCode: glAssetAccount.code || "1100", // Cash/Bank - will be updated based on payment method
             debit: 0,
             credit: data.acquisitionCost,
             refType: "ASSET_CAPITALIZATION",
@@ -350,8 +356,20 @@ export class AssetsService {
       const createdAssets = [];
 
       for (const assetData of data.assets) {
-        const count = await tx.asset.count();
-        const assetNo = `AST${String(count + 1).padStart(6, "0")}`;
+        const lastAsset = await tx.asset.findFirst({
+          orderBy: { createdAt: "desc" },
+        });
+
+        let nextNumber = 1;
+        if (lastAsset) {
+          // Extract the numeric part of the orderNo
+          const lastNumber = parseInt(
+            lastAsset.assetNo.replace(/^AST/, ""),
+            10,
+          );
+          nextNumber = lastNumber + 1;
+        }
+        const assetNo = `AST${String(nextNumber + 1).padStart(6, "0")}`;
 
         const category = await tx.assetCategory.findUnique({
           where: { id: assetData.categoryId },

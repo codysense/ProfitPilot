@@ -813,10 +813,17 @@ LEFT JOIN (
 LEFT JOIN (
     SELECT
         "customerId",
-        SUM("amount") AS total_debit_memos
+
+        SUM(
+          CASE 
+            WHEN "memoType" = 'DEBIT' AND "isReversal" = false THEN "amount"
+            WHEN "memoType" = 'CREDIT' AND "isReversal" = true THEN "amount"
+            ELSE 0
+          END
+        ) AS total_debit_memos
+
     FROM memo
-    WHERE "memoType" = 'DEBIT'
-      AND "date" <= $1
+    WHERE "date" <= $1
     GROUP BY "customerId"
 ) dm ON dm."customerId" = c.id
 
@@ -825,11 +832,16 @@ LEFT JOIN (
 LEFT JOIN (
     SELECT
         "customerId",
-        SUM("amount") AS total_credit_memos
-    FROM memo
-    WHERE "memoType" = 'CREDIT'
-      AND "date" <= $1
-    GROUP BY "customerId"
+         SUM(
+         CASE
+          WHEN m."memoType" = 'CREDIT' AND m."isReversal" = false THEN  m."amount"
+          WHEN m."memoType" = 'DEBIT' AND m."isReversal" = true THEN m."amount"
+          ELSE 0
+        END )
+        AS total_credit_memos
+    FROM memo m
+    WHERE    m."date" <= $1
+    GROUP BY m."customerId"
 ) cm ON cm."customerId" = c.id
 
 ORDER BY c.name;
@@ -886,8 +898,10 @@ FROM (
 /* ---------------- CUSTOMER MEMOS ---------------- */
 SELECT 
   CASE 
-    WHEN m."memoType" = 'CREDIT' THEN -m."amount"
-    WHEN m."memoType" = 'DEBIT' THEN  m."amount"
+    WHEN m."memoType" = 'CREDIT' AND m."isReversal" = false  THEN -m."amount"
+    WHEN m."memoType" = 'DEBIT' AND m."isReversal" = false THEN  m."amount"
+    WHEN m."memoType" = 'CREDIT' AND m."isReversal" = true  THEN m."amount"
+    WHEN m."memoType" = 'DEBIT' AND m."isReversal" = true THEN  -m."amount"
   END AS balance
 FROM memo m
 WHERE m."customerId" = $1
@@ -987,26 +1001,37 @@ WHERE c.id = $1
   UNION ALL
 
 /* ---------------- CUSTOMER MEMOS ---------------- */
+/* ---------------- CUSTOMER MEMOS ---------------- */
 SELECT
   'CUSTOMER' AS type,
   c."code" AS account_code,
   c."name" AS account_name,
   CASE 
-    WHEN m."memoType" = 'CREDIT' THEN 'CREDIT_MEMO'
-    ELSE 'DEBIT_MEMO'
+    WHEN m."memoType" = 'CREDIT' and m."isReversal" = false THEN 'CREDIT_MEMO'
+    WHEN m."memoType" = 'DEBIT' and m."isReversal" = false THEN 'DEBIT_MEMO' 
+    WHEN m."memoType" = 'CREDIT' and m."isReversal" = true THEN 'CREDIT_MEMO_REVERSAL'
+    ELSE 'DEBIT_MEMO_REVERSAL'
   END AS transaction_type,
   m."memoNo" AS reference,
   m."date" AS date,
+
+  /* DEBIT LOGIC */
   CASE 
-    WHEN m."memoType" = 'DEBIT' THEN m."amount"
+    WHEN m."memoType" = 'DEBIT' AND m."isReversal" = false THEN m."amount"
+    WHEN m."memoType" = 'CREDIT' AND m."isReversal" = true THEN m."amount"
     ELSE 0
   END AS debit,
+
+  /* CREDIT LOGIC */
   CASE 
-    WHEN m."memoType" = 'CREDIT' THEN m."amount"
+    WHEN m."memoType" = 'CREDIT' AND m."isReversal" = false THEN m."amount"
+    WHEN m."memoType" = 'DEBIT' AND m."isReversal" = true THEN m."amount"
     ELSE 0
   END AS credit,
+
   m."amount" AS amount,
   COALESCE(m."description", 'Memo') AS description
+
 FROM memo m
 INNER JOIN customers c ON m."customerId" = c.id
 WHERE c.id = $1

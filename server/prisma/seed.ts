@@ -377,7 +377,7 @@ async function main() {
   console.log("✅ Role permissions assigned");
 
   // Create users
-  const hashedPassword = await bcrypt.hash("pass4D3mo", 12);
+  const hashedPassword = await bcrypt.hash("p@tech4dev", 12);
 
   const users = await Promise.all([
     // prisma.user.upsert({
@@ -401,11 +401,11 @@ async function main() {
     //   }
     // }),
     await prisma.user.upsert({
-      where: { email: "gm@company.com" },
+      where: { email: "peace@company.com" },
       update: {},
       create: {
         name: "General Manager",
-        email: "gm@company.com",
+        email: "peace@company.com",
         password: hashedPassword,
         status: "ACTIVE",
       },

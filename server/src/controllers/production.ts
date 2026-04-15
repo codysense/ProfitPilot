@@ -148,13 +148,14 @@ export class ProductionController {
 
           // Issue each material
           for (const material of validatedData.materials) {
+            const warehouseId = (await tx.productionOrder.findUnique({
+              where: { id },
+              select: { warehouseId: true },
+            }))!.warehouseId;
             const result = await costingService.issueInventory(
               tx,
               material.itemId,
-              (await tx.productionOrder.findUnique({
-                where: { id },
-                select: { warehouseId: true },
-              }))!.warehouseId,
+              warehouseId,
               material.qty,
               "PRODUCTION",
               id,
@@ -169,6 +170,13 @@ export class ProductionController {
                 productionOrderId: id,
                 type: "ISSUE",
                 amount: result.value,
+                qty: material.qty,
+                unitCost: result.value / material.qty,
+                itemId: material.itemId,
+                warehouseId: warehouseId,
+                refType: "PRODUCTION",
+                refId: id,
+                createdBy: req.user!.id,
               },
             });
           }
@@ -229,6 +237,16 @@ export class ProductionController {
         async (tx) => {
           const amount = validatedData.hours * validatedData.rate;
 
+          const order = await tx.productionOrder.findUnique({
+            where: { id },
+            select: {
+              itemId: true,
+              warehouseId: true,
+              orderNo: true,
+              qtyTarget: true,
+            },
+          });
+
           // Record labor time
           await tx.laborTime.create({
             data: {
@@ -245,15 +263,22 @@ export class ProductionController {
             data: {
               productionOrderId: id,
               type: "LABOR",
+              qty: validatedData.hours, // Using qtyTarget as a proxy for labor quantity - this can be adjusted based on actual labor tracking needs
+              unitCost: validatedData.rate,
+              itemId: order.itemId,
+              warehouseId: order.warehouseId,
+              refType: "PRODUCTION",
+              refId: id,
+              createdBy: req.user!.id,
               amount,
             },
           });
 
           // Post to general ledger
-          const order = await tx.productionOrder.findUnique({
-            where: { id },
-            select: { orderNo: true },
-          });
+          // const order = await tx.productionOrder.findUnique({
+          //   where: { id },
+          //   select: { orderNo: true },
+          // });
 
           await glService.postJournal(
             tx,
@@ -298,20 +323,27 @@ export class ProductionController {
       await prisma.$transaction(
         async (tx) => {
           // Record in WIP ledger
+          const order = await tx.productionOrder.findUnique({
+            where: { id },
+            select: { orderNo: true, itemId: true, warehouseId: true },
+          });
           await tx.wipLedger.create({
             data: {
               productionOrderId: id,
               type: "OVERHEAD",
+              qty: 1, // Overhead is recorded as a single entry
+              unitCost: validatedData.amount,
+              itemId: order?.itemId || null,
+              warehouseId: order?.warehouseId || null,
+              refType: "PRODUCTION",
+              refId: id,
+              createdBy: req.user!.id,
               amount: validatedData.amount,
               note: validatedData.note,
             },
           });
 
           // Post to general ledger
-          const order = await tx.productionOrder.findUnique({
-            where: { id },
-            select: { orderNo: true },
-          });
 
           await glService.postJournal(
             tx,
@@ -422,6 +454,13 @@ export class ProductionController {
             data: {
               productionOrderId: id,
               type: "RECEIPT",
+              qty: validatedData.qtyGood,
+              unitCost,
+              refType: "PRODUCTION",
+              refId: id,
+              itemId: order.itemId,
+              warehouseId: order.warehouseId,
+              createdBy: req.user!.id,
               amount: -totalWipCost, // Negative to clear WIP
             },
           });
@@ -479,6 +518,269 @@ export class ProductionController {
       res.status(400).json({ error: "Failed to receive finished goods" });
     }
   }
+
+  /*Production reversal strategy begins here */
+  reverseProductionOrder = async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    await prisma.$transaction(async (tx) => {
+      const order = await tx.productionOrder.findUnique({
+        where: { id },
+      });
+
+      if (!order) throw new Error("Order not found");
+
+      if (!["IN_PROGRESS", "FINISHED"].includes(order.status)) {
+        throw new Error("Only orders in progress or finished can be reversed");
+      }
+
+      if (order.status === "FINISHED") {
+        // Reverse in order, first reverse finished goods receipt, then costs, then material issues
+        await this.reverseFinishedGoods(tx, order, req.user!.id);
+        await this.reverseCosts(tx, order, req.user!.id);
+        await this.reverseMaterials(tx, order, req.user!.id);
+        // Reset order
+        await tx.productionOrder.update({
+          where: { id },
+          data: {
+            status: "VOIDED",
+            qtyProduced: 0,
+            startedAt: null,
+            finishedAt: null,
+          },
+        });
+      } else if (order.status === "IN_PROGRESS") {
+        // If order is in progress but not finished, we only reverse materials and costs, no need to reverse finished goods
+        await this.reverseCosts(tx, order, req.user!.id);
+        await this.reverseMaterials(tx, order, req.user!.id);
+
+        // Reset order
+        await tx.productionOrder.update({
+          where: { id },
+          data: {
+            status: "VOIDED",
+            qtyProduced: 0,
+            startedAt: null,
+            finishedAt: null,
+          },
+        });
+      }
+    });
+
+    res.json({ message: "Production reversed successfully" });
+  };
+
+  reverseFinishedGoods = async (tx, order, userId) => {
+    const receipts = await tx.wipLedger.findMany({
+      where: {
+        productionOrderId: order.id,
+        type: "RECEIPT",
+      },
+    });
+
+    //Get the total amount to reverse from the receipts to ensure GL is reversed correctly even if there are multiple receipt entries (e.g. due to multiple finished goods receipts) and remove the negative sign since we want to reverse the original receipt which was recorded as a negative amount in WIP ledger
+
+    const totalAmountToReverse = receipts.reduce(
+      (sum, receipt) => sum + Math.abs(receipt.amount),
+      0,
+    );
+
+    if (!receipts.length) return;
+
+    // Remove inventory (VERY IMPORTANT)
+    await costingService.issueInventory(
+      tx,
+      order.itemId,
+      order.warehouseId,
+      order.qtyProduced,
+      "PRODUCTION_REVERSAL",
+      order.id,
+      userId,
+    );
+
+    // Reverse GL
+    await glService.postJournal(
+      tx,
+      [
+        {
+          accountCode: "1350",
+          debit: 0,
+          credit: totalAmountToReverse,
+          refType: "PRODUCTION_REVERSAL",
+          refId: order.id,
+        },
+        {
+          accountCode: "1400",
+          debit: totalAmountToReverse,
+          credit: 0,
+          refType: "PRODUCTION_REVERSAL",
+          refId: order.id,
+        },
+      ],
+      `Reverse finished goods: ${order.orderNo}`,
+      userId,
+    );
+    // await glService.postJournal(
+    //   tx,
+    //   [
+    //     { accountCode: "1400", debit: receipts[0].amount * -1, credit: 0 },
+    //     { accountCode: "1350", debit: 0, credit: receipts[0].amount * -1 },
+    //   ],
+    //   `Reverse finished goods: ${order.orderNo}`,
+    //   userId,
+    // );
+
+    // reverse receipt entry
+
+    // const original = await tx.wipLedger.findFirst({
+    //   where: {
+    //     productionOrderId: order.id,
+    //     type: "RECEIPT",
+    //   },
+    // });
+
+    await tx.wipLedger.create({
+      data: {
+        productionOrderId: order.id,
+        type: "ISSUE_REVERSAL",
+        amount: -receipts[0].amount,
+        qty: -receipts[0].qty,
+        unitCost: receipts[0].unitCost,
+        itemId: receipts[0].itemId,
+        warehouseId: receipts[0].warehouseId,
+        refType: "PRODUCTION_REVERSAL",
+        refId: order.id,
+        isReversal: true,
+        reversedFromId: receipts[0].id,
+        createdBy: userId,
+      },
+    });
+    // await tx.wipLedger.deleteMany({
+    //   where: { productionOrderId: order.id, type: "RECEIPT" },
+    // });
+
+    await tx.productionOrder.update({
+      where: { id: order.id },
+      data: { qtyProduced: 0, status: "IN_PROGRESS" },
+    });
+  };
+
+  reverseCosts = async (tx, order, userId) => {
+    const costs = await tx.wipLedger.findMany({
+      where: {
+        productionOrderId: order.id,
+        type: { in: ["LABOR", "OVERHEAD"] },
+      },
+    });
+
+    if (!costs.length) return;
+
+    for (const cost of costs) {
+      await glService.postJournal(
+        tx,
+        [
+          { accountCode: "1400", debit: 0, credit: cost.amount },
+          {
+            accountCode: cost.type === "LABOR" ? "2100" : "5200",
+            debit: cost.amount,
+            credit: 0,
+          }, // adjust based on type
+        ],
+        `Reverse cost (${cost.type}): ${order.orderNo}`,
+        userId,
+      );
+      // Reverse WIP ledger entries for labor and overhead
+      await tx.wipLedger.create({
+        data: {
+          productionOrderId: order.id,
+          type:
+            cost.type === "LABOR" ? "LABOR -REVERSAL" : "OVERHEAD -REVERSAL",
+          amount: -cost.amount,
+          qty: -cost.qty,
+          unitCost: cost.unitCost,
+          itemId: cost.itemId,
+          warehouseId: cost.warehouseId,
+          refType: "PRODUCTION_REVERSAL",
+          refId: order.id,
+          isReversal: true,
+          reversedFromId: cost.id,
+          createdBy: userId,
+        },
+      });
+    }
+  };
+
+  reverseMaterials = async (tx, order, userId) => {
+    const issues = await tx.wipLedger.findMany({
+      where: {
+        productionOrderId: order.id,
+        type: "ISSUE",
+      },
+    });
+
+    //calculate total amount from issues to reverse the GL correctly
+    let totalIssueAmount = 0;
+    // for (const issue of issues) {
+    //   totalIssueAmount += Number(issue.amount);
+    // }
+
+    for (const issue of issues) {
+      await costingService.receiveInventory(
+        tx,
+        issue.itemId,
+        issue.warehouseId,
+        issue.qty,
+        issue.unitCost, // unit cost
+        "PRODUCTION_REVERSAL",
+        order.id,
+        userId,
+      );
+
+      totalIssueAmount += Number(issue.amount);
+
+      // Reverse WIP ledger entries for material issues
+      await tx.wipLedger.create({
+        data: {
+          productionOrderId: order.id,
+          type: "ISSUE_REVERSAL",
+          amount: -issue.amount,
+          qty: -issue.qty,
+          unitCost: issue.unitCost,
+          itemId: issue.itemId,
+          warehouseId: issue.warehouseId,
+          refType: "PRODUCTION_REVERSAL",
+          refId: order.id,
+          isReversal: true,
+          reversedFromId: issue.id,
+          createdBy: userId,
+        },
+      });
+    }
+
+    await glService.postJournal(
+      tx,
+      [
+        {
+          accountCode: "1300",
+          debit: totalIssueAmount,
+          credit: 0,
+          refType: "PRODUCTION_REVERSAL",
+          refId: order.id,
+        },
+        {
+          accountCode: "1400",
+          debit: 0,
+          credit: totalIssueAmount,
+          refType: "PRODUCTION_REVERSAL",
+          refId: order.id,
+        },
+      ],
+      `Reverse material issue`,
+      userId,
+    );
+  };
+
+  /*  Production reversal strategy ends here */
 
   async finishProductionOrder(req: AuthRequest, res: Response) {
     try {

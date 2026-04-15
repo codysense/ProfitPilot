@@ -276,6 +276,18 @@ export class MemoController {
       if (saleId && purchaseId) {
         throw new Error("Cannot link both sale and purchase");
       }
+
+      // VALIDATE FINANCIAL MEMO TYPES
+      if (!saleId && !purchaseId) {
+        if (module === "SALES" && memoType !== "CREDIT") {
+          throw new Error("Sales financial memo must be CREDIT");
+        }
+
+        if (module === "PURCHASES" && memoType !== "DEBIT") {
+          throw new Error("Purchase financial memo must be DEBIT");
+        }
+      }
+
       const result = await prisma.$transaction(async (tx) => {
         // const memoCount = await tx.memo.count();
         // const memoNo = `M${String(memoCount + 1).padStart(6, "0")}`;
@@ -283,6 +295,8 @@ export class MemoController {
         const lastTx = await prisma.memo.findFirst({
           orderBy: { createdAt: "desc" },
         });
+
+        let journalId: string | undefined;
 
         let nextNumber = 1;
         if (lastTx) {
@@ -322,7 +336,7 @@ export class MemoController {
           }
 
           // Reverse AR
-          await glService.postJournal(
+          journalId = await glService.postJournal(
             tx,
             [
               {
@@ -404,7 +418,7 @@ export class MemoController {
 
           finalAmount = Number(purchase.totalAmount);
 
-          await glService.postJournal(
+          journalId = await glService.postJournal(
             tx,
             [
               {
@@ -451,8 +465,10 @@ export class MemoController {
         // CASE 3: STANDALONE MEMO
         else {
           category = "FINANCIAL";
-          if (!amount || !accountId)
+
+          if (!amount || !accountId) {
             throw new Error("Amount and account required");
+          }
 
           finalAmount = Number(amount);
 
@@ -462,8 +478,12 @@ export class MemoController {
             where: { id: accountId },
           });
 
-          if (memoType === "CREDIT") {
-            await glService.postJournal(
+          if (!coa) throw new Error("Account not found");
+
+          //  Enforced Logic
+          if (module === "SALES") {
+            // CREDIT MEMO ONLY
+            journalId = await glService.postJournal(
               tx,
               [
                 {
@@ -474,22 +494,23 @@ export class MemoController {
                   refId: req.body.refId ?? undefined,
                 },
                 {
-                  accountCode: controlAccount,
+                  accountCode: controlAccount, // AR
                   debit: 0,
                   credit: finalAmount,
                   refType: "CREDIT MEMO",
                   refId: req.body.refId ?? undefined,
                 },
               ],
-              `Credit Memo: ${description ?? memoNo}`,
+              `Sales Credit Memo: ${description ?? memoNo}`,
               req.user!.id,
             );
-          } else {
-            await glService.postJournal(
+          } else if (module === "PURCHASES") {
+            // DEBIT MEMO ONLY
+            journalId = await glService.postJournal(
               tx,
               [
                 {
-                  accountCode: controlAccount,
+                  accountCode: controlAccount, // AP
                   debit: finalAmount,
                   credit: 0,
                   refType: "DEBIT MEMO",
@@ -503,7 +524,7 @@ export class MemoController {
                   refId: req.body.refId ?? undefined,
                 },
               ],
-              `Debit Memo: ${description ?? memoNo}`,
+              `Purchase Debit Memo: ${description ?? memoNo}`,
               req.user!.id,
             );
           }
@@ -525,6 +546,7 @@ export class MemoController {
             customerId,
             vendorId,
             accountId,
+            journalId,
             createdBy: req.user!.id,
           },
         });
@@ -538,156 +560,171 @@ export class MemoController {
     }
   }
 
-  // async createMemo(req: AuthRequest, res: Response) {
-  //   try {
-  //     const {
-  //       date,
-  //       module,
-  //       memoType,
-  //       amount,
-  //       description,
-  //       accountId,
-  //       customerId,
-  //       vendorId,
-  //     } = req.body;
+  async reverseMemo(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
 
-  //     const result = await prisma.$transaction(async (tx) => {
-  //       const memoCount = await tx.memo.count();
-  //       const memoNo = `M${String(memoCount + 1).padStart(6, "0")}`;
+      const result = await prisma.$transaction(async (tx) => {
+        //  1. Get original memo
+        const original = await tx.memo.findUnique({
+          where: { id },
+          include: {
+            journal: {
+              include: {
+                journalLines: {
+                  include: { account: true },
+                },
+              },
+            },
+          },
+        });
 
-  //       // Determine control account
-  //       const controlAccount = await tx.chartOfAccount.findFirst({
-  //         where: {
-  //           code: module === "SALES" ? "1200" : "2000",
-  //         },
-  //       });
+        if (
+          original.category !== "FINANCIAL" ||
+          original.saleId ||
+          original.purchaseId
+        ) {
+          throw new Error(
+            "Only standalone financial memos can be reversed. Sales and purchase return memos must be corrected with new transactions.",
+          );
+        }
 
-  //       if (!controlAccount) {
-  //         throw new Error("AR/AP control account not found");
-  //       }
+        if (!original) throw new Error("Memo not found");
 
-  //       let debitAccountId: string;
-  //       let creditAccountId: string;
+        if (original.isReversal) {
+          throw new Error("Cannot reverse a reversal memo");
+        }
 
-  //       if (memoType === "CREDIT") {
-  //         // Credit Memo reduces AR/AP
-  //         debitAccountId = accountId;
-  //         creditAccountId = controlAccount.id;
-  //       } else {
-  //         // Debit Memo increases AR/AP
-  //         debitAccountId = controlAccount.id;
-  //         creditAccountId = accountId;
-  //       }
+        if (original.status === "REVERSED") {
+          throw new Error("Memo already reversed");
+        }
 
-  //       const journal = await tx.journal.create({
-  //         data: {
-  //           journalNo: `J${Date.now()}`,
-  //           date: new Date(date),
-  //           memo: description ?? memoNo,
-  //           postedBy: req.user!.id,
-  //           journalLines: {
-  //             create: [
-  //               {
-  //                 accountId: debitAccountId,
-  //                 debit: new Decimal(amount),
-  //                 credit: new Decimal(0),
-  //                 refType: "MEMO",
-  //               },
-  //               {
-  //                 accountId: creditAccountId,
-  //                 debit: new Decimal(0),
-  //                 credit: new Decimal(amount),
-  //                 refType: "MEMO",
-  //               },
-  //             ],
-  //           },
-  //         },
-  //       });
+        if (!original.journal) {
+          throw new Error(
+            "No journal found for this memo - perhaps it was posted before journal linking was implemented?",
+          );
+        }
 
-  //       const memo = await tx.memo.create({
-  //         data: {
-  //           date: new Date(date),
-  //           module,
-  //           memoType,
-  //           amount: new Decimal(amount),
-  //           //remaining: new Decimal(amount),
-  //           description,
-  //           accountId,
-  //           // journalId: journal.id,
-  //           createdBy: req.user!.id,
-  //           ...(customerId ? { customerId } : {}),
-  //           ...(vendorId ? { vendorId } : {}),
-  //         },
-  //       });
+        //  2. Generate new memo number
+        const lastTx = await tx.memo.findFirst({
+          orderBy: { createdAt: "desc" },
+        });
 
-  //       return memo;
-  //     });
+        let nextNumber = 1;
+        if (lastTx) {
+          const lastNumber = parseInt(lastTx.memoNo.replace(/^M/, ""), 10);
+          nextNumber = lastNumber + 1;
+        }
 
-  //     res.status(201).json(result);
-  //   } catch (error: any) {
-  //     console.error(error);
-  //     res.status(400).json({ error: error.message });
-  //   }
-  // }
+        const memoNo = `M${String(nextNumber).padStart(6, "0")}`;
 
-  // Link memo to SalesReceipt or PurchasePayment using Memo Clearing Account
-  // First, find the GL account with code "9999"
-  // const memoClearingGlAccount = await tx.chartOfAccount.findFirst({
-  //   where: { code: "9999" },
-  //   select: { id: true },
-  // });
-  // if (!memoClearingGlAccount) {
-  //   throw new Error("Memo Clearing GL account (9999) not found.");
-  // }
+        // 3. Reverse GL Journal
+        const reversedJournalId = await glService.postJournal(
+          tx,
+          original.journal.journalLines.map((line) => ({
+            accountCode: line.account.code,
+            debit: Number(line.credit),
+            credit: Number(line.debit),
+            //  KEEP ORIGINAL REFERENCES
+            refType: `${line.refType} REVERSAL`,
+            refId: line.refId,
+          })),
+          `Reversal of ${original.memoNo}`,
+          req.user!.id,
+        );
 
-  // const memoClearingCashAccount = await tx.cashAccount.findFirst({
-  //   where: { glAccountId: memoClearingGlAccount.id }, // link by GL account id
-  //   select: { id: true },
-  // });
+        //  4. Reverse Inventory (based on category)
+        // if (original.category === "SALES_RETURN" && original.saleId) {
+        //   const sale = await tx.sale.findUnique({
+        //     where: { id: original.saleId },
+        //     include: { saleLines: true },
+        //   });
 
-  // if (!memoClearingCashAccount) {
-  //   throw new Error("Memo Clearing cash account (9999) not found.");
-  // }
+        //   if (sale) {
+        //     for (const line of sale.saleLines) {
+        //       await costingService.issueInventory(
+        //         tx,
+        //         line.itemId,
+        //         sale.warehouseId,
+        //         Number(line.qty),
+        //         "SALES RETURN",
+        //         sale.id,
+        //         req.user!.id,
+        //       );
+        //     }
+        //   }
+        // }
 
-  // if (module === "SALES" && customerId) {
-  //   // Record as SalesReceipt (non-cash)
-  //   await tx.salesReceipt.create({
-  //     data: {
-  //       receiptNo: `MEMO-${String(Date.now())}`,
-  //       saleId: null,
-  //       customerId,
-  //       cashAccountId: memoClearingCashAccount.id,
-  //       amountReceived: new Decimal(amount),
-  //       receiptDate: new Date(date),
-  //       reference: `MEMO-${journal.journalNo}`,
-  //       notes:
-  //         memoType === "CREDIT"
-  //           ? "Customer Credit Memo"
-  //           : "Customer Debit Memo",
-  //       userId: req.user!.id,
-  //     },
-  //   });
-  // }
+        // if (original.category === "PURCHASE_RETURN" && original.purchaseId) {
+        //   const purchase = await tx.purchase.findUnique({
+        //     where: { id: original.purchaseId },
+        //     include: { purchaseLines: true },
+        //   });
 
-  // if (module === "PURCHASES" && vendorId) {
-  //   // Record as PurchasePayment (non-cash)
-  //   await tx.purchasePayment.create({
-  //     data: {
-  //       paymentNo: `MEMO-${String(Date.now())}`,
-  //       purchaseId: null,
-  //       vendorId,
-  //       cashAccountId: memoClearingCashAccount.id,
-  //       amountPaid: new Decimal(amount),
-  //       paymentDate: new Date(date),
-  //       reference: `MEMO-${journal.journalNo}`,
-  //       notes:
-  //         memoType === "CREDIT"
-  //           ? "Vendor Credit Memo"
-  //           : "Vendor Debit Memo",
-  //       userId: req.user!.id,
-  //     },
-  //   });
-  // }
+        //   if (purchase) {
+        //     for (const line of purchase.purchaseLines) {
+        //       await costingService.receiveInventory(
+        //         tx,
+        //         line.itemId,
+        //         purchase.warehouseId,
+        //         Number(line.qty),
+        //         Number(line.unitCost ?? 0),
+        //         "PURCHASE RETURN",
+        //         purchase.id,
+        //         req.user!.id,
+        //       );
+        //     }
+        //   }
+        // }
+
+        //  5. Create reversal memo
+        const reversalMemo = await tx.memo.create({
+          data: {
+            memoNo,
+            date: new Date(),
+
+            module: original.module,
+            memoType: original.memoType,
+            category: original.category,
+
+            amount: original.amount,
+            remaining: 0,
+            status: "REVERSED",
+
+            description: `Reversal of ${original.memoNo}`,
+
+            // saleId: original.saleId,
+            // purchaseId: original.purchaseId,
+            customerId: original.customerId,
+            vendorId: original.vendorId,
+            accountId: original.accountId,
+
+            isReversal: true,
+            reversedFromId: original.id,
+
+            journalId: reversedJournalId,
+
+            createdBy: req.user!.id,
+          },
+        });
+
+        //  6. Update original memo
+        await tx.memo.update({
+          where: { id: original.id },
+          data: {
+            status: "REVERSED",
+          },
+        });
+
+        return reversalMemo;
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Reverse memo error:", error);
+      res.status(400).json({ error: error.message });
+    }
+  }
 }
 
 function startOfDayUTC(date: Date) {

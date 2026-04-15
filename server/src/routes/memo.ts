@@ -15,6 +15,15 @@ router.post(
   (req, res) => memoController.createMemo(req, res),
 );
 
+// New route for reversing a memo
+router.post(
+  "/:id/reverse",
+  authenticate,
+  requireRole(["General Manager"]), // Only allow reversal by  General Manager
+  auditLogger("REVERSE", "MEMO"),
+  (req, res) => memoController.reverseMemo(req, res),
+);
+
 router.get(
   "/",
   authenticate,

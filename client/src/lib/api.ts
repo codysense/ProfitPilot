@@ -345,6 +345,8 @@ export const productionApi = {
     api.get(`/production/orders/${id}/print`),
   releaseProductionOrder: (id: string) =>
     api.post(`/production/orders/${id}/release`),
+  reverseProductionOrder: (id: string) =>
+    api.post(`/production/orders/${id}/reverse`),
   issueMaterials: (id: string, data: any) =>
     api.post(`/production/orders/${id}/issue-materials`, data),
   addLabor: (id: string, data: any) =>
@@ -975,6 +977,8 @@ export const memoApi = {
     module: string;
     date: Date;
   }) => api.post("/memos", data),
+
+  reverseMemo: (id: string) => api.post(`/memos/${id}/reverse`),
 
   updateMemo: (id: string, data: any) => api.put(`/memos/${id}`, data),
 

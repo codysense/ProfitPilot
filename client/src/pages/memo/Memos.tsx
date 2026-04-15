@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useMemos } from "../../hooks/useMemo";
 import { MemoModal } from "./CreateMemoModal";
 import { DataTable } from "../../components/DataTable";
-import { Eye, Plus } from "lucide-react";
+import { Eye, Plus, RotateCcw } from "lucide-react";
 import StatusBadge from "../../components/StatusBadge";
 import MemoDetailsModal from "./MemoDetailsModal";
 import { useQuery } from "@tanstack/react-query";
@@ -22,7 +22,7 @@ export const Memos = () => {
     date: dateFilter,
   };
 
-  //fetch memos with react-query, passing filters as query params to the API
+  //fetch memos with react-query, passing filters as query params to the API,
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["memos", query],
@@ -30,12 +30,26 @@ export const Memos = () => {
   });
 
   // console.log("Fetched memos data:", data);
+  //remove memos with  status === returned
 
   const memos = data?.data || [];
+
+  const filteredMemo = memos.filter((m: any) => m.status !== "REVERSED");
+
   const pagination = data?.pagination;
 
+  //handle reversal action - this is just a placeholder, you would implement the actual reversal logic in the API
+  const handleReverse = (memoId: string) => {
+    if (!window.confirm("Are you sure you want to reverse this memo?")) return;
+
+    memoApi.reverseMemo(memoId).then(() => {
+      refetch();
+    });
+    //console.log("Reversing memo with ID:", memoId);
+  };
+
   // Filter customer/vendor locally like your old logic
-  const filteredMemos = memos.filter((memo: any) => {
+  const filteredMemos = filteredMemo.filter((memo: any) => {
     if (partyTypeFilter === "CUSTOMER") return memo.customer !== null;
     if (partyTypeFilter === "VENDOR") return memo.vendor !== null;
     return true;
@@ -108,13 +122,24 @@ export const Memos = () => {
   ];
 
   const actions = (memo: any) => (
-    <button
-      onClick={() => setSelectedMemo(memo)}
-      className="text-blue-600 hover:text-blue-900"
-      title="View Memo"
-    >
-      <Eye className="h-4 w-4" />
-    </button>
+    <>
+      <button
+        onClick={() => setSelectedMemo(memo)}
+        className="text-blue-600 hover:text-blue-900"
+        title="View Memo"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+      {memo.category === "FINANCIAL" && (
+        <button
+          className="text-red-600 hover:text-red-900 mx-2"
+          title="Reverse Memo"
+          onClick={() => handleReverse(memo.id)}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+      )}
+    </>
   );
 
   return (

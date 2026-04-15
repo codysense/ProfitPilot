@@ -228,6 +228,7 @@ model Item {
   productionOrders      ProductionOrder[]
   purchaseLines         PurchaseLine[]
   saleLines             SaleLine[]
+  wipLedgers            WipLedger[]
 
   @@map("items")
 }
@@ -369,15 +370,49 @@ model ProductionOrder {
   @@map("production_orders")
 }
 
+// model WipLedger {
+//   id                String          @id @default(cuid())
+//   productionOrderId String
+//   type              WipLedgerType
+//   amount            Decimal         @db.Decimal(15, 4)
+//   note              String?
+//   postedAt          DateTime        @default(now())
+//   productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
+
+//   @@map("wip_ledger")
+// }
+
 model WipLedger {
   id                String          @id @default(cuid())
   productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  //  Type of entry
   type              WipLedgerType
+  //  Core values
   amount            Decimal         @db.Decimal(15, 4)
+  qty               Decimal?        @db.Decimal(15, 4)
+  unitCost          Decimal?        @db.Decimal(15, 4)
+  //  Item tracking (important for material + FG)
+  itemId            String?
+  item              Item?           @relation(fields: [itemId], references: [id])
+  //  Warehouse tracking (important for inventory reversal)
+  warehouseId       String?
+  //  Reference tracking (CRITICAL for reversals)
+  refType           String? // e.g. PRODUCTION, REVERSAL
+  refId             String? // productionOrderId or journalId
+  //  Reversal tracking (VERY IMPORTANT)
+  isReversal        Boolean         @default(false)
+  reversedFromId    String?
+  reversedFrom      WipLedger?      @relation("WipLedgerReversal", fields: [reversedFromId], references: [id])
+  reversals         WipLedger[]     @relation("WipLedgerReversal")
+  //  Extra info
   note              String?
   postedAt          DateTime        @default(now())
-  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  createdBy         String? // userId (optional but recommended)
 
+  @@index([productionOrderId])
+  @@index([itemId])
+  @@index([refType, refId])
   @@map("wip_ledger")
 }
 
@@ -1314,6 +1349,7 @@ enum MemoStatus {
   OPEN
   CLOSED
   CANCELLED
+  REVERSED
 }
 
 enum memoCategory {
@@ -1328,40 +1364,56 @@ model Memo {
   date   DateTime
 
   module   MemoModule // SALES | PURCHASES
-  memoType MemoType // CREDIT | DEBIT
+  memoType MemoType   // CREDIT | DEBIT
   category memoCategory @default(FINANCIAL)
 
   amount    Decimal
   remaining Decimal
-  status    MemoStatus @default(OPEN)
+  status    MemoStatus @default(OPEN) // OPEN | APPLIED | REVERSED
 
   description String?
 
-  //  Optional source documents
+  //  Source documents
   saleId     String?
   purchaseId String?
 
   sale     Sale?     @relation(fields: [saleId], references: [id])
   purchase Purchase? @relation(fields: [purchaseId], references: [id])
 
-  //  Optional direct party (for standalone memo)
+  //  Parties (standalone memo)
   customerId String?
   vendorId   String?
 
   customer Customer? @relation(fields: [customerId], references: [id])
   vendor   Vendor?   @relation(fields: [vendorId], references: [id])
 
-  // Used only for standalone memo
+  //  Account (standalone memo)
   accountId String?
   account   ChartOfAccount? @relation(fields: [accountId], references: [id])
 
+  //  Journal linkage
   journalId String?
   journal   Journal? @relation(fields: [journalId], references: [id])
 
-  createdBy String
+  //  REVERSAL FIELDS (NEW)
+  isReversal     Boolean   @default(false)
+  reversedFromId String?
+  reversedFrom   Memo?     @relation("MemoReversal", fields: [reversedFromId], references: [id])
+  reversals      Memo[]    @relation("MemoReversal")
 
+  //  Optional audit enhancement
+  reversalReason String?
+
+  createdBy String
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [createdBy], references: [id])
+
+  user User @relation(fields: [createdBy], references: [id])
+
+  @@index([saleId])
+  @@index([purchaseId])
+  @@index([customerId])
+  @@index([vendorId])
+  @@index([reversedFromId]) // 🔥 important for reversal lookup
 
   @@map("memo")
 }
@@ -1421,13 +1473,17 @@ enum ProductionOrderStatus {
   IN_PROGRESS
   FINISHED
   CLOSED
+  VOIDED
 }
 
 enum WipLedgerType {
   ISSUE
+  ISSUE_REVERSAL
   LABOR
   OVERHEAD
   RECEIPT
+  RECEIPT_REVERSAL
+  ADJUSTMENT
 }
 
 enum PurchaseStatus {

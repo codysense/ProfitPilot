@@ -13,26 +13,38 @@ import { VendorSelect } from "../../components/VendorSelect";
 import { CustomerSelect } from "../../components/CustomerSelect";
 import { ChartAccountSelect } from "../../components/ChartAccountSelect";
 
-const memoSchema = z.object({
-  date: z.date().optional(),
+const memoSchema = z
+  .object({
+    date: z.date().optional(),
 
-  module: z.enum(["SALES", "PURCHASES"]),
-  memoType: z.enum(["CREDIT", "DEBIT"]),
+    module: z.enum(["SALES", "PURCHASES"]),
+    memoType: z.enum(["CREDIT", "DEBIT"]),
 
-  // Linked
-  saleId: z.string().optional(),
-  purchaseId: z.string().optional(),
-  warehouseId: z.string().optional(),
+    // Linked
+    saleId: z.string().optional(),
+    purchaseId: z.string().optional(),
+    warehouseId: z.string().optional(),
 
-  // Standalone
-  accountId: z.string().optional(),
-  amount: z.number().optional(),
+    // Standalone
+    accountId: z.string().optional(),
+    amount: z.number().optional(),
 
-  customerId: z.string().optional(),
-  vendorId: z.string().optional(),
+    customerId: z.string().optional(),
+    vendorId: z.string().optional(),
 
-  description: z.string().min(3).optional(),
-});
+    description: z.string().min(3).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.module === "SALES" && data.memoType !== "CREDIT") return false;
+      if (data.module === "PURCHASES" && data.memoType !== "DEBIT")
+        return false;
+      return true;
+    },
+    {
+      message: "Invalid memo type for selected module",
+    },
+  );
 
 type FormValues = z.infer<typeof memoSchema>;
 
@@ -123,11 +135,13 @@ export const MemoModal = ({
     if (selectedModule === "SALES") {
       setValue("vendorId", undefined);
       setValue("purchaseId", undefined);
+      setValue("memoType", "CREDIT");
     }
 
     if (selectedModule === "PURCHASES") {
       setValue("customerId", undefined);
       setValue("saleId", undefined);
+      setValue("memoType", "DEBIT");
       // setValue("accountId", undefined);
       // setValue("amount", 0);
     }
