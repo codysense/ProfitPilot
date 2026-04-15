@@ -146,6 +146,7 @@ export interface PurchaseLine {
     name: string;
     uom: string;
   };
+  assetName?: string; // For asset purchases
 }
 
 export interface Purchase {

@@ -445,18 +445,19 @@ const PurchaseOrders = () => {
     return (
       <div className="flex space-x-2">
         {/* View – only for inventory POs */}
-        {isInventoryPO && (
-          <button
-            onClick={() => {
-              setSelectedPurchase(purchase);
-              setShowDetailsModal(true);
-            }}
-            className="text-blue-600 hover:text-blue-900"
-            title="View Details"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-        )}
+        {isInventoryPO ||
+          (isAssetPO && (
+            <button
+              onClick={() => {
+                setSelectedPurchase(purchase);
+                setShowDetailsModal(true);
+              }}
+              className="text-blue-600 hover:text-blue-900"
+              title="View Details"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+          ))}
 
         {/* =================  DELETE FOR ASSET PO & INVENTORY ================= */}
         {canPerformActions &&

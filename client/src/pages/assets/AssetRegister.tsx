@@ -35,7 +35,8 @@ const AssetRegister = () => {
   const { user } = useAuthStore();
 
   const canManageAssets =
-    user?.roles.includes("CFO") || user?.roles.includes("General Manager");
+    user?.roles.includes("Senior Accountant") ||
+    user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: [
@@ -404,7 +405,7 @@ const AssetRegister = () => {
         data={data?.assets || []}
         columns={columns}
         loading={isLoading}
-        // pagination={data?.pagination}
+        pagination={data?.pagination}
         onPageChange={setPage}
         actions={actions}
       />

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Factory, DollarSign, Package, TrendingUp } from 'lucide-react';
-import { productionApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Factory, DollarSign, Package, TrendingUp } from "lucide-react";
+import { productionApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import { GenericSearchSelect } from "../../components/GenericSearchCombo";
 
 interface WipSummaryItem {
   orderNo: string;
@@ -18,85 +19,123 @@ interface WipSummaryItem {
 }
 
 const WipSummary = () => {
-  const [productionOrderFilter, setProductionOrderFilter] = useState('');
+  const [productionOrderFilter, setProductionOrderFilter] = useState("");
 
   const { data: wipData, isLoading } = useQuery({
-    queryKey: ['wip-summary', { productionOrderId: productionOrderFilter }],
-    queryFn: () => productionApi.getWipSummary(
-      productionOrderFilter ? { productionOrderId: productionOrderFilter } : undefined
-    )
+    queryKey: ["wip-summary", { productionOrderId: productionOrderFilter }],
+    queryFn: () =>
+      productionApi.getWipSummary(
+        productionOrderFilter
+          ? { productionOrderId: productionOrderFilter }
+          : undefined,
+      ),
   });
 
   const { data: productionOrders } = useQuery({
-    queryKey: ['production-orders-for-wip'],
-    queryFn: () => productionApi.getProductionOrders({ limit: 100 })
+    queryKey: ["production-orders-for-wip"],
+    queryFn: () => productionApi.getProductionOrders({ limit: 100 }),
   });
+
+  const mappedOrders = [
+    {
+      id: "",
+      orderNo: "All",
+      itemName: "Production Orders",
+    },
+    ...(productionOrders?.orders?.map((order: any) => ({
+      id: order.id,
+      orderNo: order.orderNo,
+      itemName: order.item?.name || "",
+    })) || []),
+  ];
 
   const columns = [
     {
-      key: 'orderNo',
-      header: 'Production Order',
-      width: 'w-32'
+      key: "orderNo",
+      header: "Production Order",
+      width: "w-32",
     },
     {
-      key: 'item.sku',
-      header: 'Item SKU',
-      width: 'w-32'
+      key: "item.sku",
+      header: "Item SKU",
+      width: "w-32",
     },
     {
-      key: 'item.name',
-      header: 'Item Name',
-      width: 'w-48'
+      key: "item.name",
+      header: "Item Name",
+      width: "w-48",
     },
     {
-      key: 'issues',
-      header: 'Material Issues',
+      key: "issues",
+      header: "Material Issues",
       cell: (item: WipSummaryItem) => `₦${item.issues.toLocaleString()}`,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'labor',
-      header: 'Labor Cost',
+      key: "labor",
+      header: "Labor Cost",
       cell: (item: WipSummaryItem) => `₦${item.labor.toLocaleString()}`,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'overhead',
-      header: 'Overhead',
+      key: "overhead",
+      header: "Overhead",
       cell: (item: WipSummaryItem) => `₦${item.overhead.toLocaleString()}`,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'receipts',
-      header: 'FG Receipts',
+      key: "receipts",
+      header: "FG Receipts",
       cell: (item: WipSummaryItem) => `₦${item.receipts.toLocaleString()}`,
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'balance',
-      header: 'WIP Balance',
+      key: "balance",
+      header: "WIP Balance",
       cell: (item: WipSummaryItem) => (
-        <span className={`font-semibold ${item.balance > 0 ? 'text-blue-600' : 'text-gray-500'}`}>
+        <span
+          className={`font-semibold ${item.balance > 0 ? "text-blue-600" : "text-gray-500"}`}
+        >
           ₦{item.balance.toLocaleString()}
         </span>
       ),
-      width: 'w-32'
-    }
+      width: "w-32",
+    },
   ];
 
   // Calculate summary statistics
-  const totalIssues = wipData?.reduce((sum: number, item: WipSummaryItem) => sum + item.issues, 0) || 0;
-  const totalLabor = wipData?.reduce((sum: number, item: WipSummaryItem) => sum + item.labor, 0) || 0;
-  const totalOverhead = wipData?.reduce((sum: number, item: WipSummaryItem) => sum + item.overhead, 0) || 0;
-  const totalWipBalance = wipData?.reduce((sum: number, item: WipSummaryItem) => sum + item.balance, 0) || 0;
+  const totalIssues =
+    wipData?.reduce(
+      (sum: number, item: WipSummaryItem) => sum + item.issues,
+      0,
+    ) || 0;
+  const totalLabor =
+    wipData?.reduce(
+      (sum: number, item: WipSummaryItem) => sum + item.labor,
+      0,
+    ) || 0;
+  const totalOverhead =
+    wipData?.reduce(
+      (sum: number, item: WipSummaryItem) => sum + item.overhead,
+      0,
+    ) || 0;
+  const totalWipBalance =
+    wipData?.reduce(
+      (sum: number, item: WipSummaryItem) => sum + item.balance,
+      0,
+    ) || 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Work in Progress Summary</h1>
-          <p className="text-gray-600">Track manufacturing costs and WIP balances</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Work in Progress Summary
+          </h1>
+          <p className="text-gray-600">
+            Track manufacturing costs and WIP balances
+          </p>
         </div>
       </div>
 
@@ -107,7 +146,19 @@ const WipSummary = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Filter by Production Order
             </label>
-            <select
+            <GenericSearchSelect
+              data={mappedOrders}
+              value={productionOrderFilter}
+              onChange={setProductionOrderFilter}
+              valueKey="id"
+              searchKeys={["orderNo", "itemName"]}
+              placeholder="Search production orders..."
+              displayValue={(item) =>
+                item ? `${item.orderNo} - ${item.itemName}` : ""
+              }
+              renderOption={(item) => `${item.orderNo} - ${item.itemName}`}
+            />
+            {/* <select
               value={productionOrderFilter}
               onChange={(e) => setProductionOrderFilter(e.target.value)}
               className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -118,7 +169,7 @@ const WipSummary = () => {
                   {order.orderNo} - {order.item.name}
                 </option>
               ))}
-            </select>
+            </select> */}
           </div>
         </div>
       </div>
@@ -207,11 +258,7 @@ const WipSummary = () => {
       </div>
 
       {/* Data Table */}
-      <DataTable
-        data={wipData || []}
-        columns={columns}
-        loading={isLoading}
-      />
+      <DataTable data={wipData || []} columns={columns} loading={isLoading} />
     </div>
   );
 };
