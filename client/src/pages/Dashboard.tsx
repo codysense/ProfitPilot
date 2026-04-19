@@ -89,7 +89,7 @@ const Dashboard = () => {
   //   });
   // }
 
-  console.log("Filtered POS Sales for this month:", posSales);
+  // console.log("Filtered POS Sales for this month:", posSales);
 
   //if user is not accountant or gm, filter pos sales to only those created by the user
   if (posSales && !canviewall) {

@@ -852,71 +852,139 @@ export class InventoryController {
     }
   }
 
+  // async getInventoryValuation(req: AuthRequest, res: Response) {
+  //   try {
+  //     const { warehouseId, limit = 10, type } = req.query;
+
+  //     const items = await prisma.item.findMany({
+  //       where: {
+  //         isActive: true,
+  //         ...(type && { type: type as ItemType }),
+  //       },
+  //       select: {
+  //         id: true,
+  //         sku: true,
+  //         name: true,
+  //         type: true,
+  //         costingMethod: true,
+  //         minimumStockLevel: true,
+  //       },
+  //     });
+
+  //     const valuation: any[] = [];
+  //     let totalValue = 0;
+
+  //     // Warehouses resolved ONCE (important)
+  //     const warehouses = await prisma.warehouse.findMany({
+  //       where: warehouseId ? { id: String(warehouseId) } : { isActive: true },
+  //       select: { id: true },
+  //     });
+
+  //     for (const item of items) {
+  //       for (const warehouse of warehouses) {
+  //         const latestEntry = await prisma.inventoryLedger.findFirst({
+  //           where: {
+  //             itemId: item.id,
+  //             warehouseId: warehouse.id,
+  //           },
+  //           orderBy: { postedAt: "desc" },
+  //         });
+
+  //         if (latestEntry && Number(latestEntry.runningQty) > 0) {
+  //           const itemValuation = {
+  //             itemId: item.id,
+  //             sku: item.sku,
+  //             name: item.name,
+  //             type: item.type,
+  //             costingMethod: item.costingMethod,
+  //             qty: Number(latestEntry.runningQty),
+  //             minimumStockLevel: item.minimumStockLevel || 0, // Placeholder, can be updated to actual minimum stock level
+  //             unitCost: Number(latestEntry.runningAvgCost),
+  //             totalValue: Number(latestEntry.runningValue),
+  //           };
+
+  //           valuation.push(itemValuation);
+  //           totalValue += itemValuation.totalValue;
+  //         }
+  //       }
+  //     }
+
+  //     res.json({
+  //       valuation,
+  //       totalValue,
+  //       asOfDate: new Date().toISOString(),
+  //     });
+  //   } catch (error) {
+  //     console.error("Get inventory valuation error:", error);
+  //     res.status(500).json({ error: "Failed to fetch inventory valuation" });
+  //   }
+  // }
+
   async getInventoryValuation(req: AuthRequest, res: Response) {
     try {
-      const { warehouseId, limit = 10, type } = req.query;
+      const { warehouseId, type } = req.query;
 
-      const items = await prisma.item.findMany({
-        where: {
-          isActive: true,
-          ...(type && { type: type as ItemType }),
-        },
-        select: {
-          id: true,
-          sku: true,
-          name: true,
-          type: true,
-          costingMethod: true,
-          minimumStockLevel: true,
-        },
-      });
+      const result = await prisma.$queryRaw`
+      SELECT 
+        i.id AS "itemId",
+        i.sku,
+        i.name,
+        i.type,
+        i."costingMethod",
+        i."minimumStockLevel",
+        il."warehouseId",
+        il."runningQty",
+        il."runningAvgCost",
+        il."runningValue"
+      FROM (
+        SELECT DISTINCT ON ("itemId", "warehouseId")
+          "itemId",
+          "warehouseId",
+          "runningQty",
+          "runningAvgCost",
+          "runningValue"
+        FROM "inventory_ledger"
+        ORDER BY "itemId", "warehouseId", "postedAt" DESC
+      ) il
+      JOIN "items" i ON i.id = il."itemId"
+      WHERE 
+        i."isActive" = true
+        ${warehouseId ? Prisma.sql`AND il."warehouseId" = ${warehouseId}` : Prisma.sql``}
+        ${type ? Prisma.sql`AND i."type" = ${type}` : Prisma.sql``}
+        AND il."runningQty" > 0;
+    `;
 
-      const valuation: any[] = [];
       let totalValue = 0;
 
-      // Warehouses resolved ONCE (important)
-      const warehouses = await prisma.warehouse.findMany({
-        where: warehouseId ? { id: String(warehouseId) } : { isActive: true },
-        select: { id: true },
+      const valuation = (result as any[]).map((row) => {
+        const totalVal = Number(row.runningValue) || 0;
+        totalValue += totalVal;
+
+        return {
+          itemId: row.itemId,
+          sku: row.sku,
+          name: row.name,
+          type: row.type,
+          costingMethod: row.costingMethod,
+          warehouseId: row.warehouseId,
+          qty: Number(row.runningQty) || 0,
+          minimumStockLevel: row.minimumStockLevel || 0,
+          unitCost: Number(row.runningAvgCost) || 0,
+          totalValue: totalVal,
+        };
       });
 
-      for (const item of items) {
-        for (const warehouse of warehouses) {
-          const latestEntry = await prisma.inventoryLedger.findFirst({
-            where: {
-              itemId: item.id,
-              warehouseId: warehouse.id,
-            },
-            orderBy: { postedAt: "desc" },
-          });
-
-          if (latestEntry && Number(latestEntry.runningQty) > 0) {
-            const itemValuation = {
-              itemId: item.id,
-              sku: item.sku,
-              name: item.name,
-              type: item.type,
-              costingMethod: item.costingMethod,
-              qty: Number(latestEntry.runningQty),
-              minimumStockLevel: item.minimumStockLevel || 0, // Placeholder, can be updated to actual minimum stock level
-              unitCost: Number(latestEntry.runningAvgCost),
-              totalValue: Number(latestEntry.runningValue),
-            };
-
-            valuation.push(itemValuation);
-            totalValue += itemValuation.totalValue;
-          }
-        }
-      }
-
-      res.json({
+      return res.json({
         valuation,
         totalValue,
         asOfDate: new Date().toISOString(),
       });
     } catch (error) {
       console.error("Get inventory valuation error:", error);
-      res.status(500).json({ error: "Failed to fetch inventory valuation" });
+
+      return res.status(500).json({
+        error: "Failed to fetch inventory valuation",
+      });
     }
   }
 
@@ -1682,11 +1750,10 @@ export class InventoryController {
     try {
       const { id } = req.params;
 
-      // Warehouse filter logic (same as getItems)
       let warehouseFilter: string | null = null;
 
       if (
-        !req.user!.roles.includes("CFO") &&
+        !req.user!.roles.includes("Senior Accountant") &&
         !req.user!.roles.includes("General Manager")
       ) {
         const user = await prisma.user.findUnique({
@@ -1716,37 +1783,20 @@ export class InventoryController {
         return res.status(404).json({ error: "Item not found" });
       }
 
-      /* =========================
-       STOCK CALCULATION
-    ========================== */
+      const stockResult = await prisma.$queryRaw`
+      SELECT COALESCE(SUM(sub."runningQty"), 0) as "stockQty"
+      FROM (
+        SELECT DISTINCT ON ("warehouseId")
+          "warehouseId",
+          "runningQty"
+        FROM "inventory_ledger"
+        WHERE "itemId" = ${item.id}
+        ${warehouseFilter ? Prisma.sql`AND "warehouseId" = ${warehouseFilter}` : Prisma.empty}
+        ORDER BY "warehouseId", "postedAt" DESC
+      ) sub;
+    `;
 
-      let stockQty = 0;
-
-      if (warehouseFilter) {
-        const latestEntry = await prisma.inventoryLedger.findFirst({
-          where: { itemId: item.id, warehouseId: warehouseFilter },
-          orderBy: { postedAt: "desc" },
-        });
-
-        stockQty = Number(latestEntry?.runningQty ?? 0);
-      } else {
-        const warehouses = await prisma.warehouse.findMany({
-          select: { id: true },
-        });
-
-        const balances = await Promise.all(
-          warehouses.map(async (wh) => {
-            const latestEntry = await prisma.inventoryLedger.findFirst({
-              where: { itemId: item.id, warehouseId: wh.id },
-              orderBy: { postedAt: "desc" },
-            });
-
-            return Number(latestEntry?.runningQty ?? 0);
-          }),
-        );
-
-        stockQty = balances.reduce((sum, qty) => sum + qty, 0);
-      }
+      const stockQty = Number((stockResult as any)[0]?.stockQty ?? 0);
 
       res.json({
         ...item,
@@ -1757,4 +1807,84 @@ export class InventoryController {
       res.status(500).json({ error: "Failed to fetch item" });
     }
   }
+
+  // async getItemById(req: AuthRequest, res: Response) {
+  //   try {
+  //     const { id } = req.params;
+
+  //     // Warehouse filter logic (same as getItems)
+  //     let warehouseFilter: string | null = null;
+
+  //     if (
+  //       !req.user!.roles.includes("Senior Accountant") &&
+  //       !req.user!.roles.includes("General Manager")
+  //     ) {
+  //       const user = await prisma.user.findUnique({
+  //         where: { id: req.user!.id },
+  //         select: { warehouseId: true },
+  //       });
+
+  //       warehouseFilter = user?.warehouseId ?? null;
+  //     } else if (req.query.warehouseId) {
+  //       warehouseFilter = String(req.query.warehouseId);
+  //     }
+
+  //     const item = await prisma.item.findUnique({
+  //       where: { id },
+  //       include: {
+  //         priceList: {
+  //           select: {
+  //             id: true,
+  //             customerGroup: true,
+  //             price: true,
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //     if (!item) {
+  //       return res.status(404).json({ error: "Item not found" });
+  //     }
+
+  //     /* =========================
+  //      STOCK CALCULATION
+  //   ========================== */
+
+  //     let stockQty = 0;
+
+  //     if (warehouseFilter) {
+  //       const latestEntry = await prisma.inventoryLedger.findFirst({
+  //         where: { itemId: item.id, warehouseId: warehouseFilter },
+  //         orderBy: { postedAt: "desc" },
+  //       });
+
+  //       stockQty = Number(latestEntry?.runningQty ?? 0);
+  //     } else {
+  //       const warehouses = await prisma.warehouse.findMany({
+  //         select: { id: true },
+  //       });
+
+  //       const balances = await Promise.all(
+  //         warehouses.map(async (wh) => {
+  //           const latestEntry = await prisma.inventoryLedger.findFirst({
+  //             where: { itemId: item.id, warehouseId: wh.id },
+  //             orderBy: { postedAt: "desc" },
+  //           });
+
+  //           return Number(latestEntry?.runningQty ?? 0);
+  //         }),
+  //       );
+
+  //       stockQty = balances.reduce((sum, qty) => sum + qty, 0);
+  //     }
+
+  //     res.json({
+  //       ...item,
+  //       stockQty,
+  //     });
+  //   } catch (error) {
+  //     console.error("Get item error:", error);
+  //     res.status(500).json({ error: "Failed to fetch item" });
+  //   }
+  // }
 }
