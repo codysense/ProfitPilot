@@ -17,7 +17,7 @@ export class GeneralLedgerService {
     entries: JournalEntry[],
     memo: string,
     userId: string,
-    date: Date | undefined,
+    date?: Date | undefined,
   ): Promise<string> {
     //return await prisma.$transaction(
     //async (tx) => {
