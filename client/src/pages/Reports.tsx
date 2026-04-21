@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileText,
@@ -30,6 +30,7 @@ import toast from "react-hot-toast";
 import { CustomerSelect } from "../components/CustomerSelect";
 import { VendorSelect } from "../components/VendorSelect";
 import { ChartAccountSelect } from "../components/ChartAccountSelect";
+import { GenericSearchSelect } from "../components/GenericSearchCombo";
 
 const Reports = () => {
   const [selectedReport, setSelectedReport] = useState("");
@@ -47,6 +48,7 @@ const Reports = () => {
   const [loading, setLoading] = useState(false);
   const [accountFilter, setAccountFilter] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [remoteItem, setRemoteItem] = useState<T | null>(null);
 
   // Get filter options
   const { data: warehouses } = useQuery({
@@ -88,6 +90,31 @@ const Reports = () => {
   //     ? user.userRoles.includes('POS Users') // if it's an array
   //     : user.userRoles === 'POS Users'       // if it's a single string
   // );
+
+  //Map item for Search component
+  const mappedItems =
+    items?.items?.map((item: any) => ({
+      id: item.id,
+      sku: item.sku,
+      name: item.name,
+    })) || [];
+
+  const searchItemRemote = async (query: string) => {
+    const res = await inventoryApi.getItems({
+      search: query,
+      limit: 1,
+    });
+
+    const item = res?.items?.[0];
+
+    if (!item) return null;
+
+    return {
+      id: item.id,
+      sku: item.sku,
+      name: item.name,
+    };
+  };
 
   const reports = [
     // Financial Reports
@@ -228,6 +255,7 @@ const Reports = () => {
       icon: PieChart,
       category: "Operational",
       requiresDateRange: true,
+      requiresItem: true,
     },
     {
       id: "pos-sales",
@@ -439,7 +467,13 @@ const Reports = () => {
             alert("Please select date range");
             return;
           }
-          data = await reportsApi.getSalesByItem({ dateFrom, dateTo });
+          data = await reportsApi.getSalesByItem({
+            dateFrom,
+            dateTo,
+            //mark itemID as optional
+
+            itemId: itemFilter || undefined,
+          });
           break;
         case "sales-by-customer":
           if (!dateFrom || !dateTo) {
@@ -1150,18 +1184,20 @@ const Reports = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Item *
                   </label>
-                  <select
+
+                  <GenericSearchSelect
+                    data={mappedItems}
                     value={itemFilter}
-                    onChange={(e) => setItemFilter(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select Item</option>
-                    {items?.items?.map((item: any) => (
-                      <option key={item.id} value={item.id}>
-                        {item.sku} - {item.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setItemFilter}
+                    valueKey="id"
+                    searchKeys={["sku", "name"]}
+                    placeholder="Search item by SKU or name..."
+                    onSearchRemote={searchItemRemote}
+                    displayValue={(item) =>
+                      item ? `${item.sku} - ${item.name}` : ""
+                    }
+                    renderOption={(item) => `${item.sku} - ${item.name}`}
+                  />
                 </div>
               )}
               {selectedReportConfig?.supportCustomers && (

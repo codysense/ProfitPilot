@@ -17,7 +17,7 @@ export class GeneralLedgerService {
     entries: JournalEntry[],
     memo: string,
     userId: string,
-    date: Date = new Date(),
+    date: Date | undefined,
   ): Promise<string> {
     //return await prisma.$transaction(
     //async (tx) => {
@@ -39,7 +39,7 @@ export class GeneralLedgerService {
     const journal = await tx.journal.create({
       data: {
         journalNo,
-        date,
+        date: date || new Date(),
         memo,
         postedBy: userId,
       },

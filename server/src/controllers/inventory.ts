@@ -1565,7 +1565,7 @@ export class InventoryController {
       // Warehouse filter logic
       let warehouseFilter: string | null = null;
       if (
-        !req.user!.roles.includes("CFO") &&
+        !req.user!.roles.includes("Senior Accountant") &&
         !req.user!.roles.includes("General Manager")
       ) {
         const user = await prisma.user.findUnique({

@@ -278,15 +278,15 @@ export class MemoController {
       }
 
       // VALIDATE FINANCIAL MEMO TYPES
-      if (!saleId && !purchaseId) {
-        if (module === "SALES" && memoType !== "CREDIT") {
-          throw new Error("Sales financial memo must be CREDIT");
-        }
+      // if (!saleId && !purchaseId) {
+      //   if (module === "SALES" && memoType !== "CREDIT") {
+      //     throw new Error("Sales financial memo must be CREDIT");
+      //   }
 
-        if (module === "PURCHASES" && memoType !== "DEBIT") {
-          throw new Error("Purchase financial memo must be DEBIT");
-        }
-      }
+      //   if (module === "PURCHASES" && memoType !== "DEBIT") {
+      //     throw new Error("Purchase financial memo must be DEBIT");
+      //   }
+      // }
 
       const result = await prisma.$transaction(async (tx) => {
         // const memoCount = await tx.memo.count();
@@ -370,6 +370,7 @@ export class MemoController {
             ],
             "SALES RETURN",
             req.user!.id,
+            date,
           );
 
           // Process Inventory Return
@@ -438,6 +439,7 @@ export class MemoController {
             ],
             "PURCHASE RETURN",
             req.user!.id,
+            date
           );
 
           for (const line of purchase.purchaseLines) {
@@ -481,8 +483,8 @@ export class MemoController {
           if (!coa) throw new Error("Account not found");
 
           //  Enforced Logic
-          if (module === "SALES") {
-            // CREDIT MEMO ONLY
+          if (module === "SALES" && memoType === "CREDIT") {
+            //  FOR CREDIT  SALES MEMO
             journalId = await glService.postJournal(
               tx,
               [
@@ -503,9 +505,35 @@ export class MemoController {
               ],
               `Sales Credit Memo: ${description ?? memoNo}`,
               req.user!.id,
+              date
             );
-          } else if (module === "PURCHASES") {
-            // DEBIT MEMO ONLY
+          } else if (module === "SALES" && memoType === "DEBIT") {
+            //FOR SALES DEBIT MEMO
+
+            journalId = await glService.postJournal(
+              tx,
+              [
+                {
+                  accountCode: coa.code,
+                  debit: 0,
+                  credit: finalAmount,
+                  refType: "DEBIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+                {
+                  accountCode: controlAccount, // AR
+                  debit: finalAmount,
+                  credit: 0,
+                  refType: "DEBIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+              ],
+              `Sales Debit Memo: ${description ?? memoNo}`,
+              req.user!.id,
+              date
+            );
+          } else if (module === "PURCHASES" && memoType === "DEBIT") {
+            // FOR   PURCHASE DEBIT MEMO
             journalId = await glService.postJournal(
               tx,
               [
@@ -526,6 +554,31 @@ export class MemoController {
               ],
               `Purchase Debit Memo: ${description ?? memoNo}`,
               req.user!.id,
+              date
+            );
+          } else if (module === "PURCHASES" && memoType === "CREDIT") {
+            // FOR PURCHASE CREDIT MEMO
+            journalId = await glService.postJournal(
+              tx,
+              [
+                {
+                  accountCode: controlAccount, // AP
+                  debit: 0,
+                  credit: finalAmount,
+                  refType: "CREDIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+                {
+                  accountCode: coa.code,
+                  debit: finalAmount,
+                  credit: 0,
+                  refType: "CREDIT MEMO",
+                  refId: req.body.refId ?? undefined,
+                },
+              ],
+              `Purchase Credit Memo: ${description ?? memoNo}`,
+              req.user!.id,
+              date
             );
           }
         }

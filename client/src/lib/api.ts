@@ -673,7 +673,11 @@ export const reportsApi = {
     api.get(
       `/reports/production-variance?${new URLSearchParams(params).toString()}`,
     ),
-  getSalesByItem: (params: { dateFrom: string; dateTo: string }) =>
+  getSalesByItem: (params: {
+    dateFrom: string;
+    dateTo: string;
+    itemId?: string;
+  }) =>
     api.get(`/reports/sales-by-item?${new URLSearchParams(params).toString()}`),
   getPOSSalesReport: (params: {
     dateFrom: string;

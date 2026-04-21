@@ -1811,9 +1811,26 @@ ORDER BY v.name;
     return varianceReport;
   }
 
-  async getSalesByItem(fromDate: Date, toDate: Date) {
+  async getSalesByItem(fromDate: Date, toDate: Date, itemId?: string) {
     const newToDate = endOfDayUTC(toDate);
     const newFromDate = startOfDayUTC(fromDate);
+    console.log("Getting sales by item with params:", {
+      fromDate: newFromDate,
+      toDate: newToDate,
+      itemId,
+    });
+
+    //Get Item ID if item code or name is provided
+    // let itemId: string | undefined = undefined;
+    // if (item) {
+    //   const foundItem = await prisma.item.findFirst({
+    //     where: {
+    //       OR: [{ sku: item }, { name: item }],
+    //     },
+    //   });
+    //   itemId = foundItem?.id;
+    // }
+
     const sales = await prisma.sale.findMany({
       where: {
         orderDate: {
@@ -1824,6 +1841,7 @@ ORDER BY v.name;
       },
       include: {
         saleLines: {
+          where: itemId !== "undefined" ? { itemId: itemId } : undefined,
           include: {
             item: {
               select: { sku: true, name: true, type: true },

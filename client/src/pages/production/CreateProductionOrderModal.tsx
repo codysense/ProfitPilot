@@ -52,8 +52,7 @@ const CreateProductionOrderModal = ({
 
   const { data: boms } = useQuery<any[]>({
     queryKey: ["boms-for-item", selectedItemId],
-    queryFn: () =>
-      selectedItemId ? inventoryApi.getBoms({ itemId: selectedItemId }) : null,
+    queryFn: () => inventoryApi.getBoms({ itemId: selectedItemId }),
     enabled: !!selectedItemId,
   });
 
