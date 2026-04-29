@@ -44,6 +44,33 @@ export class AuthController {
         },
       });
 
+      //extract user role to allow login before  8:00 AM and after 8:00 PM WAT for only general manager role
+      const userRoleName = user?.userRoles?.[0]?.role?.name;
+      const now = new Date();
+      const hour = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Africa/Lagos",
+        hour: "numeric",
+        hour12: false,
+      }).format(now);
+
+      const currentHour = Number(hour);
+      // console.log(
+      //   "Current hour in WAT:",
+      //   currentHour,
+      //   "User role:",
+      //   userRoleName,
+      // );
+      if (
+        !userRoleName ||
+        !["general_manager", "senior_accountant"].includes(userRoleName)
+      ) {
+        if (currentHour && (currentHour < 8 || currentHour >= 20)) {
+          return res.status(403).json({
+            error: "Login not allowed between 8:00 PM and  8:00 AM WAT",
+          });
+        }
+      }
+
       if (!user || user.status !== "ACTIVE") {
         return res.status(401).json({ error: "Non-Active User" });
       }
@@ -511,6 +538,22 @@ export class AuthController {
     } catch (error) {
       console.error("Get roles error:", error);
       res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  }
+
+  async getInternetHourWAT() {
+    try {
+      // Fetches current time data for the Africa/Lagos (WAT) timezone
+      const response = await fetch("https://worldtimeapi.org");
+      const data = await response.json();
+      console.log("Internet time data:", data);
+
+      // The API returns a 'datetime' string (e.g., "2024-05-20T14:30:05...")
+      const internetDate = new Date(data.datetime);
+      return internetDate.getHours();
+    } catch (error) {
+      console.error("Failed to fetch internet time:", error);
+      return null;
     }
   }
 }

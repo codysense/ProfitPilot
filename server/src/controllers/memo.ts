@@ -109,7 +109,7 @@ export class MemoController {
           pages: Math.ceil(total / Number(pageSize)),
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Get memo error:", error);
       res.status(400).json({ error: error.message });
     }
@@ -167,7 +167,7 @@ export class MemoController {
           let creditAccountId: string;
 
           if (memo.memoType === "CREDIT") {
-            creditAccountId = memo.accountId;
+            creditAccountId = memo.accountId!;
             debitAccountId =
               memo.module === "SALES"
                 ? (await tx.chartOfAccount.findFirst({
@@ -177,7 +177,7 @@ export class MemoController {
                     where: { code: "2000" },
                   }))!.id;
           } else {
-            debitAccountId = memo.accountId;
+            debitAccountId = memo.accountId!;
             creditAccountId =
               memo.module === "SALES"
                 ? (await tx.chartOfAccount.findFirst({
@@ -409,6 +409,10 @@ export class MemoController {
             include: { purchaseLines: true },
           });
 
+          if (!purchase) {
+            throw new Error("Purchase not found");
+          }
+
           category = "PURCHASE_RETURN";
 
           const itemType = await getItemTypeById(
@@ -439,7 +443,7 @@ export class MemoController {
             ],
             "PURCHASE RETURN",
             req.user!.id,
-            date
+            date,
           );
 
           for (const line of purchase.purchaseLines) {
@@ -505,57 +509,56 @@ export class MemoController {
               ],
               `Sales Credit Memo: ${description ?? memoNo}`,
               req.user!.id,
-              date
+              date,
             );
           } else if (module === "SALES" && memoType === "DEBIT") {
             //FOR SALES DEBIT MEMO
-
-            journalId = await glService.postJournal(
-              tx,
-              [
-                {
-                  accountCode: coa.code,
-                  debit: 0,
-                  credit: finalAmount,
-                  refType: "DEBIT MEMO",
-                  refId: req.body.refId ?? undefined,
-                },
-                {
-                  accountCode: controlAccount, // AR
-                  debit: finalAmount,
-                  credit: 0,
-                  refType: "DEBIT MEMO",
-                  refId: req.body.refId ?? undefined,
-                },
-              ],
-              `Sales Debit Memo: ${description ?? memoNo}`,
-              req.user!.id,
-              date
-            );
+            // journalId = await glService.postJournal(
+            //   tx,
+            //   [
+            //     {
+            //       accountCode: coa.code,
+            //       debit: 0,
+            //       credit: finalAmount,
+            //       refType: "DEBIT MEMO",
+            //       refId: req.body.refId ?? undefined,
+            //     },
+            //     {
+            //       accountCode: controlAccount, // AR
+            //       debit: finalAmount,
+            //       credit: 0,
+            //       refType: "DEBIT MEMO",
+            //       refId: req.body.refId ?? undefined,
+            //     },
+            //   ],
+            //   `Sales Debit Memo: ${description ?? memoNo}`,
+            //   req.user!.id,
+            //   date,
+            // );
           } else if (module === "PURCHASES" && memoType === "DEBIT") {
             // FOR   PURCHASE DEBIT MEMO
-            journalId = await glService.postJournal(
-              tx,
-              [
-                {
-                  accountCode: controlAccount, // AP
-                  debit: finalAmount,
-                  credit: 0,
-                  refType: "DEBIT MEMO",
-                  refId: req.body.refId ?? undefined,
-                },
-                {
-                  accountCode: coa.code,
-                  debit: 0,
-                  credit: finalAmount,
-                  refType: "DEBIT MEMO",
-                  refId: req.body.refId ?? undefined,
-                },
-              ],
-              `Purchase Debit Memo: ${description ?? memoNo}`,
-              req.user!.id,
-              date
-            );
+            //   journalId = await glService.postJournal(
+            //     tx,
+            //     [
+            //       {
+            //         accountCode: controlAccount, // AP
+            //         debit: finalAmount,
+            //         credit: 0,
+            //         refType: "DEBIT MEMO",
+            //         refId: req.body.refId ?? undefined,
+            //       },
+            //       {
+            //         accountCode: coa.code,
+            //         debit: 0,
+            //         credit: finalAmount,
+            //         refType: "DEBIT MEMO",
+            //         refId: req.body.refId ?? undefined,
+            //       },
+            //     ],
+            //     `Purchase Debit Memo: ${description ?? memoNo}`,
+            //     req.user!.id,
+            //     date,
+            //   );
           } else if (module === "PURCHASES" && memoType === "CREDIT") {
             // FOR PURCHASE CREDIT MEMO
             journalId = await glService.postJournal(
@@ -578,7 +581,7 @@ export class MemoController {
               ],
               `Purchase Credit Memo: ${description ?? memoNo}`,
               req.user!.id,
-              date
+              date,
             );
           }
         }
@@ -632,6 +635,10 @@ export class MemoController {
           },
         });
 
+        if (!original) {
+          throw new Error("Memo not found");
+        }
+
         if (
           original.category !== "FINANCIAL" ||
           original.saleId ||
@@ -680,7 +687,7 @@ export class MemoController {
             credit: Number(line.debit),
             //  KEEP ORIGINAL REFERENCES
             refType: `${line.refType} REVERSAL`,
-            refId: line.refId,
+            refId: line.refId ? String(line.refId) : undefined,
           })),
           `Reversal of ${original.memoNo}`,
           req.user!.id,
@@ -800,7 +807,13 @@ function addDaysUTC(date: Date, days: number) {
   return d;
 }
 
-async function getItemTypeById(itemId: string) {
+async function getItemTypeById(
+  itemId: string | undefined | null,
+): Promise<string> {
+  if (!itemId) {
+    throw new Error("Item ID is required");
+  }
+
   const item = await prisma.item.findUnique({
     where: { id: itemId },
     select: { type: true },
