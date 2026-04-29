@@ -537,28 +537,28 @@ export class MemoController {
             // );
           } else if (module === "PURCHASES" && memoType === "DEBIT") {
             // FOR   PURCHASE DEBIT MEMO
-            //   journalId = await glService.postJournal(
-            //     tx,
-            //     [
-            //       {
-            //         accountCode: controlAccount, // AP
-            //         debit: finalAmount,
-            //         credit: 0,
-            //         refType: "DEBIT MEMO",
-            //         refId: req.body.refId ?? undefined,
-            //       },
-            //       {
-            //         accountCode: coa.code,
-            //         debit: 0,
-            //         credit: finalAmount,
-            //         refType: "DEBIT MEMO",
-            //         refId: req.body.refId ?? undefined,
-            //       },
-            //     ],
-            //     `Purchase Debit Memo: ${description ?? memoNo}`,
-            //     req.user!.id,
-            //     date,
-            //   );
+            // journalId = await glService.postJournal(
+            //   tx,
+            //   [
+            //     {
+            //       accountCode: controlAccount, // AP
+            //       debit: finalAmount,
+            //       credit: 0,
+            //       refType: "DEBIT MEMO",
+            //       refId: req.body.refId ?? undefined,
+            //     },
+            //     {
+            //       accountCode: coa.code,
+            //       debit: 0,
+            //       credit: finalAmount,
+            //       refType: "DEBIT MEMO",
+            //       refId: req.body.refId ?? undefined,
+            //     },
+            //   ],
+            //   `Purchase Debit Memo: ${description ?? memoNo}`,
+            //   req.user!.id,
+            //   date,
+            // );
           } else if (module === "PURCHASES" && memoType === "CREDIT") {
             // FOR PURCHASE CREDIT MEMO
             journalId = await glService.postJournal(

@@ -62,7 +62,7 @@ export class AuthController {
       // );
       if (
         !userRoleName ||
-        !["general_manager", "senior_accountant"].includes(userRoleName)
+        !["General Manager", "Senior Accountant"].includes(userRoleName)
       ) {
         if (currentHour && (currentHour < 8 || currentHour >= 20)) {
           return res.status(403).json({
