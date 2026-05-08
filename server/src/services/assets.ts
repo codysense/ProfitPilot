@@ -568,6 +568,17 @@ export class AssetsService {
             },
           });
 
+          // Get Gl account codes for this asset's category
+          const glDepreciationAccount =
+            asset.category?.glDepreciationAccount?.code;
+          const glAccumulatedDepreciationAccount =
+            asset.category?.glAccumulatedDepreciationAccount?.code;
+
+          // console.log(`Calculating depreciation for asset ${asset.assetNo} - ${asset.name} for period ${periodYear}-${periodMonth}`);
+          // console.log(
+          //   `GL Depreciation Account: ${glDepreciationAccount}, GL Accumulated Depreciation Account: ${glAccumulatedDepreciationAccount}`,
+          // );
+
           if (existingEntry) {
             continue; // Skip if already calculated
           }
@@ -594,33 +605,33 @@ export class AssetsService {
 
             depreciationEntries.push(entry);
             totalDepreciation += calculation.depreciationAmount;
+
+            const journalId = await glService.postJournal(
+              tx,
+              [
+                {
+                  accountCode: glDepreciationAccount, // Depreciation Expense (will be updated per category)
+                  debit: calculation.depreciationAmount,
+                  credit: 0,
+                  refType: "DEPRECIATION",
+                  refId: `${periodYear}-${periodMonth}`,
+                },
+                {
+                  accountCode: glAccumulatedDepreciationAccount, // Accumulated Depreciation (will be updated per category)
+                  debit: 0,
+                  credit: calculation.depreciationAmount,
+                  refType: "DEPRECIATION",
+                  refId: `${periodYear}-${periodMonth}`,
+                },
+              ],
+              `Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}`,
+              userId,
+            );
           }
         }
 
         // Post consolidated depreciation journal entry
         if (totalDepreciation > 0) {
-          const journalId = await glService.postJournal(
-            tx,
-            [
-              {
-                accountCode: "6300", // Depreciation Expense (will be updated per category)
-                debit: totalDepreciation,
-                credit: 0,
-                refType: "DEPRECIATION",
-                refId: `${periodYear}-${periodMonth}`,
-              },
-              {
-                accountCode: "1600", // Accumulated Depreciation (will be updated per category)
-                debit: 0,
-                credit: totalDepreciation,
-                refType: "DEPRECIATION",
-                refId: `${periodYear}-${periodMonth}`,
-              },
-            ],
-            `Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}`,
-            userId,
-          );
-
           // Mark entries as posted
           await tx.assetDepreciation.updateMany({
             where: {
@@ -629,7 +640,6 @@ export class AssetsService {
             data: {
               isPosted: true,
               postedAt: new Date(),
-              journalId,
             },
           });
         }
