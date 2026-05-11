@@ -59,6 +59,7 @@ export class PurchaseController {
         prisma.purchase.count({ where }),
       ]);
 
+      // console.log(purchases[0]);
       res.json({
         purchases,
         pagination: {
@@ -77,8 +78,6 @@ export class PurchaseController {
   async createPurchase(req: AuthRequest, res: Response) {
     try {
       const validatedData = createPurchaseSchema.parse(req.body);
-
-      // Calculate orderNo outside transaction
 
       const lastPurchase = await prisma.purchase.findFirst({
         orderBy: { createdAt: "desc" },

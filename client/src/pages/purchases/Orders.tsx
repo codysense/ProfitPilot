@@ -49,7 +49,7 @@ const PurchaseOrders = () => {
         ...(statusFilter && { status: statusFilter }),
       }),
   });
-  // console.log("Purchases data:", data);
+  console.log("Purchases data:", data);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-info-for-receipt"],
@@ -85,7 +85,10 @@ const PurchaseOrders = () => {
       key: "balanceAmount",
       header: "Balance Amount",
       cell: (purchase: Purchase) =>
-        `₦${Number(purchase.balanceAmount).toLocaleString()}`,
+        `₦${purchase.balanceAmount.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 3,
+        })}`,
       width: "w-32",
     },
     {

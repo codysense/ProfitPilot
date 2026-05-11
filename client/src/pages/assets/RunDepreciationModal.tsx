@@ -40,7 +40,7 @@ const RunDepreciationModal = ({
     },
   });
 
-  console.log("Selected Assets:", selectedAssets);
+  // console.log("Selected Assets:", selectedAssets);
 
   const { data: assetsData } = useQuery({
     queryKey: ["active-assets-for-depreciation"],

@@ -267,6 +267,7 @@ model Bom {
 
   @@unique([itemId, version])
   @@map("boms")
+  @@index([itemId], map: "idx_bom_itemid")
 }
 
 model BomLine {
@@ -317,7 +318,7 @@ model InventoryLedger {
   item           Item            @relation(fields: [itemId], references: [id])
   user           User?           @relation(fields: [userId], references: [id])
   warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
-
+@@index([itemId, warehouseId, postedAt(sort: Desc)], map: "idx_inventoryledger_item_wh_posted")
   @@map("inventory_ledger")
 }
 
@@ -499,9 +500,9 @@ model Purchase {
   orderType PurchaseOrderType @default(INVENTORY)
   status    PurchaseStatus    @default(DRAFT)
 
-  totalAmount   Decimal @db.Decimal(15, 2)
-  amountPaid    Decimal @default(0) @db.Decimal(15, 2)
-  balanceAmount Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount   Decimal @db.Decimal(15, 4)
+  amountPaid    Decimal @default(0) @db.Decimal(15, 4)
+  balanceAmount Decimal @default(0) @db.Decimal(15, 4)
 
   notes String?
 

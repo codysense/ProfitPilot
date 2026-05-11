@@ -36,7 +36,8 @@ const AssetRegister = () => {
 
   const canManageAssets =
     user?.roles.includes("Senior Accountant") ||
-    user?.roles.includes("General Manager");
+    user?.roles.includes("General Manager") ||
+    user?.roles.includes("Auditor");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: [
@@ -65,8 +66,20 @@ const AssetRegister = () => {
   });
 
   const { data: registerData } = useQuery({
-    queryKey: ["asset-register-summary"],
-    queryFn: () => assetsApi.getAssetRegister(),
+    queryKey: [
+      "asset-register-summary",
+      page,
+      categoryFilter,
+      statusFilter,
+      locationFilter,
+    ],
+    queryFn: () =>
+      assetsApi.getAssetRegister({
+        page,
+        ...(categoryFilter && { categoryId: categoryFilter }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(locationFilter && { locationId: locationFilter }),
+      }),
   });
   console.log("Assest register ", registerData);
 
@@ -129,7 +142,7 @@ const AssetRegister = () => {
         <span className="font-semibold text-blue-600">
           ₦
           {(
-            asset.netBookValue || Number(asset.acquisitionCost)
+            Number(asset.netBookValue) || Number(asset.acquisitionCost)
           ).toLocaleString()}
         </span>
       ),
@@ -315,7 +328,7 @@ const AssetRegister = () => {
                     Total Assets
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.pagination?.total || 0}
+                    {registerData?.register?.pagination?.total || 0}
                   </dd>
                 </dl>
               </div>
@@ -335,8 +348,9 @@ const AssetRegister = () => {
                     Active Assets
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    {data?.assets?.filter((a: Asset) => a.status === "ACTIVE")
-                      .length || 0}
+                    {registerData?.register?.assets.filter(
+                      (a: Asset) => a.status === "ACTIVE",
+                    ).length || 0}
                   </dd>
                 </dl>
               </div>
@@ -357,7 +371,7 @@ const AssetRegister = () => {
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
                     ₦
-                    {data?.assets
+                    {registerData?.register.assets
                       ?.reduce(
                         (sum: number, a: Asset) =>
                           Number(sum) + Number(a.acquisitionCost),
@@ -384,7 +398,7 @@ const AssetRegister = () => {
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
                     ₦
-                    {registerData?.register
+                    {registerData?.register.assets
                       ?.reduce(
                         (sum: number, a: Asset) =>
                           sum +
@@ -402,10 +416,10 @@ const AssetRegister = () => {
 
       {/* Data Table */}
       <DataTable
-        data={data?.assets || []}
+        data={registerData?.register?.assets || []}
         columns={columns}
         loading={isLoading}
-        pagination={data?.pagination}
+        pagination={registerData?.register?.pagination}
         onPageChange={setPage}
         actions={actions}
       />

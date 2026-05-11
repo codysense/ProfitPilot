@@ -28,7 +28,7 @@ const AssetDashboard = () => {
 
   const { data: registerData } = useQuery({
     queryKey: ["asset-register-summary"],
-    queryFn: () => assetsApi.getAssetRegister(),
+    queryFn: () => assetsApi.getAssetRegister({ limit: 1000 }),
   });
 
   const handleCapitalizeSuccess = () => {
@@ -43,7 +43,7 @@ const AssetDashboard = () => {
 
   // Group assets by category for summary
   const assetsByCategory =
-    registerData?.register?.reduce((acc: any, asset: any) => {
+    registerData?.register?.assets.reduce((acc: any, asset: any) => {
       const categoryName = asset.category?.name || "Uncategorized";
       if (!acc[categoryName]) {
         acc[categoryName] = {

@@ -17,19 +17,19 @@ router.get(
 );
 router.post(
   "/categories",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("CREATE", "ASSET_CATEGORY"),
   assetsController.createAssetCategory,
 );
 router.put(
   "/categories/:id",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("UPDATE", "ASSET_CATEGORY"),
   assetsController.updateAssetCategory,
 );
 router.delete(
   "/categories/:id",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("DELETE", "ASSET_CATEGORY"),
   assetsController.deleteAssetCategory,
 );
@@ -42,19 +42,19 @@ router.get(
 );
 router.post(
   "/",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("CREATE", "ASSET"),
   assetsController.createAsset,
 );
 router.put(
   "/:id",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("UPDATE", "ASSET"),
   assetsController.updateAsset,
 );
 router.delete(
   "/:id",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("DELETE", "ASSET"),
   assetsController.deleteAsset,
 );
@@ -67,7 +67,7 @@ router.get(
 );
 router.post(
   "/capitalize",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("CAPITALIZE", "ASSET"),
   assetsController.capitalizeFromPurchase,
 );
@@ -75,7 +75,7 @@ router.post(
 // Depreciation
 router.post(
   "/depreciation/run",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("RUN_DEPRECIATION", "ASSET"),
   assetsController.runDepreciation,
 );
@@ -88,7 +88,7 @@ router.get(
 // Disposal
 router.post(
   "/:id/dispose",
-  requireRole(["General Manager", "Senior Accountant"]),
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
   auditLogger("DISPOSE", "ASSET"),
   assetsController.disposeAsset,
 );

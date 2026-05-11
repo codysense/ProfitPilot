@@ -330,7 +330,7 @@ export class ReportsService {
       LEFT JOIN warehouses w   ON ps."warehouseId"   = w.id
       LEFT JOIN cash_accounts ca ON ps."cashAccountId" = ca.id
       LEFT JOIN users u       ON ps."userId"        = u.id
-      WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date
+      WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date and ps.status = 'COMPLETED'
   `;
 
     const values: any[] = [newFromDate, newToDate];
@@ -383,13 +383,15 @@ export class ReportsService {
     const newToDate = endOfDayUTC(toDate);
     const newFromDate = startOfDayUTC(fromDate);
 
+    // console.log("From Date", newFromDate, "To Date", newToDate);
+
     const balanceSheetAccounts = await prisma.chartOfAccount.findMany({
       where: {
         isActive: true,
         name: {
           notIn: [
             "Memo Cash Clearing",
-            "Cash and Bank",
+            // "Cash and Bank",
             "Asset Clearing Account",
           ],
         },
@@ -416,23 +418,23 @@ export class ReportsService {
     });
 
     // For Cash and Bank account - using date range
-    const cashAndBankAccount = await prisma.chartOfAccount.findMany({
-      where: {
-        isActive: true,
-        name: "Cash and Bank",
-        accountType: "CURRENT_ASSETS",
-      },
-      include: {
-        journalLines: {
-          where: {
-            journal: {
-              date: { gte: newFromDate, lte: newToDate }, // Within date range
-            },
-          },
-        },
-      },
-      orderBy: { code: "asc" },
-    });
+    // const cashAndBankAccount = await prisma.chartOfAccount.findMany({
+    //   where: {
+    //     isActive: true,
+    //     name: "Cash and Bank",
+    //     accountType: "CURRENT_ASSETS",
+    //   },
+    //   include: {
+    //     journalLines: {
+    //       where: {
+    //         journal: {
+    //           date: { gte: newFromDate, lte: newToDate },
+    //         },
+    //       },
+    //     },
+    //   },
+    //   orderBy: { code: "asc" },
+    // });
 
     // For income/expense accounts
     const incomeExpenseAccounts = await prisma.chartOfAccount.findMany({
@@ -453,7 +455,7 @@ export class ReportsService {
         journalLines: {
           where: {
             journal: {
-              date: { gte: newFromDate, lte: newToDate }, // Within date range
+              date: { gte: newFromDate, lte: newToDate },
             },
           },
         },
@@ -464,7 +466,7 @@ export class ReportsService {
     // Combine all results
     const chartAccounts = [
       ...balanceSheetAccounts,
-      ...cashAndBankAccount,
+      // ...cashAndBankAccount,
       ...incomeExpenseAccounts,
     ].sort((a, b) => a.code.localeCompare(b.code));
 
@@ -524,6 +526,8 @@ export class ReportsService {
     //     balance: balance
     //   });
     // });
+
+    // console.log("Trial Balance Data", trialBalanceData);
 
     return trialBalanceData.sort((a, b) =>
       a.accountCode.localeCompare(b.accountCode),

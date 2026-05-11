@@ -396,7 +396,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="flex flex-col flex-grow bg-white border-r overflow-y-auto">
           <div className="flex items-center h-16 px-6 border-b">
             <Building2 className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-900 text-center">
+            <h1 className=" font-semibold text-gray-900 text-center">
               ProfitPilot ERP System
             </h1>
           </div>

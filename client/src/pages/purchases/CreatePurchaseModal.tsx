@@ -397,9 +397,9 @@ const CreatePurchaseModal = ({
                               valueAsNumber: true,
                             })}
                             type="number"
-                            step="0.01"
+                            step="0.001"
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="0.00"
+                            placeholder="0.000"
                           />
                           {errors.purchaseLines?.[index]?.unitPrice && (
                             <p className="mt-1 text-sm text-red-600">
@@ -443,7 +443,11 @@ const CreatePurchaseModal = ({
                       Total Amount:
                     </span>
                     <span className="text-2xl font-bold text-blue-600">
-                      ₦{calculateTotal().toLocaleString()}
+                      ₦
+                      {calculateTotal().toLocaleString(undefined, {
+                        minimumFractionDigits: 3,
+                        maximumFractionDigits: 3,
+                      })}
                     </span>
                   </div>
                 </div>

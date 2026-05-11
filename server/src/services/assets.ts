@@ -795,44 +795,102 @@ export class AssetsService {
 
   // Asset Register Report
   async getAssetRegister(filters: any = {}) {
-    const { categoryId, status, locationId, asOfDate } = filters;
+    let {
+      page = 1,
+      limit = 10,
+      categoryId,
+      status,
+      locationId,
+      asOfDate,
+    } = filters;
+
+    page = Number(page) || 1;
+    limit = Number(limit) || 10;
+
+    const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (categoryId) where.categoryId = categoryId;
-    if (status) where.status = status;
-    if (locationId) where.locationId = locationId;
 
-    const assets = await prisma.asset.findMany({
-      where,
-      include: {
-        category: {
-          select: { code: true, name: true, depreciationMethod: true },
-        },
-        location: { select: { code: true, name: true } },
-        depreciationEntries: {
-          where: asOfDate
-            ? {
-                OR: [
-                  { periodYear: { lt: new Date(asOfDate).getFullYear() } },
-                  {
-                    AND: [
-                      { periodYear: new Date(asOfDate).getFullYear() },
-                      {
-                        periodMonth: { lte: new Date(asOfDate).getMonth() + 1 },
+    // Match getAssets filtering behavior
+    if (categoryId && categoryId !== "ALL") {
+      where.categoryId = categoryId;
+    }
+
+    if (status && status !== "ALL") {
+      where.status = status.toUpperCase();
+    }
+
+    if (locationId && locationId !== "ALL") {
+      where.locationId = locationId;
+    }
+
+    const [assets, total] = await Promise.all([
+      prisma.asset.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          category: {
+            select: {
+              code: true,
+              name: true,
+              depreciationMethod: true,
+            },
+          },
+          location: {
+            select: {
+              code: true,
+              name: true,
+            },
+          },
+          depreciationEntries: {
+            where: asOfDate
+              ? {
+                  OR: [
+                    {
+                      periodYear: {
+                        lt: new Date(asOfDate).getFullYear(),
                       },
-                    ],
-                  },
-                ],
-              }
-            : undefined,
-          orderBy: { createdAt: "desc" },
-          take: 1,
+                    },
+                    {
+                      AND: [
+                        {
+                          periodYear: new Date(asOfDate).getFullYear(),
+                        },
+                        {
+                          periodMonth: {
+                            lte: new Date(asOfDate).getMonth() + 1,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                }
+              : undefined,
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 1,
+          },
         },
-      },
-      orderBy: [{ category: { code: "asc" } }, { assetNo: "asc" }],
-    });
+        orderBy: [
+          {
+            category: {
+              code: "asc",
+            },
+          },
+          {
+            assetNo: "asc",
+          },
+        ],
+      }),
 
-    return assets.map((asset) => {
+      prisma.asset.count({
+        where,
+      }),
+    ]);
+
+    const transformedAssets = assets.map((asset) => {
       const accumulatedDepreciation =
         asset.depreciationEntries.length > 0
           ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
@@ -844,6 +902,16 @@ export class AssetsService {
         netBookValue: Number(asset.acquisitionCost) - accumulatedDepreciation,
       };
     });
+
+    return {
+      assets: transformedAssets,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
   }
 
   // Depreciation Schedule

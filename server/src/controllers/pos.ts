@@ -1406,8 +1406,6 @@ export class PosController {
           throw new Error("Original sale not found");
         }
 
-        // console.log("Original Sale", originalSale);
-
         // Validate session
         const session = await tx.posSession.findUnique({
           where: { id: validatedData.sessionId },
