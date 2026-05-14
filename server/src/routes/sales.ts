@@ -22,6 +22,20 @@ router.get(
   ]),
   salesController.getSales,
 );
+
+router.get(
+  "/orders/dashboard",
+  requireRole([
+    "Senior Accountant",
+    "POS User",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+    "Manager",
+  ]),
+  salesController.getSalesForDashboard,
+);
+
 router.post(
   "/orders",
   requireRole([

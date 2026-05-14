@@ -1026,6 +1026,8 @@ export class PosController {
         if (dateTo) where.createdAt.lte = new Date(dateTo as string);
       }
 
+      // console.log("Date range for dashboard:", dateFrom, dateTo);
+
       // Payment method filter (relation-based)
       if (paymentMethod) {
         where.payments = {

@@ -44,18 +44,24 @@ const Dashboard = () => {
 
   const { data: sales } = useQuery({
     queryKey: ["sales", { limit: 10 }],
-    queryFn: () => salesApi.getSales({ limit: 10, status: "INVOICED" }),
+    queryFn: () => salesApi.getSalesforDashboard(),
   });
 
+  // console.log("Sales Data for Dashboard:", sales);
+
   //FILTER SALES TO ONLY THIS MONTH
-  const filteredSales = sales?.sales.filter((sale: any) => {
-    const saleDate = new Date(sale.orderDate);
-    const now = new Date();
-    return (
-      saleDate.getMonth() === now.getMonth() &&
-      saleDate.getFullYear() === now.getFullYear()
-    );
-  });
+
+  let filteredSales = sales?.sales;
+  // const filteredSales = sales?.sales.filter((sale: any) => {
+  //   const saleDate = new Date(sale.orderDate);
+  //   const now = new Date();
+  //   return (
+  //     saleDate.getMonth() === now.getMonth() &&
+  //     saleDate.getFullYear() === now.getFullYear()
+  //   );
+  // });
+
+  console.log("Filtered Sales for this month:", filteredSales);
 
   //get pos sales for this month
   const { data: posSales } = useQuery({
@@ -64,15 +70,9 @@ const Dashboard = () => {
       posApi.getSalesForDashboard({
         status: "COMPLETED",
         dateFrom: new Date(
-          new Date().getFullYear(),
-          new Date().getMonth(),
-          1,
+          Date.UTC(new Date().getFullYear(), new Date().getMonth(), 1),
         ).toISOString(),
-        dateTo: new Date(
-          new Date().getFullYear(),
-          new Date().getMonth() + 1,
-          0,
-        ).toISOString(),
+        dateTo: new Date().toISOString(),
       }),
   });
   // console.log("POS Sales Data:", posSales);
@@ -106,7 +106,7 @@ const Dashboard = () => {
 
   //if user is not accountant or gm, filter sales orders to only those created by the user
   if (filteredSales && !canviewall) {
-    sales.sales = filteredSales.filter(
+    filteredSales = filteredSales.filter(
       (sale: any) => sale.preparer?.name === user?.name,
     );
   }
@@ -116,6 +116,9 @@ const Dashboard = () => {
     (sum: number, sale: any) => sum + Number(sale.totalAmount || 0),
     0,
   );
+
+  console.log("regular sale", totalSalesAmount);
+  console.log("Pos Sales", totalPosSalesAmount);
 
   const { data: cashAccounts } = useQuery({
     queryKey: ["cash-accounts"],

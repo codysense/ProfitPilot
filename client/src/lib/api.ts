@@ -1,6 +1,7 @@
 import { useAuthStore } from "../store/authStore";
 import toast from "react-hot-toast";
 import { CreatePosReturnRequest } from "../types/api";
+import { get } from "react-hook-form";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api/v1";
 
@@ -409,6 +410,17 @@ export const salesApi = {
         params ? "?" + new URLSearchParams(params as any).toString() : ""
       }`,
     ),
+  getSalesforDashboard: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string | string[];
+  }) =>
+    api.get(
+      `/sales/orders/dashboard${
+        params ? "?" + new URLSearchParams(params as any).toString() : ""
+      }`,
+    ),
+
   createSale: (data: any) => api.post("/sales/orders", data),
   updateSale: (id: string, data: any) => api.put(`/sales/orders/${id}`, data),
   deleteSale: (id: string) => api.delete(`/sales/orders/${id}`),

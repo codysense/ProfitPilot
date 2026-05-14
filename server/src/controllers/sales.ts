@@ -90,6 +90,36 @@ export class SalesController {
     }
   }
 
+  async getSalesForDashboard(req: AuthRequest, res: Response) {
+    try {
+      const now = new Date();
+      const startDate = new Date(
+        Date.UTC(now.getFullYear(), now.getMonth(), 1),
+      );
+      const endDate = new Date();
+
+      const sales = await prisma.sale.findMany({
+        where: {
+          status: { in: ["INVOICED", "PAID"] },
+          orderDate: { gte: startDate, lte: endDate },
+        },
+        include: {
+          preparer: {
+            select: { name: true },
+          },
+          customer: {
+            select: { name: true },
+          },
+        },
+      });
+
+      res.json({ sales });
+    } catch (error) {
+      console.error("Get sales error:", error);
+      res.status(500).json({ error: "Failed to fetch sales" });
+    }
+  }
+
   async createSale(req: AuthRequest, res: Response) {
     try {
       const validatedData = createSaleSchema.parse(req.body);
