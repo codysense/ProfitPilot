@@ -691,6 +691,22 @@ export const reportsApi = {
     itemId?: string;
   }) =>
     api.get(`/reports/sales-by-item?${new URLSearchParams(params).toString()}`),
+  getSalesByWarehouse: (params: {
+    dateFrom: string;
+    dateTo: string;
+    warehouseId?: string;
+  }) =>
+    api.get(
+      `/reports/sales-by-warehouse?${new URLSearchParams(params).toString()}`,
+    ),
+  getAllSalesByWarehouse: (params: {
+    dateFrom: string;
+    dateTo: string;
+    warehouseId?: string;
+  }) =>
+    api.get(
+      `/reports/all-sales-by-warehouse?${new URLSearchParams(params).toString()}`,
+    ),
   getPOSSalesReport: (params: {
     dateFrom: string;
     dateTo: string;

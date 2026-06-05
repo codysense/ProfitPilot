@@ -282,17 +282,71 @@ export class ReportsController {
     }
   }
 
+  async getAllSalesByWarehouse(req: AuthRequest, res: Response) {
+    try {
+      const { dateFrom, dateTo, warehouseId } = req.query;
+
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({ error: "Date range is required" });
+      }
+
+      const report = await reportsService.getAllSalesByWarehouse({
+        dateFrom: new Date(dateFrom as string),
+        dateTo: new Date(dateTo as string),
+        warehouseId: warehouseId ? String(warehouseId) : null,
+      });
+      res.json(report);
+    } catch (error) {
+      console.error("All sales by warehouse error:", error);
+      res
+        .status(400)
+        .json({ error: "Failed to generate all sales by warehouse report" });
+    }
+  }
+
+  async getSalesByWarehouse(req: AuthRequest, res: Response) {
+    try {
+      const { dateFrom, dateTo, warehouseId } = req.query;
+
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({ error: "Date range is required" });
+      }
+
+      const report = await reportsService.getSalesByWarehouse({
+        dateFrom: new Date(dateFrom as string),
+        dateTo: new Date(dateTo as string),
+        warehouseId: warehouseId ? String(warehouseId) : null,
+      });
+
+      // console.log("Sales by warehouse report generated:", report);
+      // console.log(
+      //   "Date From:",
+      //   dateFrom,
+      //   "Date To:",
+      //   dateTo,
+      //   "Warehouse ID:",
+      //   warehouseId,
+      // );
+      res.json(report);
+    } catch (error) {
+      console.error("Sales by warehouse error:", error);
+      res
+        .status(400)
+        .json({ error: "Failed to generate sales by warehouse report" });
+    }
+  }
+
   async getPOSSalesReport(req: AuthRequest, res: Response) {
     try {
       const { dateFrom, dateTo, warehouseId, userId } = req.query;
 
-      // if (!dateFrom || !dateTo) {
-      //   return res.status(400).json({ error: 'Date range is required' });
-      // }
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({ error: "Date range is required" });
+      }
 
       const report = await reportsService.getPOSSalesReport({
-        dateFrom: dateFrom ? new Date(dateFrom as string) : null,
-        dateTo: dateTo ? new Date(dateTo as string) : null,
+        dateFrom: dateFrom ? new Date(dateFrom as string) : new Date(),
+        dateTo: dateTo ? new Date(dateTo as string) : new Date(),
         warehouseId: warehouseId ? String(warehouseId) : null,
         userId: userId ? String(userId) : null,
       });

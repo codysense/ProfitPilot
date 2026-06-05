@@ -110,6 +110,18 @@ router.get(
   requireRole(["Senior Accountant", "Auditor", "Manager", "POS User"]),
   reportsController.getPOSSalesReport,
 );
+
+router.get(
+  "/sales-by-warehouse",
+  requireRole(["Senior Accountant", "Auditor", "Manager", "POS User"]),
+  reportsController.getSalesByWarehouse,
+);
+
+router.get(
+  "/all-sales-by-warehouse",
+  requireRole(["Senior Accountant", "Auditor", "Manager", "POS User"]),
+  reportsController.getAllSalesByWarehouse,
+);
 router.get(
   "/sales-by-customer",
   requireRole(["Senior Accountant", "Auditor", "Manager", "POS User"]),

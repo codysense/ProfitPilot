@@ -258,6 +258,15 @@ const Reports = () => {
       requiresItem: true,
     },
     {
+      id: "sales-by-warehouse",
+      name: "Sales by Warehouse Report",
+      description: "Sales performance analysis by warehouse",
+      icon: Building,
+      category: "Operational",
+      requiresDateRange: true,
+      supportsWarehouse: true,
+    },
+    {
       id: "pos-sales",
       name: "POS Sales Report",
       description: "Detail POS Sales for all terminals",
@@ -267,6 +276,16 @@ const Reports = () => {
       supportsWarehouse: true,
       supportUsers: true,
     },
+    {
+      id: "all-sales-by-warehouse",
+      name: "All Sales by Warehouse Report",
+      description: "Summary of all sales by warehouse",
+      icon: Building,
+      category: "Operational",
+      requiresDateRange: true,
+      supportsWarehouse: true,
+    },
+
     {
       id: "sales-by-customer",
       name: "Sales by Customer Report",
@@ -358,6 +377,17 @@ const Reports = () => {
           }
           data = await reportsApi.getCashAccountBalances({ dateFrom, dateTo });
           break;
+        case "sales-by-warehouse":
+          if (!dateFrom || !dateTo) {
+            alert("Please select date range");
+            return;
+          }
+          data = await reportsApi.getSalesByWarehouse({
+            dateFrom,
+            dateTo,
+            warehouseId: warehouseFilter,
+          });
+          break;
         case "pos-sales":
           // if (!dateFrom || !dateTo) {
           //   alert('Please select date range');
@@ -369,6 +399,17 @@ const Reports = () => {
             dateTo,
             warehouseId: warehouseFilter,
             userId: usersFilter,
+          });
+          break;
+        case "all-sales-by-warehouse":
+          if (!dateFrom || !dateTo) {
+            alert("Please select date range");
+            return;
+          }
+          data = await reportsApi.getAllSalesByWarehouse({
+            dateFrom,
+            dateTo,
+            warehouseId: warehouseFilter,
           });
           break;
         case "trial-balance":
@@ -870,6 +911,23 @@ const Reports = () => {
           );
           break;
         }
+        case "sales-by-warehouse": {
+          const salesWarehouseColumns = [
+            { key: "RowType", header: "Row Type" },
+            { key: "WarehouseName", header: "Warehouse Name" },
+            { key: "OrderDate", header: "Order Date" },
+            { key: "CustomerName", header: "Customer Name" },
+            { key: "NoOfItem", header: "No of Item" },
+            { key: "Amount", header: " Amount" },
+          ];
+          ReportExporter.exportGenericReport(
+            reportData,
+            salesWarehouseColumns,
+            "Sales by Warehouse",
+            format,
+          );
+          break;
+        }
         case "pos-sales": {
           const POSsalesColumns = [
             { key: "TransactionDate", header: "Transaction Date" },
@@ -884,6 +942,29 @@ const Reports = () => {
             reportData,
             POSsalesColumns,
             "POS Sales Details",
+            format,
+          );
+          break;
+        }
+        case "all-sales-by-warehouse": {
+          const allSalesWarehouseColumns = [
+            { key: "RowType", header: "Row Type" },
+            { key: "TransactionDate", header: "Transaction Date" },
+            { key: "SalesType", header: "Sales Type" },
+            { key: "DocumentNo", header: "Document No" },
+            { key: "CustomerName", header: "Customer Name" },
+            { key: "WarehouseName", header: "Warehouse Name" },
+            { key: "NoOfItems", header: "No of Item" },
+            {
+              key: "Amount",
+              header: " Amount",
+              cell: (item: any) => `₦${Number(item.Amount).toLocaleString()}`,
+            },
+          ];
+          ReportExporter.exportGenericReport(
+            reportData,
+            allSalesWarehouseColumns,
+            "All Sales by Warehouse",
             format,
           );
           break;
@@ -993,8 +1074,12 @@ const Reports = () => {
         return <SalesByItemReport data={reportData} />;
       case "sales-by-customer":
         return <SalesByCustomerReport data={reportData} />;
+      case "sales-by-warehouse":
+        return <SalesByWarehouseReport data={reportData} />;
       case "pos-sales":
         return <POSSalesReport data={reportData} />;
+      case "all-sales-by-warehouse":
+        return <AllSalesByWarehouseReport data={reportData} />;
       case "purchases-by-vendor":
         return <PurchasesByVendorReport data={reportData} />;
       case "production-summary":
@@ -1164,7 +1249,18 @@ const Reports = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Warehouse
                   </label>
-                  <select
+                  <GenericSearchSelect
+                    data={warehouses?.warehouses || []}
+                    value={warehouseFilter}
+                    onChange={setWarehouseFilter}
+                    valueKey="id"
+                    searchKeys={["code", "name"]}
+                    placeholder="Search warehouse by code or name..."
+                    // onSearchRemote={searchWarehouseRemote}
+                    displayValue={(wh) => (wh ? `${wh.code} - ${wh.name}` : "")}
+                    renderOption={(wh) => `${wh.code} - ${wh.name}`}
+                  />
+                  {/* <select
                     value={warehouseFilter}
                     onChange={(e) => setWarehouseFilter(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -1175,7 +1271,7 @@ const Reports = () => {
                         {warehouse.code} - {warehouse.name}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                 </div>
               )}
 
@@ -1257,7 +1353,21 @@ const Reports = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Users *
                   </label>
-                  <select
+                  <GenericSearchSelect
+                    data={allUsers?.users || []}
+                    value={usersFilter}
+                    onChange={setUsersFilter}
+                    valueKey="id"
+                    searchKeys={["name", "email"]}
+                    placeholder="Search user by name or email..."
+                    // onSearchRemote={searchWarehouseRemote}
+                    displayValue={(wh) =>
+                      wh ? `${wh.name} - ${wh.email}` : ""
+                    }
+                    renderOption={(wh) => `${wh.name} - ${wh.email}`}
+                  />
+
+                  {/* <select
                     value={usersFilter}
                     onChange={(e) => setUsersFilter(e.target.value)}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -1268,7 +1378,7 @@ const Reports = () => {
                         {user.name}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                 </div>
               )}
               {selectedReportConfig?.supportVendors && (
@@ -1776,6 +1886,43 @@ const CashAccountBalances = ({ data }: { data: any }) => {
     </div>
   );
 };
+
+const SalesByWarehouseReport = ({ data }: { data: any }) => {
+  const columns = [
+    { key: "RowType", header: "Row Type" },
+    { key: "WarehouseName", header: "Warehouse Name" },
+    { key: "OrderDate", header: "Order Date" },
+    { key: "CustomerName", header: "Customer Name" },
+    { key: "NoOfItems", header: "No of Items" },
+    {
+      key: "Amount",
+      header: " Amount",
+      cell: (item: any) => {
+        return item.Amount > 0
+          ? `₦${Number(item.Amount).toLocaleString()}`
+          : "-";
+      },
+    },
+
+    // {
+    //   key: "GrandTotalQuantity",
+    //   header: "Grand Total Quantity",
+    //   width: "w-32",
+    // },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-xl font-bold"> Sales By WareHouse Report</h2>
+        <p className="text-gray-600">Detail of Sales Order By Warehouse</p>
+      </div>
+
+      <DataTable data={data || []} columns={columns} />
+    </div>
+  );
+};
+
 const POSSalesReport = ({ data }: { data: any }) => {
   // console.log(data)
   const columns = [
@@ -1784,8 +1931,26 @@ const POSSalesReport = ({ data }: { data: any }) => {
     { key: "WarehouseName", header: "Warehouse Name", width: "w-32" },
     { key: "CashAccountName", header: "CashAccount Name", width: "w-32" },
     { key: "SalesRep", header: "Sales Rep", width: "w-32" },
-    { key: "TotalAmount", header: "Total Amount", width: "w-32" },
-    { key: "AmountPaid", header: "Amount Paid", width: "w-32" },
+    {
+      key: "TotalAmount",
+      header: "Total Amount",
+      cell: (item: any) => {
+        return item.TotalAmount > 0
+          ? `₦${Number(item.TotalAmount).toLocaleString()}`
+          : "-";
+      },
+      width: "w-32",
+    },
+    {
+      key: "AmountPaid",
+      header: "Amount Paid",
+      cell: (item: any) => {
+        return item.AmountPaid > 0
+          ? `₦${Number(item.AmountPaid).toLocaleString()}`
+          : "-";
+      },
+      width: "w-32",
+    },
     // { key: 'GrandTotalClosing', header: 'Grand TotalClosing' , width: 'w-32'},
   ];
 
@@ -1794,6 +1959,34 @@ const POSSalesReport = ({ data }: { data: any }) => {
       <div className="text-center">
         <h2 className="text-xl font-bold">POS Sales Report</h2>
         <p className="text-gray-600">Detail of POS Sales for all terminals</p>
+      </div>
+
+      <DataTable data={data || []} columns={columns} />
+    </div>
+  );
+};
+
+const AllSalesByWarehouseReport = ({ data }: { data: any }) => {
+  const columns = [
+    { key: "RowType", header: "Row Type" },
+    { key: "TransactionDate", header: "Transaction Date" },
+    { key: "SalesType", header: "Sales Type" },
+    { key: "DocumentNo", header: "Document No" },
+    { key: "CustomerName", header: "Customer Name" },
+    { key: "WarehouseName", header: "Warehouse Name" },
+    { key: "NoOfItems", header: "No of Item" },
+    {
+      key: "Amount",
+      header: " Amount",
+      cell: (item: any) => `₦${Number(item.Amount).toLocaleString()}`,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-xl font-bold">All Sales by Warehouse</h2>
+        <p className="text-gray-600">Detail of all sales by warehouse</p>
       </div>
 
       <DataTable data={data || []} columns={columns} />

@@ -304,6 +304,341 @@ export class ReportsService {
 
   //Get POS Sales
 
+  // async getSalesByWarehouse(params: {
+  //   dateFrom: Date;
+  //   dateTo: Date;
+  //   warehouseId?: string | null;
+  // }) {
+  //   const { dateFrom, dateTo, warehouseId } = params;
+
+  //   const newFromDate = startOfDayUTC(dateFrom);
+  //   const newToDate = endOfDayUTC(dateTo);
+
+  //   let query = `
+  //   WITH sale_warehouse AS (
+  //     SELECT DISTINCT
+  //       il."refId" AS "SaleId",
+  //       il."warehouseId"
+  //     FROM inventory_ledger il
+  //     WHERE il."refType" = 'SALE'
+  //       AND il.direction = 'OUT'
+  // `;
+
+  //   const values: any[] = [];
+  //   let paramIndex = 1;
+
+  //   if (warehouseId && warehouseId !== "null") {
+  //     query += ` AND il."warehouseId" = $${paramIndex}`;
+  //     values.push(warehouseId);
+  //     paramIndex++;
+  //   }
+
+  //   query += `
+  //   ),
+
+  //   report AS (
+  //     SELECT
+  //       w.name AS "WarehouseName",
+  //       COUNT(s.id) AS "NoOfSales",
+  //       SUM(s."totalAmount") AS "TotalAmount"
+  //     FROM sale_warehouse sw
+  //     INNER JOIN sales s
+  //       ON s.id = sw."SaleId"
+  //     INNER JOIN warehouses w
+  //       ON w.id = sw."warehouseId"
+  //     WHERE s."orderDate"::date BETWEEN $${paramIndex}::date AND $${paramIndex + 1}::date
+  //       AND s.status IN ('DELIVERED', 'INVOICED', 'PAID')
+  //     GROUP BY w.id, w.name
+  //   )
+
+  //   SELECT *
+  //   FROM report
+
+  //   UNION ALL
+
+  //   SELECT
+  //     'Grand Total' AS "WarehouseName",
+  //     SUM("NoOfSales") AS "NoOfSales",
+  //     SUM("TotalAmount") AS "TotalAmount"
+  //   FROM report
+
+  //   ORDER BY "WarehouseName";
+  // `;
+
+  //   values.push(newFromDate, newToDate);
+
+  //   const result = await prisma.$queryRawUnsafe<any[]>(query, ...values);
+
+  //   return result.map((r) => ({
+  //     ...r,
+  //     NoOfSales: Number(r.NoOfSales ?? 0),
+  //     TotalAmount: Number(r.TotalAmount ?? 0),
+  //   }));
+  // }
+
+  async getSalesByWarehouse(params: {
+    dateFrom: Date;
+    dateTo: Date;
+    warehouseId?: string | null;
+  }) {
+    const { dateFrom, dateTo, warehouseId } = params;
+
+    const newFromDate = startOfDayUTC(dateFrom);
+    const newToDate = endOfDayUTC(dateTo);
+
+    let query = `
+    WITH sale_warehouse AS (
+      SELECT DISTINCT
+        il."refId" AS "SaleId",
+        il."warehouseId"
+      FROM inventory_ledger il
+      WHERE il."refType" = 'SALE'
+        AND il.direction = 'OUT'
+  `;
+
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (warehouseId && warehouseId !== "null") {
+      query += ` AND il."warehouseId" = $${paramIndex}`;
+      values.push(warehouseId);
+      paramIndex++;
+    }
+
+    query += `
+    ),
+
+    report AS (
+      SELECT
+        w.name AS "WarehouseName",
+        s.id AS "SaleId",
+        s."orderNo" AS "OrderNo",
+        s."orderDate"::date AS "OrderDate",
+        c.name AS "CustomerName",
+        COUNT(sl.id) AS "NoOfItems",
+        s."totalAmount" AS "Amount"
+      FROM sale_warehouse sw
+      INNER JOIN sales s
+        ON s.id = sw."SaleId"
+      INNER JOIN warehouses w
+        ON w.id = sw."warehouseId"
+      INNER JOIN customers c
+        ON c.id = s."customerId"
+      LEFT JOIN sale_lines sl
+        ON sl."saleId" = s.id
+      WHERE s."orderDate"::date BETWEEN $${paramIndex}::date AND $${paramIndex + 1}::date
+        AND s.status IN ('DELIVERED', 'INVOICED', 'PAID')
+      GROUP BY
+        w.name,
+        s.id,
+        s."orderNo",
+        s."orderDate",
+        c.name,
+        s."totalAmount"
+    )
+
+    SELECT
+      'DETAIL' AS "RowType",
+      "WarehouseName",
+      "OrderNo",
+      "OrderDate",
+      "CustomerName",
+      "NoOfItems",
+      "Amount"
+    FROM report
+
+    UNION ALL
+
+    SELECT
+      'SUMMARY' AS "RowType",
+      "WarehouseName",
+      'Warehouse Total',
+      NULL,
+      '',
+      COUNT(*),
+      SUM("Amount")
+    FROM report
+    GROUP BY "WarehouseName"
+
+    UNION ALL
+
+    SELECT
+      'GRANDTOTAL' AS "RowType",
+      '',
+      'Grand Total',
+      NULL,
+      '',
+      COUNT(*),
+      SUM("Amount")
+    FROM report
+
+    ORDER BY
+      "WarehouseName",
+      "RowType",
+      "OrderDate";
+  `;
+
+    values.push(newFromDate, newToDate);
+
+    const result = await prisma.$queryRawUnsafe<any[]>(query, ...values);
+
+    return result.map((r) => ({
+      ...r,
+      OrderDate:
+        r.OrderDate instanceof Date
+          ? r.OrderDate.toISOString().split("T")[0]
+          : r.OrderDate,
+      NoOfItems: Number(r.NoOfItems ?? 0),
+      Amount: Number(r.Amount ?? 0),
+    }));
+  }
+
+  async getAllSalesByWarehouse(params: {
+    dateFrom: Date;
+    dateTo: Date;
+    warehouseId?: string | null;
+  }) {
+    const { dateFrom, dateTo, warehouseId } = params;
+
+    const newFromDate = startOfDayUTC(dateFrom);
+    const newToDate = endOfDayUTC(dateTo);
+
+    const values: any[] = [newFromDate, newToDate];
+    let paramIndex = 3;
+
+    let warehouseFilterPOS = "";
+    let warehouseFilterSales = "";
+
+    if (warehouseId && warehouseId !== "null") {
+      warehouseFilterPOS = ` AND ps."warehouseId" = $${paramIndex}`;
+      warehouseFilterSales = ` AND sw."warehouseId" = $${paramIndex}`;
+
+      values.push(warehouseId);
+      paramIndex++;
+    }
+
+    const query = `
+    WITH all_sales AS (
+
+      /* ==========================
+         POS SALES
+      ========================== */
+      SELECT
+          ps."createdAt"::date                    AS "TransactionDate",
+          'POS'                                   AS "SalesType",
+          ps."saleNo"                             AS "DocumentNo",
+          'Walk-in Customer'                      AS "CustomerName",
+          w.name                                  AS "WarehouseName",
+          SUM(psl.qty)                            AS "NoOfItems",
+          ps."totalAmount"                        AS "Amount"
+      FROM pos_sales ps
+      INNER JOIN warehouses w
+          ON w.id = ps."warehouseId"
+      INNER JOIN pos_sale_lines psl
+          ON psl."posSaleId" = ps.id
+      WHERE ps.status = 'COMPLETED'
+        AND ps."createdAt"::date BETWEEN $1::date AND $2::date
+        ${warehouseFilterPOS}
+      GROUP BY
+          ps.id,
+          ps."createdAt",
+          ps."saleNo",
+          w.name,
+          ps."totalAmount"
+
+      UNION ALL
+
+      /* ==========================
+         ORDINARY SALES
+      ========================== */
+      SELECT
+          s."orderDate"::date                     AS "TransactionDate",
+          'SALE'                                  AS "SalesType",
+          s."orderNo"                             AS "DocumentNo",
+          c.name                                  AS "CustomerName",
+          w.name                                  AS "WarehouseName",
+          SUM(sl.qty)                             AS "NoOfItems",
+          s."totalAmount"                         AS "Amount"
+      FROM sales s
+
+      INNER JOIN customers c
+          ON c.id = s."customerId"
+
+      INNER JOIN (
+          SELECT DISTINCT
+              il."refId",
+              il."warehouseId"
+          FROM inventory_ledger il
+          WHERE il."refType" = 'SALE'
+            AND il.direction = 'OUT'
+      ) sw
+          ON sw."refId" = s.id
+
+      INNER JOIN warehouses w
+          ON w.id = sw."warehouseId"
+
+      INNER JOIN sale_lines sl
+          ON sl."saleId" = s.id
+
+      WHERE s.status IN ('DELIVERED', 'INVOICED', 'PAID')
+        AND s."orderDate"::date BETWEEN $1::date AND $2::date
+        ${warehouseFilterSales}
+
+      GROUP BY
+          s.id,
+          s."orderDate",
+          s."orderNo",
+          c.name,
+          w.name,
+          s."totalAmount"
+    )
+
+     
+
+    SELECT
+        'GRANDTOTAL'              AS "RowType",
+        NULL                      AS "TransactionDate",
+        ''                        AS "SalesType",
+        'Grand Total'             AS "DocumentNo",
+        ''                        AS "CustomerName",
+        ''                        AS "WarehouseName",
+        SUM("NoOfItems")          AS "NoOfItems",
+        SUM("Amount")             AS "Amount"
+    FROM all_sales
+
+    
+    UNION ALL
+
+    SELECT
+        'DETAIL'                  AS "RowType",
+        "TransactionDate",
+        "SalesType",
+        "DocumentNo",
+        "CustomerName",
+        "WarehouseName",
+        "NoOfItems",
+        "Amount"
+    FROM all_sales
+
+   
+    ORDER BY
+        "TransactionDate" NULLS LAST,
+        "DocumentNo";
+  `;
+
+    const result = await prisma.$queryRawUnsafe<any[]>(query, ...values);
+
+    return result.map((r) => ({
+      ...r,
+      TransactionDate:
+        r.TransactionDate instanceof Date
+          ? r.TransactionDate.toISOString().split("T")[0]
+          : (r.TransactionDate ?? "-"),
+      NoOfItems: Number(r.NoOfItems ?? 0),
+      Amount: Number(r.Amount ?? 0),
+    }));
+  }
+
   async getPOSSalesReport(params: {
     dateFrom: Date;
     dateTo: Date;
@@ -337,7 +672,7 @@ export class ReportsService {
     let paramIndex = 3;
 
     // add warehouse filter if present
-    if (warehouseId) {
+    if (warehouseId && warehouseId !== "null") {
       query += ` AND ps."warehouseId" = $${paramIndex}`;
       values.push(warehouseId);
       paramIndex++;
