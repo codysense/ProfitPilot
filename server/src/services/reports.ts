@@ -664,7 +664,7 @@ export class ReportsService {
       FROM pos_sales ps
       LEFT JOIN warehouses w   ON ps."warehouseId"   = w.id
       LEFT JOIN cash_accounts ca ON ps."cashAccountId" = ca.id
-      LEFT JO AAIN users u       ON ps."userId"        = u.id
+      LEFT JOIN users u       ON ps."userId"        = u.id
       WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date and ps.status = 'COMPLETED'
   `;
 
@@ -679,7 +679,7 @@ export class ReportsService {
     }
 
     // add user filter if present
-    if (userId) {
+    if (userId && userId !== "null") {
       query += ` AND ps."userId" = $${paramIndex}`;
       values.push(userId);
       paramIndex++;
@@ -935,6 +935,17 @@ export class ReportsService {
 
     // Calculate closing balance
     const closingBalance = openingBalance + totalReceipt - totalPayment;
+
+    console.log(
+      "Opening Balance",
+      openingBalance,
+      "Total Receipt",
+      totalReceipt,
+      "Total Payment",
+      totalPayment,
+      "Closing Balance",
+      closingBalance,
+    );
 
     // Map journal lines with running balance
     let runningBalance = openingBalance;
