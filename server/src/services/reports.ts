@@ -664,7 +664,7 @@ export class ReportsService {
       FROM pos_sales ps
       LEFT JOIN warehouses w   ON ps."warehouseId"   = w.id
       LEFT JOIN cash_accounts ca ON ps."cashAccountId" = ca.id
-      LEFT JOIN users u       ON ps."userId"        = u.id
+      LEFT JO AAIN users u       ON ps."userId"        = u.id
       WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date and ps.status = 'COMPLETED'
   `;
 

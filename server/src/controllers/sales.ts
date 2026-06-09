@@ -100,7 +100,7 @@ export class SalesController {
 
       const sales = await prisma.sale.findMany({
         where: {
-          status: { in: ["INVOICED", "PAID"] },
+          status: { in: ["DELIVERED", "INVOICED", "PAID"] },
           orderDate: { gte: startDate, lte: endDate },
         },
         include: {
