@@ -830,11 +830,18 @@ export class InventoryController {
           entry.user?.name || "System",
         ]);
 
-        const csvContent = [headers, ...csvRows]
-          .map((row) => row.map((field) => `"${field}"`).join(","))
-          .join("\n");
+        const escapeCsvField = (value: string | number) =>
+          `"${String(value ?? "").replace(/"/g, '""')}"`;
 
-        res.setHeader("Content-Type", "text/csv");
+        const csvContent = ["sep=,", headers, ...csvRows]
+          .map((row) =>
+            Array.isArray(row)
+              ? row.map((field) => escapeCsvField(field)).join(",")
+              : row,
+          )
+          .join("\r\n");
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader(
           "Content-Disposition",
           `attachment; filename="inventory-ledger-${
@@ -920,9 +927,152 @@ export class InventoryController {
   //   }
   // }
 
+  async exportInventoryValuation(req: AuthRequest, res: Response) {
+    try {
+      const { format = "csv", warehouseId, type } = req.query;
+
+      const result = await prisma.$queryRaw`
+      SELECT
+        i.id AS "itemId",
+        i.sku,
+        i.name,
+        i.type,
+        i."costingMethod",
+        i."minimumStockLevel",
+        il."warehouseId",
+        w.code AS "warehouseCode",
+        w.name AS "warehouseName",
+        il."runningQty",
+        il."runningAvgCost",
+        il."runningValue"
+      FROM (
+        SELECT DISTINCT ON ("itemId", "warehouseId")
+          "itemId",
+          "warehouseId",
+          "runningQty",
+          "runningAvgCost",
+          "runningValue"
+        FROM "inventory_ledger"
+        ORDER BY "itemId", "warehouseId", "postedAt" DESC
+      ) il
+      JOIN "items" i ON i.id = il."itemId"
+      LEFT JOIN "warehouses" w ON w.id = il."warehouseId"
+      WHERE
+        i."isActive" = true
+        ${
+          warehouseId
+            ? Prisma.sql`AND il."warehouseId" = ${warehouseId}`
+            : Prisma.sql``
+        }
+        ${type ? Prisma.sql`AND i."type" = ${type}` : Prisma.sql``}
+        AND il."runningQty" > 0
+    `;
+
+      let grandTotal = 0;
+
+      const valuation = (result as any[]).map((row) => {
+        const totalValue = Number(row.runningValue) || 0;
+
+        grandTotal += totalValue;
+
+        return {
+          sku: row.sku,
+          name: row.name,
+          type: row.type,
+          costingMethod: row.costingMethod,
+          warehouseCode: row.warehouseCode,
+          warehouseName: row.warehouseName,
+          qty: Number(row.runningQty) || 0,
+          minimumStockLevel: Number(row.minimumStockLevel) || 0,
+          unitCost: Number(row.runningAvgCost) || 0,
+          totalValue,
+        };
+      });
+
+      if (format === "csv") {
+        const headers = [
+          "SKU",
+          "Item Name",
+          "Item Type",
+          "Warehouse Code",
+          "Warehouse Name",
+          "Costing Method",
+          "Quantity",
+          "Minimum Stock Level",
+          "Unit Cost",
+          "Total Value",
+        ];
+
+        const rows = valuation.map((item) => [
+          item.sku,
+          item.name,
+          item.type,
+          item.warehouseCode || "",
+          item.warehouseName || "",
+          item.costingMethod,
+          item.qty.toString(),
+          item.minimumStockLevel.toString(),
+          item.unitCost.toFixed(2),
+          item.totalValue.toFixed(2),
+        ]);
+
+        // Grand Total Row
+        rows.push([
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "GRAND TOTAL",
+          grandTotal.toFixed(2),
+        ]);
+
+        const escapeCsvField = (value: string | number) =>
+          `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+        const csvContent = ["sep=,", headers, ...rows]
+          .map((row) =>
+            Array.isArray(row)
+              ? row.map((field) => escapeCsvField(field)).join(",")
+              : row,
+          )
+          .join("\r\n");
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="inventory-valuation-${
+            new Date().toISOString().split("T")[0]
+          }.csv"`,
+        );
+
+        return res.send(csvContent);
+      }
+
+      return res.json({
+        valuation,
+        totalValue: grandTotal,
+        asOfDate: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Export inventory valuation error:", error);
+
+      return res.status(500).json({
+        error: "Failed to export inventory valuation",
+      });
+    }
+  }
+
   async getInventoryValuation(req: AuthRequest, res: Response) {
     try {
-      const { warehouseId, type } = req.query;
+      const { warehouseId, type, format } = req.query as {
+        warehouseId?: string;
+        type?: string;
+        format?: string;
+      };
 
       const result = await prisma.$queryRaw`
       SELECT 
@@ -973,6 +1123,51 @@ export class InventoryController {
           totalValue: totalVal,
         };
       });
+
+      if (format === "csv") {
+        const headers = [
+          "SKU",
+          "Item Name",
+          "Item Type",
+          "Costing Method",
+          "Quantity",
+          "Unit Cost",
+          "Total Value",
+        ];
+
+        const rows = valuation.map((item) => [
+          item.sku,
+          item.name,
+          item.type,
+          item.costingMethod,
+          item.qty.toString(),
+          item.unitCost.toFixed(2),
+          item.totalValue.toFixed(2),
+        ]);
+
+        rows.push(["", "", "", "", "", "GRAND TOTAL", totalValue.toFixed(2)]);
+
+        const escapeCsvField = (value: string | number) =>
+          `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+        const csvContent = ["sep=,", headers, ...rows]
+          .map((row) =>
+            Array.isArray(row)
+              ? row.map((field) => escapeCsvField(field)).join(",")
+              : row,
+          )
+          .join("\r\n");
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="inventory-valuation-${
+            new Date().toISOString().split("T")[0]
+          }.csv"`,
+        );
+
+        return res.send(csvContent);
+      }
 
       return res.json({
         valuation,

@@ -5,6 +5,7 @@ import { inventoryApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import { InventoryValuation as InventoryValuationType } from "../../types/api";
+import { toast } from "react-hot-toast";
 
 const InventoryValuation = () => {
   const [warehouseFilter, setWarehouseFilter] = useState("");
@@ -21,6 +22,8 @@ const InventoryValuation = () => {
         ...(typeFilter && { type: typeFilter }),
       }),
   });
+
+  // console.log("Valuation Data:", valuationData);
 
   const { data: warehouses } = useQuery({
     queryKey: ["warehouses-for-valuation"],
@@ -85,9 +88,16 @@ const InventoryValuation = () => {
     },
   ];
 
-  const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log("Export inventory valuation");
+  const handleExport = async () => {
+    try {
+      await inventoryApi.exportInventoryValuation({
+        ...(warehouseFilter && { warehouseId: warehouseFilter }),
+        ...(typeFilter && { type: typeFilter }),
+      });
+      toast.success("Inventory valuation exported successfully");
+    } catch (error) {
+      console.error("Error exporting inventory valuation:", error);
+    }
   };
 
   // Calculate summary statistics
@@ -95,7 +105,7 @@ const InventoryValuation = () => {
   const totalQuantity =
     valuationData?.valuation?.reduce(
       (sum: number, item: InventoryValuationType) => sum + item.qty,
-      0
+      0,
     ) || 0;
   const totalValue = valuationData?.totalValue || 0;
   const avgUnitCost = totalQuantity > 0 ? totalValue / totalQuantity : 0;

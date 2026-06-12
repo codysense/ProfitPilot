@@ -267,6 +267,43 @@ export const inventoryApi = {
       }
     }
   },
+  exportInventoryValuation: async (params?: {
+    warehouseId?: string;
+    type?: string;
+  }) => {
+    const queryParams = {
+      format: "csv",
+      ...(params || {}),
+    };
+
+    const response = await fetch(
+      `${API_BASE_URL}/inventory/valuation?${new URLSearchParams(
+        queryParams as any,
+      ).toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${useAuthStore.getState().accessToken}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to export inventory valuation");
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `inventory-valuation-${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
   getUsers: () => api.get("/auth/users?limit=100"),
   getInventoryValuation: (
     params?: { warehouseId?: string },
