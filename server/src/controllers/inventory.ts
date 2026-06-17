@@ -21,6 +21,34 @@ const prisma = new PrismaClient();
 const costingService = new CostingService();
 const glService = new GeneralLedgerService();
 
+function startOfDayUTC(date: Date) {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
+function endOfDayUTC(date: Date) {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
+}
+
 export class InventoryController {
   //   async getItems(req: AuthRequest, res: Response) {
   //   try {
@@ -695,6 +723,9 @@ export class InventoryController {
 
       const skip = (Number(page) - 1) * Number(limit);
 
+      const newDateFrom = startOfDayUTC(new Date(dateFrom as string));
+      const newDateTo = endOfDayUTC(new Date(dateTo as string));
+
       const where: any = {};
       if (itemId) where.itemId = itemId;
       if (warehouseId) where.warehouseId = warehouseId;
@@ -703,8 +734,8 @@ export class InventoryController {
       if (direction) where.direction = direction;
       if (dateFrom || dateTo) {
         where.postedAt = {};
-        if (dateFrom) where.postedAt.gte = new Date(dateFrom as string);
-        if (dateTo) where.postedAt.lte = new Date(dateTo as string);
+        if (dateFrom) where.postedAt.gte = newDateFrom;
+        if (dateTo) where.postedAt.lte = newDateTo;
       }
       if (itemType) {
         where.item = { type: itemType };
@@ -760,6 +791,9 @@ export class InventoryController {
         dateTo,
       } = req.query;
 
+      const newDateFrom = startOfDayUTC(new Date(dateFrom as string));
+      const newDateTo = endOfDayUTC(new Date(dateTo as string));
+
       const where: any = {};
       if (itemId) where.itemId = itemId;
       if (warehouseId) where.warehouseId = warehouseId;
@@ -768,8 +802,8 @@ export class InventoryController {
       if (direction) where.direction = direction;
       if (dateFrom || dateTo) {
         where.postedAt = {};
-        if (dateFrom) where.postedAt.gte = new Date(dateFrom as string);
-        if (dateTo) where.postedAt.lte = new Date(dateTo as string);
+        if (dateFrom) where.postedAt.gte = newDateFrom;
+        if (dateTo) where.postedAt.lte = newDateTo;
       }
       if (itemType) {
         where.item = { type: itemType };
