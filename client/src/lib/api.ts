@@ -679,6 +679,15 @@ export const reportsApi = {
     api.get(
       `/reports/customer-balances?${new URLSearchParams(params).toString()}`,
     ),
+
+  getSalesReport: (params: {
+    dateFrom?: string;
+    dateTo?: string;
+    customerId: string;
+  }) =>
+    api.get(
+      `/reports/sales-report?${new URLSearchParams(params as any).toString()}`,
+    ),
   getCustomerLedger: (params: {
     dateFrom: string;
     dateTo: string;
@@ -696,6 +705,14 @@ export const reportsApi = {
   }) =>
     api.get(
       `/reports/vendor-ledger?${new URLSearchParams(params as any).toString()}`,
+    ),
+  getPurchaseReport: (params: {
+    dateFrom?: string;
+    dateTo?: string;
+    vendorId: string;
+  }) =>
+    api.get(
+      `/reports/purchase-report?${new URLSearchParams(params as any).toString()}`,
     ),
   getCashAccountBalances: (params: { dateFrom: string; dateTo: string }) =>
     api.get(

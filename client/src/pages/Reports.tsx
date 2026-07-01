@@ -170,6 +170,15 @@ const Reports = () => {
       requiresAsOfDate: true,
     },
     {
+      id: "purchase-report",
+      name: "Purchase Report",
+      description: "Detail of purchase transactions",
+      icon: DollarSign,
+      category: "Financial",
+      requiresDateRange: true,
+      supportVendors: true,
+    },
+    {
       id: "vendor-ledger",
       name: "Vendor Ledger",
       description: "Vendor Statment of Account",
@@ -195,6 +204,15 @@ const Reports = () => {
       icon: DollarSign,
       category: "Financial",
       requiresAsOfDate: true,
+    },
+    {
+      id: "sales-report",
+      name: "Sales Report",
+      description: "Detail of sales transactions",
+      icon: DollarSign,
+      category: "Financial",
+      requiresDateRange: true,
+      supportCustomers: true,
     },
     {
       id: "customer-ledger",
@@ -460,6 +478,22 @@ const Reports = () => {
             ...(dateTo && { dateTo }),
           });
           break;
+        case "sales-report":
+          if (!customerId) {
+            alert("Please select a customer");
+            return;
+          }
+          if (!dateFrom || !dateTo) {
+            alert("Please select date range");
+
+            return;
+          }
+          data = await reportsApi.getSalesReport({
+            dateFrom,
+            dateTo,
+            customerId: customerId,
+          });
+          break;
         case "customer-ledger":
           if (!customerId) {
             alert("Please select a customer");
@@ -487,6 +521,23 @@ const Reports = () => {
             return;
           }
           data = await reportsApi.getVendorLedger({
+            dateFrom,
+            dateTo,
+            vendorId: vendorFilter,
+          });
+          break;
+
+        case "purchase-report":
+          if (!vendorFilter) {
+            alert("Please select a vendor");
+            return;
+          }
+          if (!dateFrom || !dateTo) {
+            alert("Please select date range");
+
+            return;
+          }
+          data = await reportsApi.getPurchaseReport({
             dateFrom,
             dateTo,
             vendorId: vendorFilter,
@@ -738,6 +789,26 @@ const Reports = () => {
           );
           break;
         }
+        case "sales-report": {
+          const salesReportColumns = [
+            { key: "date", header: "Date" },
+            { key: "orderNo", header: "Order No" },
+            { key: "customerName", header: "Customer Name" },
+            { key: "itemName", header: "Item Name" },
+            { key: "qty", header: "Quantity" },
+            { key: "unitPrice", header: "Unit Price" },
+            { key: "total", header: "Total" },
+            { key: "status", header: "Status" },
+            { key: "source", header: "Source" },
+          ];
+          ReportExporter.exportGenericReport(
+            reportData,
+            salesReportColumns,
+            "Sales Report",
+            format,
+          );
+          break;
+        }
         case "customer-ledger": {
           const customerLedgerColumns = [
             { key: "openingBalance", header: "Opening Balance" },
@@ -756,6 +827,24 @@ const Reports = () => {
             reportData,
             customerLedgerColumns,
             "Customer Ledger",
+            format,
+          );
+          break;
+        }
+        case "purchase-report": {
+          const purchaseColumns = [
+            { key: "date", header: "Date" },
+            { key: "orderNo", header: "Order No" },
+            { key: "itemName", header: "Item" },
+            { key: "qty", header: "Quantity" },
+            { key: "unitPrice", header: "Unit Price" },
+            { key: "total", header: "Total" },
+            { key: "status", header: "Status" },
+          ];
+          ReportExporter.exportGenericReport(
+            reportData,
+            purchaseColumns,
+            "Purchase Report",
             format,
           );
           break;
@@ -782,6 +871,7 @@ const Reports = () => {
           );
           break;
         }
+
         case "wip-summary": {
           const wipColumns = [
             { key: "orderNo", header: "Production Order" },
@@ -1062,8 +1152,12 @@ const Reports = () => {
         return <InventoryAgingReport data={reportData} />;
       case "stock-card":
         return <StockCardReport data={reportData} />;
+      case "sales-report":
+        return <SalesReport data={reportData} />;
       case "customer-ledger":
         return <CustomerLedger data={reportData} />;
+      case "purchase-report":
+        return <PurchaseReport data={reportData} />;
       case "vendor-ledger":
         return <VendorLedger data={reportData} />;
       case "wip-summary":
@@ -2411,6 +2505,63 @@ const StockCardReport = ({ data }: { data: any }) => {
     </div>
   );
 };
+const SalesReport = ({ data }: { data: any }) => {
+  const columns = [
+    {
+      key: "entries.date",
+      header: "Date",
+      cell: (item: any) => new Date(item.date).toLocaleDateString(),
+      width: "w-24",
+    },
+    { key: "orderNo", header: "Order No", width: "w-32" },
+    { key: "customerName", header: "Customer Name", width: "w-32" },
+    { key: "itemName", header: "Item Name", width: "w-32" },
+    { key: "qty", header: "Quantity", width: "w-32" },
+
+    {
+      key: "unitPrice",
+      header: "Unit Price",
+      cell: (item: any) =>
+        item.unitPrice ? `₦${Number(item.unitPrice).toLocaleString()}` : "-",
+      width: "w-32",
+    },
+    {
+      key: "total",
+      header: "Total",
+      cell: (item: any) =>
+        item.total ? `₦${Number(item.total).toLocaleString()}` : "-",
+      width: "w-32",
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "w-32",
+    },
+    {
+      key: "source",
+      header: "Source",
+      width: "w-32",
+    },
+  ];
+  // console.log("Sales Report Data:", data); // Debugging line to check the data structure
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-xl font-bold">Sales Report</h2>
+      </div>
+      <div className="flex justify-end">
+        <span className="mx-2 font-bold">Total Quantity </span>
+        <span>{Number(data.totals.totalQty).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className="mx-2 font-bold">Total Sales </span>
+        <span>₦{Number(data.totals.totalAmount).toLocaleString()}</span>
+      </div>
+
+      <DataTable data={data?.data || []} columns={columns} />
+    </div>
+  );
+};
 const CustomerLedger = ({ data }: { data: any }) => {
   const entries = Array.isArray(data?.entries) ? data.entries : [];
 
@@ -2566,6 +2717,58 @@ const VendorLedger = ({ data }: { data: any }) => {
       </div>
 
       <DataTable data={entriesWithBalance || []} columns={columns} />
+    </div>
+  );
+};
+const PurchaseReport = ({ data }: { data: any }) => {
+  const columns = [
+    {
+      key: "entries.date",
+      header: "Date",
+      cell: (item: any) => new Date(item.date).toLocaleDateString(),
+      width: "w-24",
+    },
+    { key: "orderNo", header: "Order No", width: "w-32" },
+    { key: "vendorName", header: "Vendor Name", width: "w-32" },
+    { key: "itemName", header: "Item Name", width: "w-32" },
+    { key: "qty", header: "Quantity", width: "w-32" },
+
+    {
+      key: "unitPrice",
+      header: "Unit Price",
+      cell: (item: any) =>
+        item.unitPrice ? `₦${Number(item.unitPrice).toLocaleString()}` : "-",
+      width: "w-32",
+    },
+    {
+      key: "total",
+      header: "Total",
+      cell: (item: any) =>
+        item.total ? `₦${Number(item.total).toLocaleString()}` : "-",
+      width: "w-32",
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "w-32",
+    },
+  ];
+  console.log("Purchase Report Data:", data); // Debugging line to check the data structure
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <h2 className="text-xl font-bold">Purchase Report</h2>
+      </div>
+      <div className="flex justify-end">
+        <span className="mx-2 font-bold">Total Quantity </span>
+        <span>{Number(data.totals.totalQty).toLocaleString()}</span>
+      </div>
+      <div className="flex justify-end">
+        <span className="mx-2 font-bold">Total Purchases </span>
+        <span>₦{Number(data.totals.totalAmount).toLocaleString()}</span>
+      </div>
+
+      <DataTable data={data?.data || []} columns={columns} />
     </div>
   );
 };

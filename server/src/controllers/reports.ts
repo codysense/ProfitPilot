@@ -160,6 +160,45 @@ export class ReportsController {
         .json({ error: "Failed to generate Customer Ledger Report" });
     }
   }
+  async getSalesReport(req: AuthRequest, res: Response) {
+    try {
+      const { dateFrom, dateTo, customerId } = req.query;
+
+      if (!dateFrom || !dateTo || !customerId) {
+        return res.status(400).json({ error: "Date range is required" });
+      }
+
+      const report = await reportsService.getSalesReport(
+        new Date(dateFrom as string),
+        new Date(dateTo as string),
+        customerId as string,
+      );
+      res.json(report);
+    } catch (error) {
+      console.error("Sales Report error:", error);
+      res.status(400).json({ error: "Failed to generate Sales Report" });
+    }
+  }
+
+  async getPurchaseReport(req: AuthRequest, res: Response) {
+    try {
+      const { dateFrom, dateTo, vendorId } = req.query;
+
+      if (!dateFrom || !dateTo || !vendorId) {
+        return res.status(400).json({ error: "Date range is required" });
+      }
+
+      const report = await reportsService.getPurchaseReport(
+        new Date(dateFrom as string),
+        new Date(dateTo as string),
+        vendorId as string,
+      );
+      res.json(report);
+    } catch (error) {
+      console.error("Purchase Report error:", error);
+      res.status(400).json({ error: "Failed to generate Purchase Report" });
+    }
+  }
 
   async getVendorLedger(req: AuthRequest, res: Response) {
     try {

@@ -268,16 +268,16 @@ export class ReportsService {
 
       if (account.accountType === "INCOME") {
         revenues.push(accountData);
-        totalRevenue += netAmount;
+        totalRevenue += accountData.amount;
       } else if (account.accountType === "OTHER_INCOME") {
         otherIncomes.push(accountData);
-        totalOtherIncome += netAmount;
+        totalOtherIncome += accountData.amount;
       } else if (account.accountType === "COST_OF_SALES") {
         costOfSales.push(accountData);
-        totalCostOfSales += netAmount;
+        totalCostOfSales += accountData.amount;
       } else if (account.accountType === "EXPENSES") {
         expenses.push(accountData);
-        totalExpense += netAmount;
+        totalExpense += accountData.amount;
       }
     });
     const grossProfit = totalRevenue - totalCostOfSales;
@@ -1415,6 +1415,164 @@ ORDER BY date, transaction_type, reference;
         totalSales,
         totalPayments,
         closingBalance,
+      },
+    };
+  }
+
+  async getSalesReport(fromDate: Date, toDate: Date, customerId?: string) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
+
+    // Run both queries concurrently to optimize performance
+    const [salesLines, posLines] = await Promise.all([
+      // 1. Fetch Standard Sale Lines
+      prisma.saleLine.findMany({
+        where: {
+          sale: {
+            orderDate: {
+              gte: newFromDate,
+              lte: newToDate,
+            },
+            status: {
+              not: "DRAFT", // Exclude draft sales
+            },
+            ...(customerId && { customerId }),
+          },
+        },
+        include: {
+          sale: {
+            include: {
+              customer: true,
+            },
+          },
+          item: true,
+        },
+      }),
+
+      // 2. Fetch POS Sale Lines
+      prisma.posSaleLine.findMany({
+        where: {
+          posSale: {
+            createdAt: {
+              gte: newFromDate,
+              lte: newToDate,
+            },
+            status: {
+              // Exclude returned sales (using typescript/prisma enum naming standard)
+              not: "RETURNED",
+            },
+            ...(customerId && { customerId }),
+          },
+        },
+        include: {
+          posSale: {
+            include: {
+              customer: true,
+            },
+          },
+          item: true,
+        },
+      }),
+    ]);
+
+    // 3. Map Standard Sales to unified layout
+    const mappedSales = salesLines.map((line) => ({
+      date: line.sale.orderDate,
+      orderNo: line.sale.orderNo,
+      customerName: line.sale.customer.name,
+      itemName: line.item.name,
+      qty: Number(line.qty),
+      unitPrice: Number(line.unitPrice),
+      total: Number(line.lineTotal),
+      status: line.sale.status,
+      source: "Sales Order", // Helpful metadata tag
+    }));
+
+    // 4. Map POS Sales to unified layout
+    const mappedPos = posLines.map((line) => ({
+      date: line.posSale.createdAt,
+      orderNo: line.posSale.saleNo,
+      customerName: line.posSale.customer?.name || "Walk-in Customer", // Fallback for POS walk-in
+      itemName: line.item.name,
+      qty: Number(line.qty),
+      unitPrice: Number(line.unitPrice),
+      total: Number(line.lineTotal),
+      status: line.posSale.status,
+      source: "POS", // Helpful metadata tag
+    }));
+
+    // 5. Combine and sort by date ascending
+    const data = [...mappedSales, ...mappedPos].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+
+    // 6. Calculate combined totals
+    const totalQty = data.reduce((sum, item) => sum + item.qty, 0);
+    const totalAmount = data.reduce((sum, item) => sum + item.total, 0);
+
+    return {
+      data,
+      totals: {
+        totalQty,
+        totalAmount,
+      },
+    };
+  }
+
+  async getPurchaseReport(fromDate: Date, toDate: Date, vendorId?: string) {
+    const newToDate = endOfDayUTC(toDate);
+    const newFromDate = startOfDayUTC(fromDate);
+
+    // Fetch purchase lines within the period
+    const lines = await prisma.purchaseLine.findMany({
+      where: {
+        purchase: {
+          orderDate: {
+            gte: newFromDate,
+            lte: newToDate,
+          },
+          status: {
+            not: "DRAFT", // Exclude drafts from reports (optional)
+          },
+          ...(vendorId && { vendorId }),
+        },
+      },
+      include: {
+        purchase: {
+          include: {
+            vendor: true,
+          },
+        },
+        item: true, // Fetch item name
+      },
+      orderBy: {
+        purchase: {
+          orderDate: "asc",
+        },
+      },
+    });
+
+    // Map to the required report columns
+    const data = lines.map((line) => ({
+      date: line.purchase.orderDate,
+      orderNo: line.purchase.orderNo,
+      vendorName: line.purchase.vendor.name,
+      itemName: line.item?.name || line.assetName || "N/A", // Fallback for asset names
+      qty: Number(line.qty),
+      unitPrice: Number(line.unitPrice),
+      total: Number(line.lineTotal),
+      status: line.purchase.status,
+    }));
+
+    // Totals
+    const totalQty = data.reduce((sum, item) => sum + item.qty, 0);
+    const totalAmount = data.reduce((sum, item) => sum + item.total, 0);
+
+    return {
+      data,
+      totals: {
+        totalQty,
+        totalAmount,
       },
     };
   }

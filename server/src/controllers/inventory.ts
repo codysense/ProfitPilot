@@ -235,6 +235,18 @@ export class InventoryController {
       const validatedData = createItemSchema.parse(req.body);
       const { priceList, ...itemData } = validatedData;
 
+      //check if item with the same sku exist
+
+      // const existingItem = await prisma.item.findUnique({
+      //   where: { sku: itemData.sku },
+      // });
+
+      // if (existingItem) {
+      //   return res
+      //     .status(400)
+      //     .json({ error: "Item with the same SKU already exists" });
+      // }
+
       const item = await prisma.item.upsert({
         where: { sku: itemData.sku },
         update: { ...itemData },

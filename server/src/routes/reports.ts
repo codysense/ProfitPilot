@@ -45,9 +45,19 @@ router.get(
   reportsController.getCustomerBalances,
 );
 router.get(
+  "/sales-report",
+  requireRole(["Senior Accountant", "Auditor", "Manager"]),
+  reportsController.getSalesReport,
+);
+router.get(
   "/customer-ledger",
   requireRole(["Senior Accountant", "Auditor", "Manager"]),
   reportsController.getCustomerLedger,
+);
+router.get(
+  "/purchase-report",
+  requireRole(["Inventory Manager", "Auditor", "Manager", "Senior Accountant"]),
+  reportsController.getPurchaseReport,
 );
 router.get(
   "/vendor-ledger",
