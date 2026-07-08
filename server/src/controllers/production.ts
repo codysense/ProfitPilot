@@ -18,11 +18,12 @@ const glService = new GeneralLedgerService();
 export class ProductionController {
   async getProductionOrders(req: AuthRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, status } = req.query;
+      const { page = 1, limit = 10, status, itemId } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
       if (status) where.status = status;
+      if (itemId) where.itemId = itemId;
 
       const [orders, total] = await Promise.all([
         prisma.productionOrder.findMany({

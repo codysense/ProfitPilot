@@ -21,6 +21,8 @@ import { useAuthStore } from "../../store/authStore";
 import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
+import { Vector } from "html2canvas/dist/types/render/vector";
+import { VendorSelect } from "../../components/VendorSelect";
 
 const PurchaseOrders = () => {
   const [page, setPage] = useState(1);
@@ -29,6 +31,8 @@ const PurchaseOrders = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [vendorFilter, setVendorFilter] = useState<string>("");
+
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(
     null,
   );
@@ -41,12 +45,16 @@ const PurchaseOrders = () => {
     user?.roles.includes("Inventory Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["purchases", { page, status: statusFilter }],
+    queryKey: [
+      "purchases",
+      { page, status: statusFilter, vendorId: vendorFilter },
+    ],
     queryFn: () =>
       purchaseApi.getPurchases({
         page,
         limit: 10,
         ...(statusFilter && { status: statusFilter }),
+        ...(vendorFilter && { vendorId: vendorFilter }),
       }),
   });
   console.log("Purchases data:", data);
@@ -582,6 +590,15 @@ const PurchaseOrders = () => {
               <option value="PARTIALLY_PAID">Partially Paid</option>
               <option value="PAID">Paid</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vendor
+            </label>
+            <VendorSelect
+              value={vendorFilter}
+              onChange={(value) => setVendorFilter(value)}
+            />
           </div>
         </div>
       </div>

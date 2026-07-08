@@ -17,10 +17,12 @@ import { useAuthStore } from "../../store/authStore";
 import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
+import { ItemSelect } from "../../components/ItemSelect";
 
 const ProductionOrders = () => {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [selectedItem, setSelectedItem] = useState<string>("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showIssueMaterialsModal, setShowIssueMaterialsModal] = useState(false);
@@ -41,14 +43,22 @@ const ProductionOrders = () => {
   const canReverseOrder = user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["production-orders", { page, status: statusFilter }],
+    queryKey: [
+      "production-orders",
+      { page, status: statusFilter, itemId: selectedItem },
+    ],
     queryFn: () =>
       productionApi.getProductionOrders({
         page,
         limit: 10,
         ...(statusFilter && { status: statusFilter }),
+        ...(selectedItem && { itemId: selectedItem }),
       }),
   });
+
+  console.log("Selected Item:", selectedItem);
+
+  console.log("Production Orders Data:", data);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-info-for-receipt"],
@@ -626,6 +636,28 @@ const ProductionOrders = () => {
               <option value="FINISHED">Finished</option>
               <option value="CLOSED">Closed</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Item
+            </label>
+            <ItemSelect
+              value={selectedItem}
+              onChange={(itemId) => setSelectedItem(itemId || "")}
+              typeFilter="FINISHED_GOODS"
+            />
+            {/* <select
+              value={selectedItem}
+              onChange={(e) => setSelectedItem(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              <option value="">All Items</option>
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select> */}
           </div>
         </div>
       </div>
