@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,7 +16,7 @@ const receivePurchaseSchema = z.object({
         qtyReceived: z.number().positive("Quantity must be positive"),
         unitCost: z.number().positive("Unit cost must be positive"),
         warehouseId: z.string().min(1, "Warehouse is required"),
-      })
+      }),
     )
     .min(1, "At least one receipt line is required"),
 });
@@ -53,6 +53,8 @@ const ReceivePurchaseModal = ({
     },
   });
 
+  const isSubmittingRef = useRef(false);
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "receiptLines",
@@ -66,6 +68,10 @@ const ReceivePurchaseModal = ({
   const watchedLines = watch("receiptLines");
 
   const onSubmit = async (data: ReceivePurchaseFormData) => {
+    if (isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
+    //setIsSubmitting(true);
     try {
       await purchaseApi.receivePurchase(purchase.id, data);
       toast.success("Purchase received successfully");
@@ -186,7 +192,7 @@ const ReceivePurchaseModal = ({
                             <input
                               type="hidden"
                               {...register(
-                                `receiptLines.${index}.purchaseLineId`
+                                `receiptLines.${index}.purchaseLineId`,
                               )}
                             />
                           </div>
@@ -198,7 +204,7 @@ const ReceivePurchaseModal = ({
                             <input
                               {...register(
                                 `receiptLines.${index}.qtyReceived`,
-                                { valueAsNumber: true }
+                                { valueAsNumber: true },
                               )}
                               type="number"
                               step="0.001"
@@ -279,7 +285,7 @@ const ReceivePurchaseModal = ({
                           (sum, line) =>
                             sum +
                             (line.qtyReceived || 0) * (line.unitCost || 0),
-                          0
+                          0,
                         )
                         .toLocaleString()}
                     </span>

@@ -123,13 +123,28 @@ export class ProductionController {
     try {
       const { id } = req.params;
 
-      const order = await prisma.productionOrder.update({
+      const existingOrder = await prisma.productionOrder.findUnique({
         where: { id },
+        select: { status: true },
+      });
+
+      if (!existingOrder) {
+        throw new Error(`Production order ${id} not found`);
+      }
+
+      const order = await prisma.productionOrder.updateMany({
+        where: { id, status: "PLANNED" },
         data: {
           status: "RELEASED",
           startedAt: new Date(),
         },
       });
+
+      if (order.count === 0) {
+        throw new Error(
+          `Production order ${id} cannot be released. It may already be released or in progress.`,
+        );
+      }
 
       res.json(order);
     } catch (error) {
@@ -146,6 +161,26 @@ export class ProductionController {
       await prisma.$transaction(
         async (tx) => {
           let totalIssueValue = 0;
+
+          const order = await tx.productionOrder.findUnique({
+            where: { id },
+            select: { orderNo: true },
+          });
+          if (!order) {
+            throw new Error(`Production order ${id} not found`);
+          }
+
+          // Update production order status
+          const updateOrder = await tx.productionOrder.updateMany({
+            where: { id, status: "RELEASED" },
+            data: { status: "IN_PROGRESS" },
+          });
+
+          if (updateOrder.count === 0) {
+            throw new Error(
+              `Production order ${id} cannot be updated to IN_PROGRESS.`,
+            );
+          }
 
           // Issue each material
           for (const material of validatedData.materials) {
@@ -182,17 +217,7 @@ export class ProductionController {
             });
           }
 
-          // Update production order status
-          await tx.productionOrder.update({
-            where: { id },
-            data: { status: "IN_PROGRESS" },
-          });
-
           // Post to general ledger
-          const order = await tx.productionOrder.findUnique({
-            where: { id },
-            select: { orderNo: true },
-          });
 
           await glService.postJournal(
             tx,
@@ -247,6 +272,10 @@ export class ProductionController {
               qtyTarget: true,
             },
           });
+
+          if (!order) {
+            throw new Error(`Production order ${id} not found`);
+          }
 
           // Record labor time
           await tx.laborTime.create({
@@ -328,6 +357,10 @@ export class ProductionController {
             where: { id },
             select: { orderNo: true, itemId: true, warehouseId: true },
           });
+
+          if (!order) {
+            throw new Error(`Production order ${id} not found`);
+          }
           await tx.wipLedger.create({
             data: {
               productionOrderId: id,
@@ -394,7 +427,7 @@ export class ProductionController {
           });
 
           if (!order) {
-            throw new Error("Production order not found");
+            throw new Error(`Production order ${id} not found`);
           }
 
           // Calculate WIP cost per unit
@@ -475,7 +508,7 @@ export class ProductionController {
               : "IN_PROGRESS";
 
           await tx.productionOrder.update({
-            where: { id },
+            where: { id, status: { in: ["RELEASED", "IN_PROGRESS"] } },
             data: {
               qtyProduced: newQtyProduced,
               status: newStatus,
@@ -526,10 +559,10 @@ export class ProductionController {
 
     await prisma.$transaction(async (tx) => {
       const order = await tx.productionOrder.findUnique({
-        where: { id },
+        where: { id, status: { in: ["FINISHED", "IN_PROGRESS"] } },
       });
 
-      if (!order) throw new Error("Order not found");
+      if (!order) throw new Error(`Production order ${id} not found`);
 
       if (!["IN_PROGRESS", "FINISHED"].includes(order.status)) {
         throw new Error("Only orders in progress or finished can be reversed");

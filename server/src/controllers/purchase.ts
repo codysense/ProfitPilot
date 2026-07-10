@@ -168,13 +168,133 @@ export class PurchaseController {
     }
   }
 
+  // async receivePurchase(req: AuthRequest, res: Response) {
+  //   try {
+  //     const { id } = req.params;
+  //     const validatedData = receivePurchaseSchema.parse(req.body);
+
+  //     await prisma.$transaction(async (tx) => {
+  //       // 1️ Fetch purchase lines INSIDE transaction
+  //       const purchaseLines = await tx.purchaseLine.findMany({
+  //         where: {
+  //           id: { in: validatedData.receiptLines.map((r) => r.purchaseLineId) },
+  //         },
+  //         include: { item: true },
+  //       });
+
+  //       const purchaseLineMap = new Map(purchaseLines.map((pl) => [pl.id, pl]));
+
+  //       // 2️ Update purchase header
+  //       await tx.purchase.update({
+  //         where: { id },
+  //         data: {
+  //           status: "RECEIVED",
+  //           receivedBy: req.user!.id,
+  //           receivedAt: new Date(),
+  //         },
+  //       });
+
+  //       // 3️ Update each purchase line
+  //       for (const receiptLine of validatedData.receiptLines) {
+  //         const purchaseLine = purchaseLineMap.get(receiptLine.purchaseLineId);
+
+  //         if (!purchaseLine) {
+  //           throw new Error(
+  //             `Purchase line ${receiptLine.purchaseLineId} not found`,
+  //           );
+  //         }
+
+  //         await tx.purchaseLine.update({
+  //           where: { id: receiptLine.purchaseLineId },
+  //           data: {
+  //             qty: receiptLine.qtyReceived,
+  //           },
+  //         });
+
+  //         // 4️ Inventory costing INSIDE transaction
+  //         await costingService.receiveInventory(
+  //           tx,
+  //           purchaseLine.itemId,
+  //           receiptLine.warehouseId,
+  //           receiptLine.qtyReceived,
+  //           receiptLine.unitCost,
+  //           "PURCHASE",
+  //           id,
+  //           req.user!.id,
+  //         );
+  //       }
+
+  //       // 5️ Calculate total value
+  //       const totalValue = validatedData.receiptLines.reduce((sum, line) => {
+  //         return sum + line.qtyReceived * line.unitCost;
+  //       }, 0);
+
+  //       const purchase = await tx.purchase.findUnique({ where: { id } });
+
+  //       const itemType = await getItemTypeById(purchaseLines[0].itemId);
+
+  //       if (!purchase) {
+  //         throw new Error("Purchase not found");
+  //       }
+
+  //       // 6️ Post GL INSIDE transaction
+  //       await glService.postJournal(
+  //         tx,
+  //         [
+  //           {
+  //             accountCode: itemType === "FINISHED_GOODS" ? "1350" : "1300",
+  //             debit: totalValue,
+  //             credit: 0,
+  //             refType: "PURCHASE",
+  //             refId: id,
+  //           },
+  //           {
+  //             accountCode: "2150",
+  //             debit: 0,
+  //             credit: totalValue,
+  //             refType: "PURCHASE",
+  //             refId: id,
+  //           },
+  //         ],
+  //         `Purchase receipt: ${purchase.orderNo}`,
+  //         req.user!.id,
+  //       );
+  //     });
+
+  //     res.json({ message: "Purchase received successfully" });
+  //   } catch (error) {
+  //     console.error("Receive purchase error:", error);
+  //     res.status(400).json({ error: "Failed to receive purchase" });
+  //   }
+  // }
+
   async receivePurchase(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const validatedData = receivePurchaseSchema.parse(req.body);
 
       await prisma.$transaction(async (tx) => {
-        // 1️ Fetch purchase lines INSIDE transaction
+        // 1️ Acquire row lock & perform state transition check FIRST
+        const updateResult = await tx.purchase.updateMany({
+          where: {
+            id,
+            status: "ORDERED", // Only allow receiving if it is currently ORDERED
+          },
+          data: {
+            status: "RECEIVED",
+            receivedBy: req.user!.id,
+            receivedAt: new Date(),
+          },
+        });
+
+        // If no rows were updated, it means the purchase was already received (or does not exist)
+        if (updateResult.count === 0) {
+          throw new Error(
+            "Purchase has already been received or does not exist",
+          );
+        }
+
+        // 2️ Fetch purchase lines INSIDE transaction
         const purchaseLines = await tx.purchaseLine.findMany({
           where: {
             id: { in: validatedData.receiptLines.map((r) => r.purchaseLineId) },
@@ -183,16 +303,6 @@ export class PurchaseController {
         });
 
         const purchaseLineMap = new Map(purchaseLines.map((pl) => [pl.id, pl]));
-
-        // 2️ Update purchase header
-        await tx.purchase.update({
-          where: { id },
-          data: {
-            status: "RECEIVED",
-            receivedBy: req.user!.id,
-            receivedAt: new Date(),
-          },
-        });
 
         // 3️ Update each purchase line
         for (const receiptLine of validatedData.receiptLines) {
@@ -229,6 +339,7 @@ export class PurchaseController {
           return sum + line.qtyReceived * line.unitCost;
         }, 0);
 
+        // Fetch purchase header to get orderNo (already locked by the updateMany above)
         const purchase = await tx.purchase.findUnique({ where: { id } });
 
         const itemType = await getItemTypeById(purchaseLines[0].itemId);
@@ -264,7 +375,10 @@ export class PurchaseController {
       res.json({ message: "Purchase received successfully" });
     } catch (error) {
       console.error("Receive purchase error:", error);
-      res.status(400).json({ error: "Failed to receive purchase" });
+      res.status(400).json({
+        error:
+          error instanceof Error ? error.message : "Failed to receive purchase",
+      });
     }
   }
 
@@ -275,8 +389,16 @@ export class PurchaseController {
       await prisma.$transaction(
         async (tx) => {
           // 1️ Update purchase status
-          const purchase = await tx.purchase.update({
+          const purchaseRecord = await tx.purchase.findUnique({
             where: { id },
+          });
+
+          if (!purchaseRecord) {
+            throw new Error("Purchase not found");
+          }
+
+          const purchase = await tx.purchase.updateMany({
+            where: { id, status: "RECEIVED" }, // Only allow invoicing if it hasn't been invoiced yet
             data: {
               status: "INVOICED",
               invoicedBy: req.user!.id,
@@ -284,26 +406,32 @@ export class PurchaseController {
             },
           });
 
+          if (purchase.count === 0) {
+            throw new Error(
+              "Purchase has already been invoiced or is not in a receivable state",
+            );
+          }
+
           // 2️ Post GL INSIDE transaction
           await glService.postJournal(
-            tx, // 👈 pass transaction client
+            tx, //  pass transaction client
             [
               {
                 accountCode: "2000",
                 debit: 0,
-                credit: Number(purchase.totalAmount),
+                credit: Number(purchaseRecord.totalAmount),
                 refType: "PURCHASE",
                 refId: id,
               },
               {
                 accountCode: "2150",
-                debit: Number(purchase.totalAmount),
+                debit: Number(purchaseRecord.totalAmount),
                 credit: 0,
                 refType: "PURCHASE",
                 refId: id,
               },
             ],
-            `Purchase invoice: ${purchase.orderNo}`,
+            `Purchase invoice: ${purchaseRecord.orderNo}`,
             req.user!.id,
           );
         },

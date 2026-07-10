@@ -12,6 +12,70 @@ interface JournalEntry {
 }
 
 export class GeneralLedgerService {
+  // async postJournal(
+  //   tx: Prisma.TransactionClient,
+  //   entries: JournalEntry[],
+  //   memo: string,
+  //   userId: string,
+  //   date?: Date | undefined,
+  // ): Promise<string> {
+  //   //return await prisma.$transaction(
+  //   //async (tx) => {
+  //   // Validate double-entry (debits = credits)
+  //   const totalDebits = entries.reduce((sum, entry) => sum + entry.debit, 0);
+  //   const totalCredits = entries.reduce((sum, entry) => sum + entry.credit, 0);
+
+  //   if (Math.abs(totalDebits - totalCredits) > 0.01) {
+  //     throw new Error(
+  //       `Journal entries are not balanced. Debits: ${totalDebits}, Credits: ${totalCredits}`,
+  //     );
+  //   }
+
+  //   // Generate journal number
+  //   const count = await tx.journal.count();
+  //   const journalNo = `J${String(count + 1).padStart(6, "0")}`;
+
+  //   // Create journal header
+  //   const journal = await tx.journal.create({
+  //     data: {
+  //       journalNo,
+  //       date: date || new Date(),
+  //       memo,
+  //       postedBy: userId,
+  //     },
+  //   });
+
+  //   // Create journal lines
+  //   for (const entry of entries) {
+  //     const account = await tx.chartOfAccount.findUnique({
+  //       where: { code: entry.accountCode },
+  //     });
+
+  //     if (!account) {
+  //       throw new Error(`Account code ${entry.accountCode} not found`);
+  //     }
+
+  //     await tx.journalLine.create({
+  //       data: {
+  //         journalId: journal.id,
+  //         accountId: account.id,
+  //         debit: new Decimal(entry.debit),
+  //         credit: new Decimal(entry.credit),
+  //         refType: entry.refType,
+  //         refId: entry.refId,
+  //       },
+  //     });
+  //   }
+
+  //   return journal.id;
+  //   // },
+  //   // {
+  //   //   maxWait: 5000, // 5s wait for connection
+  //   //   timeout: 20000, // 20s max runtime
+  //   // },
+  //   //);
+  // }
+
   async postJournal(
     tx: Prisma.TransactionClient,
     entries: JournalEntry[],
@@ -19,9 +83,7 @@ export class GeneralLedgerService {
     userId: string,
     date?: Date | undefined,
   ): Promise<string> {
-    //return await prisma.$transaction(
-    //async (tx) => {
-    // Validate double-entry (debits = credits)
+    // 1. Validate double-entry
     const totalDebits = entries.reduce((sum, entry) => sum + entry.debit, 0);
     const totalCredits = entries.reduce((sum, entry) => sum + entry.credit, 0);
 
@@ -31,11 +93,25 @@ export class GeneralLedgerService {
       );
     }
 
-    // Generate journal number
-    const count = await tx.journal.count();
-    const journalNo = `J${String(count + 1).padStart(6, "0")}`;
+    // 2. Lock the last journal record to serialize concurrent number generation
 
-    // Create journal header
+    const lastJournals: any[] = await tx.$queryRaw`
+      SELECT "journalNo" FROM "journals" 
+      ORDER BY "journalNo" DESC 
+      LIMIT 1 
+      FOR UPDATE
+    `;
+
+    let nextNumber = 1;
+    if (lastJournals.length > 0) {
+      const lastNoStr = lastJournals[0].journalNo; // e.g. "J000100"
+      const lastNoInt = parseInt(lastNoStr.replace("J", ""), 10);
+      nextNumber = lastNoInt + 1;
+    }
+
+    const journalNo = `J${String(nextNumber).padStart(6, "0")}`;
+
+    // 3. Create journal header
     const journal = await tx.journal.create({
       data: {
         journalNo,
@@ -45,7 +121,7 @@ export class GeneralLedgerService {
       },
     });
 
-    // Create journal lines
+    // 4. Create journal lines
     for (const entry of entries) {
       const account = await tx.chartOfAccount.findUnique({
         where: { code: entry.accountCode },
@@ -68,12 +144,6 @@ export class GeneralLedgerService {
     }
 
     return journal.id;
-    // },
-    // {
-    //   maxWait: 5000, // 5s wait for connection
-    //   timeout: 20000, // 20s max runtime
-    // },
-    //);
   }
 
   async getTrialBalance(asOfDate: Date) {
