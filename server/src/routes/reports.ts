@@ -178,6 +178,7 @@ router.get(
     "Senior Accountant",
     "Auditor",
     "Manager",
+    "Production Manager",
   ]),
   reportsController.getMaterialUsage,
 );
