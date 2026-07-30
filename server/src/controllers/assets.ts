@@ -135,7 +135,7 @@ export class AssetsController {
   async runDepreciation(req: AuthRequest, res: Response) {
     try {
       const validatedData = runDepreciationSchema.parse(req.body);
-      const result = await assetsService.runDepreciation(
+      const result = await assetsService.reverseDepreciation(
         validatedData,
         req.user!.id,
       );

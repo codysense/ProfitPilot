@@ -1,17 +1,18 @@
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { X, Save } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { assetsApi, inventoryApi } from '../../lib/api';
-import { Asset } from '../../types/api';
-import toast from 'react-hot-toast';
+import React, { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { X, Save } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { assetsApi, inventoryApi } from "../../lib/api";
+import { Asset } from "../../types/api";
+import toast from "react-hot-toast";
 
 const updateAssetSchema = z.object({
-  name: z.string().min(1, 'Asset name is required'),
+  name: z.string().min(1, "Asset name is required"),
   description: z.string().optional(),
-  categoryId: z.string().min(1, 'Category is required'),
+  acquisitionDate: z.string().min(1, "Acquisition date is required"),
+  categoryId: z.string().min(1, "Category is required"),
   locationId: z.string().optional(),
   serialNumber: z.string().optional(),
   supplier: z.string().optional(),
@@ -30,55 +31,59 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting, isDirty }
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<UpdateAssetFormData>({
     resolver: zodResolver(updateAssetSchema),
     defaultValues: {
       name: asset.name,
-      description: asset.description || '',
+      description: asset.description || "",
+      acquisitionDate: asset.acquisitionDate || "",
       categoryId: asset.categoryId,
-      locationId: asset.locationId || '',
-      serialNumber: asset.serialNumber || '',
-      supplier: asset.supplier || ''
-    }
+      locationId: asset.locationId || "",
+      serialNumber: asset.serialNumber || "",
+      supplier: asset.supplier || "",
+    },
   });
 
   const { data: categories } = useQuery({
-    queryKey: ['asset-categories-for-edit'],
-    queryFn: () => assetsApi.getAssetCategories()
+    queryKey: ["asset-categories-for-edit"],
+    queryFn: () => assetsApi.getAssetCategories(),
   });
 
   const { data: locations } = useQuery({
-    queryKey: ['locations-for-edit-asset'],
-    queryFn: () => inventoryApi.getLocations({ limit: 100 })
+    queryKey: ["locations-for-edit-asset"],
+    queryFn: () => inventoryApi.getLocations({ limit: 100 }),
   });
 
   useEffect(() => {
     reset({
       name: asset.name,
-      description: asset.description || '',
+      description: asset.description || "",
       categoryId: asset.categoryId,
-      locationId: asset.locationId || '',
-      serialNumber: asset.serialNumber || '',
-      supplier: asset.supplier || ''
+      locationId: asset.locationId || "",
+      serialNumber: asset.serialNumber || "",
+      supplier: asset.supplier || "",
     });
   }, [asset, reset]);
 
   const onSubmit = async (data: UpdateAssetFormData) => {
     try {
       await assetsApi.updateAsset(asset.id, data);
-      toast.success('Asset updated successfully');
+      toast.success("Asset updated successfully");
       onSuccess();
     } catch (error) {
-      console.error('Update asset error:', error);
+      console.error("Update asset error:", error);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-        
+        <div
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          onClick={onClose}
+        />
+
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
@@ -97,7 +102,7 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="bg-blue-50 p-3 rounded-md">
                 <div className="text-sm text-blue-800">
@@ -110,11 +115,13 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   Asset Name *
                 </label>
                 <input
-                  {...register('name')}
+                  {...register("name")}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
                 {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.name.message}
+                  </p>
                 )}
               </div>
 
@@ -123,7 +130,7 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   Description
                 </label>
                 <textarea
-                  {...register('description')}
+                  {...register("description")}
                   rows={3}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
@@ -134,7 +141,7 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   Asset Category *
                 </label>
                 <select
-                  {...register('categoryId')}
+                  {...register("categoryId")}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
                   <option value="">Select category</option>
@@ -145,7 +152,9 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   ))}
                 </select>
                 {errors.categoryId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.categoryId.message}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.categoryId.message}
+                  </p>
                 )}
               </div>
 
@@ -155,7 +164,7 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                     Location
                   </label>
                   <select
-                    {...register('locationId')}
+                    {...register("locationId")}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">Select location</option>
@@ -172,7 +181,7 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                     Serial Number
                   </label>
                   <input
-                    {...register('serialNumber')}
+                    {...register("serialNumber")}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
@@ -183,21 +192,32 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   Supplier
                 </label>
                 <input
-                  {...register('supplier')}
+                  {...register("supplier")}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
               </div>
 
               <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">Asset Financial Details (Read-only):</h4>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">
+                  Asset Financial Details (Read-only):
+                </h4>
                 <div className="text-sm text-gray-600 space-y-1">
-                  <div>• Acquisition Cost: ₦{asset.acquisitionCost.toLocaleString()}</div>
-                  <div>• Acquisition Date: {new Date(asset.acquisitionDate).toLocaleDateString()}</div>
-                  <div>• Depreciation Method: {asset.depreciationMethod.replace('_', ' ')}</div>
+                  <div>
+                    • Acquisition Cost: ₦
+                    {asset.acquisitionCost.toLocaleString()}
+                  </div>
+                  <div>
+                    • Acquisition Date:{" "}
+                    {new Date(asset.acquisitionDate).toLocaleDateString()}
+                  </div>
+                  <div>
+                    • Depreciation Method:{" "}
+                    {asset.depreciationMethod.replace("_", " ")}
+                  </div>
                   <div>• Useful Life: {asset.usefulLife} years</div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -212,7 +232,7 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  {isSubmitting ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </form>

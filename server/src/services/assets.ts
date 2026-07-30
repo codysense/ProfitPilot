@@ -40,11 +40,11 @@ export class AssetsService {
       where: { categoryId },
     });
 
-    if (assetCount > 0) {
-      throw new Error(
-        "Cannot update asset category. Assets already exist under this category.",
-      );
-    }
+    // if (assetCount > 0) {
+    //   throw new Error(
+    //     "Cannot update asset category. Assets already exist under this category.",
+    //   );
+    // }
 
     // 2. Update category
     return await prisma.assetCategory.update({
@@ -293,7 +293,7 @@ export class AssetsService {
             refId: asset.id,
           },
           {
-            accountCode: glAssetAccount.code || "1100", // Cash/Bank - will be updated based on payment method
+            accountCode: glAssetAccount?.code || "1100", // Cash/Bank - will be updated based on payment method
             debit: 0,
             credit: data.acquisitionCost,
             refType: "ASSET_CAPITALIZATION",
@@ -501,7 +501,7 @@ export class AssetsService {
 
     if (asset.depreciationMethod === "STRAIGHT_LINE") {
       // Straight-line: (Cost - Residual) / Useful Life / 12 months
-      const monthlyDepreciation = depreciableAmount / asset.usefulLife / 12;
+      const monthlyDepreciation = depreciableAmount / asset.usefulLife;
       depreciationAmount = monthlyDepreciation;
     } else {
       // Reducing balance: Rate = (1 - (Residual/Cost)^(1/Life)) * 100
@@ -509,7 +509,7 @@ export class AssetsService {
         (1 - Math.pow(residualValue / acquisitionCost, 1 / asset.usefulLife)) *
         100;
       const currentBookValue = acquisitionCost - accumulatedDepreciation;
-      depreciationAmount = (currentBookValue * rate) / 100 / 12;
+      depreciationAmount = (currentBookValue * rate) / 100;
     }
 
     // Ensure we don't depreciate below residual value
@@ -653,6 +653,113 @@ export class AssetsService {
       {
         maxWait: 5000, // 5s wait for connection
         timeout: 20000, // 20s max runtime
+      },
+    );
+  }
+
+  async reverseDepreciation(data: any, userId: string) {
+    const { periodYear, periodMonth, assetIds } = data;
+
+    return await prisma.$transaction(
+      async (tx) => {
+        // 1. Get assets that were included in the depreciation run
+        const whereAsset: any = { status: "ACTIVE" };
+        if (assetIds && assetIds.length > 0) {
+          whereAsset.id = { in: assetIds };
+        }
+
+        const assets = await tx.asset.findMany({
+          where: whereAsset,
+          include: {
+            category: {
+              include: {
+                glDepreciationAccount: true,
+                glAccumulatedDepreciationAccount: true,
+              },
+            },
+          },
+        });
+
+        const assetIdsToReverse = assets.map((a) => a.id);
+
+        // 2. Find existing depreciation entries for the period
+        const existingEntries = await tx.assetDepreciation.findMany({
+          where: {
+            assetId: { in: assetIdsToReverse },
+            periodYear,
+            periodMonth,
+          },
+        });
+
+        if (existingEntries.length === 0) {
+          return {
+            reversedAssets: 0,
+            totalReversedAmount: 0,
+            message: "No depreciation entries found for this period to reverse",
+          };
+        }
+
+        let totalReversedAmount = 0;
+        const entryIdsToDelete = [];
+
+        for (const entry of existingEntries) {
+          const asset = assets.find((a) => a.id === entry.assetId);
+          if (!asset) continue;
+
+          const depreciationAmount = Number(entry.depreciationAmount);
+          if (depreciationAmount > 0) {
+            const glDepreciationAccount =
+              asset.category?.glDepreciationAccount?.code;
+            const glAccumulatedDepreciationAccount =
+              asset.category?.glAccumulatedDepreciationAccount?.code;
+
+            // 3. Post a reversing GL journal entry (swapping debit and credit)
+            await glService.postJournal(
+              tx,
+              [
+                {
+                  accountCode: glDepreciationAccount,
+                  debit: 0,
+                  credit: depreciationAmount, // Swap: credit the expense account to reduce it
+                  refType: "REVERSED_DEPRECIATION",
+                  refId: `${periodYear}-${periodMonth}`,
+                },
+                {
+                  accountCode: glAccumulatedDepreciationAccount,
+                  debit: depreciationAmount, // Swap: debit the accumulated depreciation account to reduce it
+                  credit: 0,
+                  refType: "REVERSED_DEPRECIATION",
+                  refId: `${periodYear}-${periodMonth}`,
+                },
+              ],
+              `Reverse Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}`,
+              userId,
+            );
+
+            totalReversedAmount += depreciationAmount;
+          }
+
+          entryIdsToDelete.push(entry.id);
+        }
+
+        // 4. Delete the AssetDepreciation records to allow recalculation in the future
+        if (entryIdsToDelete.length > 0) {
+          await tx.assetDepreciation.deleteMany({
+            where: {
+              id: { in: entryIdsToDelete },
+            },
+          });
+        }
+
+        return {
+          reversedAssets: entryIdsToDelete.length,
+          totalReversedAmount,
+          message: "Depreciation successfully reversed",
+        };
+      },
+      {
+        maxWait: 5000,
+        timeout: 20000,
       },
     );
   }

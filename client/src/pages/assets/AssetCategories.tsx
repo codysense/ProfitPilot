@@ -12,8 +12,10 @@ import toast from "react-hot-toast";
 
 const AssetCategories = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditAssetCategoryModal, setShowEditAssetCategoryModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<AssetCategory | null>(null);
+  const [showEditAssetCategoryModal, setShowEditAssetCategoryModal] =
+    useState(false);
+  const [selectedCategory, setSelectedCategory] =
+    useState<AssetCategory | null>(null);
   const { user } = useAuthStore();
 
   const canManageCategories = user?.roles.includes("General Manager");
@@ -22,9 +24,6 @@ const AssetCategories = () => {
     queryKey: ["asset-categories"],
     queryFn: () => assetsApi.getAssetCategories(),
   });
-
-
-
 
   const columns = [
     {
@@ -57,7 +56,7 @@ const AssetCategories = () => {
     {
       key: "usefulLife",
       header: "Useful Life",
-      cell: (category: AssetCategory) => `${category.usefulLife} years`,
+      cell: (category: AssetCategory) => `${category.usefulLife} months`,
       width: "w-24",
     },
     {
@@ -82,8 +81,6 @@ const AssetCategories = () => {
     },
   ];
 
-
-
   const handleCreateCategory = () => {
     refetch();
     setShowCreateModal(false);
@@ -92,7 +89,7 @@ const AssetCategories = () => {
   const handleDeleteCategory = async (id: string, category: AssetCategory) => {
     if (
       !confirm(
-        `Are you sure you want to delete the asset category "${category.name}"? This action cannot be undone.`
+        `Are you sure you want to delete the asset category "${category.name}"? This action cannot be undone.`,
       )
     ) {
       return;
@@ -105,38 +102,37 @@ const AssetCategories = () => {
     } catch (error) {
       console.error("Failed to delete category:", error);
     }
-  };  
+  };
 
   const handleEditCategory = () => {
     refetch();
     setShowEditAssetCategoryModal(false);
-  }
+  };
 
   const actions = (category: AssetCategory) => (
-      <div className="flex space-x-2">
-        <button
-          onClick={() => {
-            setSelectedCategory(category);
-            setShowEditAssetCategoryModal(true);
-          }}
-          className="text-blue-600 hover:text-blue-900"
-          title="Edit Category"
-        >
-          <Edit className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => {
-            handleDeleteCategory(category.id, category);
-           
-          }}
-          className="text-red-600 hover:text-red-900"
-          title="Delete Category"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-    );
-  
+    <div className="flex space-x-2">
+      <button
+        onClick={() => {
+          setSelectedCategory(category);
+          setShowEditAssetCategoryModal(true);
+        }}
+        className="text-blue-600 hover:text-blue-900"
+        title="Edit Category"
+      >
+        <Edit className="h-4 w-4" />
+      </button>
+      <button
+        onClick={() => {
+          handleDeleteCategory(category.id, category);
+        }}
+        className="text-red-600 hover:text-red-900"
+        title="Delete Category"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
   if (!canManageCategories) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -228,7 +224,7 @@ const AssetCategories = () => {
                     {data?.categories?.reduce(
                       (sum: number, c: AssetCategory) =>
                         sum + (c._count?.assets || 0),
-                      0
+                      0,
                     ) || 0}
                   </dd>
                 </dl>
@@ -262,8 +258,6 @@ const AssetCategories = () => {
           onSuccess={handleEditCategory}
         />
       )}
-
-
     </div>
   );
 };
