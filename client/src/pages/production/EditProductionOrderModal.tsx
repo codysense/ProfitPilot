@@ -43,7 +43,7 @@ const EditProductionOrderModal = ({
       bomId: order.bomId || "",
     },
   });
-  console.log("order passed", order);
+  //console.log("order passed", order);
 
   const selectedItemId = watch("itemId");
 
@@ -198,7 +198,7 @@ const EditProductionOrderModal = ({
               </div>
 
               {selectedItemId && boms && boms.length > 0 && (
-                <div>
+                <>
                   <label className="block text-sm font-medium text-gray-700">
                     Bill of Materials
                   </label>
@@ -213,7 +213,7 @@ const EditProductionOrderModal = ({
                       </option>
                     ))}
                   </select>
-                </div>
+                </>
               )}
 
               {/* Change Summary */}

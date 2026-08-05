@@ -174,7 +174,7 @@ const CreateAssetModal = ({ onClose, onSuccess }: CreateAssetModalProps) => {
                     {...register("usefulLife", { valueAsNumber: true })}
                     type="number"
                     min="1"
-                    max="50"
+                    max="500"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                   {errors.usefulLife && (
@@ -211,9 +211,9 @@ const CreateAssetModal = ({ onClose, onSuccess }: CreateAssetModalProps) => {
                   <input
                     {...register("acquisitionCost", { valueAsNumber: true })}
                     type="number"
-                    step="0.01"
+                    step="0.0001"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="0.00"
+                    placeholder="0.000"
                   />
                   {errors.acquisitionCost && (
                     <p className="mt-1 text-sm text-red-600">
@@ -275,7 +275,7 @@ const CreateAssetModal = ({ onClose, onSuccess }: CreateAssetModalProps) => {
                       {selectedCategory.depreciationMethod.replace("_", " ")}
                     </div>
                     <div>
-                      • Useful Life: {selectedCategory.usefulLife} years
+                      • Useful Life: {selectedCategory.usefulLife} months
                     </div>
                     <div>
                       • Residual Value: {selectedCategory.residualValue}%

@@ -58,14 +58,15 @@ export const Journals = () => {
     {
       key: "debit",
       header: "Total Debit",
-      cell: (journal: any) => `₦${Number(journal.debit || 0).toLocaleString()}`,
+      cell: (journal: any) =>
+        `₦${Number(journal.debit || 0).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
       width: "w-32",
     },
     {
       key: "credit",
       header: "Total Credit",
       cell: (journal: any) =>
-        `₦${Number(journal.credit || 0).toLocaleString()}`,
+        `₦${Number(journal.credit || 0).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
       width: "w-32",
     },
     {

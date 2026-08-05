@@ -111,7 +111,8 @@ export const Memos = () => {
     {
       key: "amount",
       header: "Amount",
-      cell: (memo: any) => `₦${Number(memo.amount).toLocaleString()}`,
+      cell: (memo: any) =>
+        `₦${Number(memo.amount).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
       width: "w-32",
     },
     {

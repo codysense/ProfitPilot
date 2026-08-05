@@ -86,16 +86,16 @@ const PurchaseOrders = () => {
       key: "totalAmount",
       header: "Total Amount",
       cell: (purchase: Purchase) =>
-        `₦${Number(purchase.totalAmount).toLocaleString()}`,
+        `₦${Number(purchase.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
       width: "w-32",
     },
     {
       key: "balanceAmount",
       header: "Balance Amount",
       cell: (purchase: Purchase) =>
-        `₦${purchase.balanceAmount.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 3,
+        `₦${Number(purchase.balanceAmount).toLocaleString(undefined, {
+          minimumFractionDigits: 4,
+          maximumFractionDigits: 4,
         })}`,
       width: "w-32",
     },
@@ -614,7 +614,8 @@ const PurchaseOrders = () => {
               data?.purchases
                 ?.filter((p: Purchase) => p.status === status)
                 .reduce(
-                  (sum: number, p: Purchase) => sum + Number(p.totalAmount),
+                  (sum: number, p: Purchase) =>
+                    sum + Number(Number(p.totalAmount)),
                   0,
                 ) || 0;
 
@@ -637,7 +638,11 @@ const PurchaseOrders = () => {
                           {count} orders
                         </dd>
                         <dd className="text-sm text-gray-500">
-                          ₦{total.toLocaleString()}
+                          ₦
+                          {Number(total).toLocaleString(undefined, {
+                            minimumFractionDigits: 4,
+                            maximumFractionDigits: 4,
+                          })}
                         </dd>
                       </dl>
                     </div>

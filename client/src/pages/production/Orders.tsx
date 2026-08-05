@@ -56,9 +56,9 @@ const ProductionOrders = () => {
       }),
   });
 
-  console.log("Selected Item:", selectedItem);
+  //console.log("Selected Item:", selectedItem);
 
-  console.log("Production Orders Data:", data);
+  //console.log("Production Orders Data:", data);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-info-for-receipt"],

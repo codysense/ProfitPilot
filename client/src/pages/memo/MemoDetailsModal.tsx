@@ -82,7 +82,11 @@ const MemoDetailsModal = ({ memo, onClose }: MemoDetailsModalProps) => {
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">Amount:</span>
                     <span className="text-sm font-medium">
-                      ₦{Number(memo.amount).toLocaleString()}
+                      ₦
+                      {Number(memo.amount).toLocaleString(undefined, {
+                        minimumFractionDigits: 4,
+                        maximumFractionDigits: 4,
+                      })}
                     </span>
                   </div>
 

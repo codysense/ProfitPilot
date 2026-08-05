@@ -13,7 +13,7 @@ const PosReturnsHistory = () => {
     queryFn: () => posApi.getReturns({ page, limit: 20 }),
   });
 
-  console.log(data);
+  // console.log(data);
   const columns = [
     {
       key: "returnNo",
@@ -51,7 +51,10 @@ const PosReturnsHistory = () => {
       key: "refundAmount",
       header: "Return Amount",
       cell: (returnRecord: any) =>
-        `₦${returnRecord.refundAmount.toLocaleString()}`,
+        `₦${returnRecord.refundAmount.toLocaleString({
+          minimumFractionDigits: 4,
+          maximumFractionDigits: 4,
+        })}`,
       width: "w-32",
     },
     {
@@ -127,7 +130,11 @@ const PosReturnsHistory = () => {
                     Total Refunds
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦ {Number(totalRefund).toLocaleString()}
+                    ₦{" "}
+                    {Number(totalRefund).toLocaleString({
+                      minimumFractionDigits: 4,
+                      maximumFractionDigits: 4,
+                    })}
                   </dd>
                 </dl>
               </div>
@@ -147,7 +154,11 @@ const PosReturnsHistory = () => {
                     Today's Returns
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
-                    ₦ {Number(totalRefundToday).toLocaleString()}
+                    ₦{" "}
+                    {Number(totalRefundToday).toLocaleString(undefined, {
+                      minimumFractionDigits: 4,
+                      maximumFractionDigits: 4,
+                    })}
                   </dd>
                 </dl>
               </div>

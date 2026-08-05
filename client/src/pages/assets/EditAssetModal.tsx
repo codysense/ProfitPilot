@@ -12,6 +12,10 @@ const updateAssetSchema = z.object({
   name: z.string().min(1, "Asset name is required"),
   description: z.string().optional(),
   acquisitionDate: z.string().min(1, "Acquisition date is required"),
+  usefulLife: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : Number(value)),
+    z.number().int().positive().optional(),
+  ),
   categoryId: z.string().min(1, "Category is required"),
   locationId: z.string().optional(),
   serialNumber: z.string().optional(),
@@ -26,7 +30,21 @@ interface EditAssetModalProps {
   onSuccess: () => void;
 }
 
+const formatDateForInput = (value: string | Date | null | undefined) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
+  //console.log("Asset data in EditAssetModal:", asset);
   const {
     register,
     handleSubmit,
@@ -37,7 +55,8 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
     defaultValues: {
       name: asset.name,
       description: asset.description || "",
-      acquisitionDate: asset.acquisitionDate || "",
+      acquisitionDate: asset.acquisitionDate,
+      usefulLife: asset.usefulLife ?? undefined,
       categoryId: asset.categoryId,
       locationId: asset.locationId || "",
       serialNumber: asset.serialNumber || "",
@@ -60,6 +79,9 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
       name: asset.name,
       description: asset.description || "",
       categoryId: asset.categoryId,
+      //acquisitionDate: formatDateForInput(asset.acquisitionDate),
+      acquisitionDate: asset.acquisitionDate.toString().split("T")[0], // Format date for input
+      usefulLife: asset.usefulLife ?? undefined,
       locationId: asset.locationId || "",
       serialNumber: asset.serialNumber || "",
       supplier: asset.supplier || "",
@@ -110,19 +132,42 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Asset Name *
-                </label>
-                <input
-                  {...register("name")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.name.message}
-                  </p>
-                )}
+              <div className=" grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Asset Name *
+                  </label>
+                  <input
+                    {...register("name")}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  {errors.name && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.name.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Asset Category *
+                  </label>
+                  <select
+                    {...register("categoryId")}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Select category</option>
+                    {categories?.categories?.map((category: any) => (
+                      <option key={category.id} value={category.id}>
+                        {category.code} - {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.categoryId && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.categoryId.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -134,28 +179,6 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   rows={3}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Asset Category *
-                </label>
-                <select
-                  {...register("categoryId")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="">Select category</option>
-                  {categories?.categories?.map((category: any) => (
-                    <option key={category.id} value={category.id}>
-                      {category.code} - {category.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.categoryId && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.categoryId.message}
-                  </p>
-                )}
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -186,6 +209,32 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Acquisition Date
+                  </label>
+                  <input
+                    {...register("acquisitionDate")}
+                    type="date"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Useful Life (months)
+                  </label>
+                  <input
+                    {...register("usefulLife")}
+                    type="number"
+                    min={1}
+                    max={500}
+                    step="1"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -204,7 +253,10 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                 <div className="text-sm text-gray-600 space-y-1">
                   <div>
                     • Acquisition Cost: ₦
-                    {asset.acquisitionCost.toLocaleString()}
+                    {Number(asset.acquisitionCost).toLocaleString(undefined, {
+                      minimumFractionDigits: 4,
+                      maximumFractionDigits: 4,
+                    })}
                   </div>
                   <div>
                     • Acquisition Date:{" "}
@@ -214,7 +266,7 @@ const EditAssetModal = ({ asset, onClose, onSuccess }: EditAssetModalProps) => {
                     • Depreciation Method:{" "}
                     {asset.depreciationMethod.replace("_", " ")}
                   </div>
-                  <div>• Useful Life: {asset.usefulLife} years</div>
+                  <div>• Useful Life: {asset.usefulLife} months</div>
                 </div>
               </div>
 

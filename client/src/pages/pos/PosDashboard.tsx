@@ -98,7 +98,7 @@ const PosDashboard = () => {
     },
     {
       name: "Today's Revenue",
-      value: `₦${todaySales?.sales?.reduce((sum: number, sale: any) => sum + Number(sale.totalAmount), 0).toLocaleString() || "0"}`,
+      value: `₦${todaySales?.sales?.reduce((sum: number, sale: any) => sum + Number(sale.totalAmount), 0).toLocaleString({ minimumFractionDigits: 4, maximumFractionDigits: 4 }) || "0"}`,
       icon: DollarSign,
       color: "text-green-600",
     },
@@ -175,15 +175,26 @@ const PosDashboard = () => {
                 Started:{" "}
                 {new Date(currentSession.session.openedAt).toLocaleString()} |
                 Opening Balance: ₦
-                {currentSession.session.openingBalance.toLocaleString()}
+                {currentSession.session.openingBalance.toLocaleString({
+                  minimumFractionDigits: 4,
+                  maximumFractionDigits: 4,
+                })}
               </p>
             </div>
             <div className="text-right">
               <div className="text-lg font-semibold text-green-900">
-                Sales: ₦{currentSession.session.totalSales.toLocaleString()}
+                Sales: ₦
+                {currentSession.session.totalSales.toLocaleString({
+                  minimumFractionDigits: 4,
+                  maximumFractionDigits: 4,
+                })}
               </div>
               <div className="text-sm text-green-700">
-                Returns: ₦{currentSession.session.totalReturns.toLocaleString()}
+                Returns: ₦
+                {currentSession.session.totalReturns.toLocaleString({
+                  minimumFractionDigits: 4,
+                  maximumFractionDigits: 4,
+                })}
               </div>
             </div>
           </div>

@@ -271,7 +271,7 @@ export const MemoModal = ({
                     </label>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.0001"
                       {...register("amount", { valueAsNumber: true })}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
                     />

@@ -61,7 +61,7 @@ const Dashboard = () => {
   //   );
   // });
 
-  console.log("Filtered Sales for this month:", filteredSales);
+  //console.log("Filtered Sales for this month:", filteredSales);
 
   //get pos sales for this month
   const { data: posSales } = useQuery({
@@ -117,8 +117,8 @@ const Dashboard = () => {
     0,
   );
 
-  console.log("regular sale", totalSalesAmount);
-  console.log("Pos Sales", totalPosSalesAmount);
+  //console.log("regular sale", totalSalesAmount);
+  //console.log("Pos Sales", totalPosSalesAmount);
 
   const { data: cashAccounts } = useQuery({
     queryKey: ["cash-accounts"],
@@ -133,8 +133,8 @@ const Dashboard = () => {
       value: inventory
         ? `₦${
             inventory.totalValue?.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
+              minimumFractionDigits: 4,
+              maximumFractionDigits: 4,
             }) || "0"
           }`
         : "₦0",
@@ -167,8 +167,8 @@ const Dashboard = () => {
         (totalSalesAmount + (totalPosSalesAmount || 0)).toLocaleString(
           undefined,
           {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4,
           },
         ) || "0"
       }`,
@@ -204,7 +204,7 @@ const Dashboard = () => {
                       {stat.name}
                     </dt>
                     <dd className="flex items-baseline">
-                      <div className="text-2xl font-semibold text-gray-900">
+                      <div className="text-xl font-semibold text-gray-900">
                         {stat.value}
                       </div>
                       <div
@@ -240,10 +240,10 @@ const Dashboard = () => {
                   <div key={account.id} className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className=" text-xs font-medium text-gray-900">
                           {account.name}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs text-gray-500">
                           {account.code}
                         </div>
                         <div className="text-xs text-gray-400 flex items-center mt-1">
@@ -254,7 +254,7 @@ const Dashboard = () => {
                       </div>
                       <div className="text-right">
                         <div
-                          className={`text-lg font-semibold ${
+                          className={`text-sm font-semibold ${
                             account.balance >= 0
                               ? "text-green-600"
                               : "text-red-600"
@@ -263,6 +263,8 @@ const Dashboard = () => {
                           {Number(account.balance).toLocaleString("en-NG", {
                             style: "currency",
                             currency: "NGN",
+                            minimumFractionDigits: 4,
+                            maximumFractionDigits: 4,
                           })}
                         </div>
                         <div

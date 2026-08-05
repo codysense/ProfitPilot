@@ -201,7 +201,13 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Total Paid:</span>
-                    <span>₦{totalPaid.toLocaleString()}</span>
+                    <span>
+                      ₦
+                      {totalPaid.toLocaleString({
+                        minimumFractionDigits: 4,
+                        maximumFractionDigits: 4,
+                      })}
+                    </span>
                   </div>
 
                   {changeAmount > 0 && (

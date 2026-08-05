@@ -183,7 +183,7 @@ const InventoryValuation = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Total Items
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
+                  <dd className="text-xl font-semibold text-gray-900">
                     {totalItems}
                   </dd>
                 </dl>
@@ -203,7 +203,7 @@ const InventoryValuation = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Total Quantity
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
+                  <dd className="text-xl font-semibold text-gray-900">
                     {totalQuantity.toLocaleString()}
                   </dd>
                 </dl>
@@ -223,8 +223,12 @@ const InventoryValuation = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Total Value
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{totalValue.toLocaleString()}
+                  <dd className="text-xl font-semibold text-gray-900">
+                    ₦
+                    {Number(totalValue).toLocaleString(undefined, {
+                      minimumFractionDigits: 4,
+                      maximumFractionDigits: 4,
+                    })}
                   </dd>
                 </dl>
               </div>
@@ -243,8 +247,12 @@ const InventoryValuation = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Avg Unit Cost
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
-                    ₦{avgUnitCost.toLocaleString()}
+                  <dd className="text-xl font-semibold text-gray-900">
+                    ₦
+                    {Number(avgUnitCost).toLocaleString(undefined, {
+                      minimumFractionDigits: 4,
+                      maximumFractionDigits: 4,
+                    })}
                   </dd>
                 </dl>
               </div>

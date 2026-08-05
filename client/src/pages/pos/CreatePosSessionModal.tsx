@@ -59,7 +59,7 @@ const CreatePosSessionModal = ({
     }
   };
 
-  console.log(user);
+  //console.log(user);
   // Filter warehouses and cash accounts based on user permissions
   // const availableWarehouses = user?.roles.includes('CFO') || user?.roles.includes('General Manager')
   //   ? warehouses?.warehouses

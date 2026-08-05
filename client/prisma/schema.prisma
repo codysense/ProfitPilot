@@ -281,8 +281,8 @@ model ProductionOrder {
   id          String                @id @default(cuid())
   orderNo     String                @unique
   itemId      String
-  qtyTarget   Decimal               @db.Decimal(15,4)
-  qtyProduced Decimal               @default(0) @db.Decimal(15,4)
+  qtyTarget   Decimal               @db.Decimal(15,7)
+  qtyProduced Decimal               @default(0) @db.Decimal(15,7)
   status      ProductionOrderStatus @default(PLANNED)
   warehouseId String
   bomId       String?

@@ -287,7 +287,7 @@ model InventoryBatch {
   itemId          String
   warehouseId     String
   binId           String?
-  qtyOnHand       Decimal           @db.Decimal(15, 4)
+  qtyOnHand       Decimal           @db.Decimal(15, 7)
   unitCost        Decimal           @db.Decimal(15, 4)
   receivedAt      DateTime
   bin             Bin?              @relation(fields: [binId], references: [id])
@@ -305,7 +305,7 @@ model InventoryLedger {
   refType        String
   refId          String
   direction      LedgerDirection
-  qty            Decimal         @db.Decimal(15, 4)
+  qty            Decimal         @db.Decimal(15, 7)
   unitCost       Decimal         @db.Decimal(15, 4)
   value          Decimal         @db.Decimal(15, 4)
   runningQty     Decimal         @db.Decimal(15, 4)
@@ -339,8 +339,8 @@ model InventoryTransferItem {
   id         String            @id @default(cuid())
   transferId String
   itemId     String
-  qty        Decimal
-  unitCost   Decimal
+  qty        Decimal           @db.Decimal(15,7)
+  unitCost   Decimal           @db.Decimal(15,4)
   item       Item              @relation(fields: [itemId], references: [id])
   transfer   InventoryTransfer @relation(fields: [transferId], references: [id])
 }
@@ -349,8 +349,8 @@ model ProductionOrder {
   id                String                @id @default(cuid())
   orderNo           String                @unique
   itemId            String
-  qtyTarget         Decimal               @db.Decimal(15, 4)
-  qtyProduced       Decimal               @default(0) @db.Decimal(15, 4)
+  qtyTarget         Decimal               @db.Decimal(15, 7)
+  qtyProduced       Decimal               @default(0) @db.Decimal(15, 7)
   status            ProductionOrderStatus @default(PLANNED)
   warehouseId       String
   bomId             String?

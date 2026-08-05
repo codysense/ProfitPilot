@@ -96,7 +96,8 @@ const SalesOrders = () => {
     {
       key: "totalAmount",
       header: "Total Amount",
-      cell: (sale: Sale) => `₦${sale.totalAmount.toLocaleString()}`,
+      cell: (sale: Sale) =>
+        `₦${Number(sale.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
       width: "w-32",
     },
     {
@@ -603,7 +604,11 @@ const SalesOrders = () => {
                         {count} orders
                       </dd>
                       <dd className="text-sm text-gray-500">
-                        ₦{total.toLocaleString()}
+                        ₦
+                        {total.toLocaleString(undefined, {
+                          minimumFractionDigits: 4,
+                          maximumFractionDigits: 4,
+                        })}
                       </dd>
                     </dl>
                   </div>

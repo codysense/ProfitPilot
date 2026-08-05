@@ -112,7 +112,11 @@ const DeliverSaleModal = ({
                   <div>
                     <span className="text-sm text-gray-500">Total Amount:</span>
                     <div className="font-medium">
-                      ₦{sale.totalAmount.toLocaleString()}
+                      ₦
+                      {Number(sale.totalAmount).toLocaleString(undefined, {
+                        minimumFractionDigits: 4,
+                        maximumFractionDigits: 4,
+                      })}
                     </div>
                   </div>
                 </div>

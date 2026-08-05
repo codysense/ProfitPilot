@@ -232,7 +232,11 @@ const PosReturnsModal = ({
                           {new Date(sale.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-2">
-                          ₦{sale.totalAmount.toLocaleString()}
+                          ₦
+                          {Number(sale.totalAmount).toLocaleString(undefined, {
+                            minimumFractionDigits: 4,
+                            maximumFractionDigits: 4,
+                          })}
                         </td>
                         <td className="px-4 py-2 text-right">
                           <button
@@ -258,7 +262,13 @@ const PosReturnsModal = ({
                   <div className="font-medium">Sale: {selectedSale.saleNo}</div>
                   <div className="text-sm text-gray-600">
                     {selectedSale.customer?.name || "Walk-in"} | ₦
-                    {selectedSale.totalAmount.toLocaleString()}
+                    {Number(selectedSale.totalAmount).toLocaleString(
+                      undefined,
+                      {
+                        minimumFractionDigits: 4,
+                        maximumFractionDigits: 4,
+                      },
+                    )}
                   </div>
                 </div>
                 <button
@@ -334,7 +344,11 @@ const PosReturnsModal = ({
             <div className="flex justify-between font-bold text-lg">
               <span>Total Refund:</span>
               <span className="text-red-600">
-                ₦{calculateReturnTotal().toLocaleString()}
+                ₦
+                {Number(calculateReturnTotal()).toLocaleString(undefined, {
+                  minimumFractionDigits: 4,
+                  maximumFractionDigits: 4,
+                })}
               </span>
             </div>
 

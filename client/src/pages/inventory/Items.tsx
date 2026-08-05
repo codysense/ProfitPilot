@@ -78,7 +78,12 @@ const Items = () => {
       key: "standardCost",
       header: "Standard Cost",
       cell: (item: Item) =>
-        item.standardCost ? `₦${item.standardCost.toLocaleString()}` : "-",
+        item.standardCost
+          ? `₦${Number(item.standardCost).toLocaleString(undefined, {
+              minimumFractionDigits: 4,
+              maximumFractionDigits: 4,
+            })}`
+          : "-",
       width: "w-32",
     },
     // {

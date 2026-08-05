@@ -106,7 +106,8 @@ const PosSalesHistory = () => {
     {
       key: "totalAmount",
       header: "Total Amount",
-      cell: (sale: PosSale) => `₦${sale.totalAmount.toLocaleString()}`,
+      cell: (sale: PosSale) =>
+        `₦${Number(sale.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
       width: "w-32",
     },
     {

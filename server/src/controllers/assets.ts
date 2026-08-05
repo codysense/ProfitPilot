@@ -92,7 +92,9 @@ export class AssetsController {
     try {
       const { id } = req.params;
       const validatedData = updateAssetSchema.parse(req.body);
+      // console.log("Validated data for update:", validatedData);
       const asset = await assetsService.updateAsset(id, validatedData);
+      // console.log("Updated asset:", asset);
       res.json(asset);
     } catch (error) {
       console.error("Update asset error:", error);
@@ -135,7 +137,7 @@ export class AssetsController {
   async runDepreciation(req: AuthRequest, res: Response) {
     try {
       const validatedData = runDepreciationSchema.parse(req.body);
-      const result = await assetsService.reverseDepreciation(
+      const result = await assetsService.runDepreciation(
         validatedData,
         req.user!.id,
       );

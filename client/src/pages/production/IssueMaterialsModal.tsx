@@ -195,7 +195,8 @@ const IssueMaterialsModal = ({
 
       return {
         itemId: line.componentItemId,
-        qty: Math.round(totalQty * 1000) / 1000, // Round to 3 decimal places
+        //qty: Math.round(totalQty * 1000) / 1000, // Round to 3 decimal places
+        qty: Math.round(totalQty * 1e7) / 1e7, // round to 7 decimal places for precision
       };
     });
 
@@ -323,7 +324,7 @@ const IssueMaterialsModal = ({
                               <span className="text-orange-600">
                                 {" "}
                                 (+{line.scrapPercent}% scrap ={" "}
-                                {totalQty.toFixed(3)})
+                                {totalQty.toFixed(7)})
                               </span>
                             )}
                           </div>

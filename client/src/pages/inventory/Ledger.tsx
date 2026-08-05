@@ -138,7 +138,10 @@ const InventoryLedger = () => {
       key: "unitCost",
       header: "Unit Cost",
       cell: (entry: InventoryLedgerEntry) =>
-        `₦${entry.unitCost.toLocaleString()}`,
+        `₦${Number(entry.unitCost).toLocaleString(undefined, {
+          minimumFractionDigits: 4,
+          maximumFractionDigits: 4,
+        })}`,
       width: "w-32",
     },
     {
@@ -487,7 +490,7 @@ const InventoryLedger = () => {
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
                     {ledgerData?.entries?.filter(
-                      (e: InventoryLedgerEntry) => e.direction === "IN"
+                      (e: InventoryLedgerEntry) => e.direction === "IN",
                     ).length || 0}
                   </dd>
                 </dl>
@@ -509,7 +512,7 @@ const InventoryLedger = () => {
                   </dt>
                   <dd className="text-2xl font-semibold text-gray-900">
                     {ledgerData?.entries?.filter(
-                      (e: InventoryLedgerEntry) => e.direction === "OUT"
+                      (e: InventoryLedgerEntry) => e.direction === "OUT",
                     ).length || 0}
                   </dd>
                 </dl>
@@ -534,7 +537,7 @@ const InventoryLedger = () => {
                       ? new Set(
                           ledgerData.entries
                             .filter((e: InventoryLedgerEntry) => e.user)
-                            .map((e: InventoryLedgerEntry) => e.user?.name)
+                            .map((e: InventoryLedgerEntry) => e.user?.name),
                         ).size
                       : 0}
                   </dd>

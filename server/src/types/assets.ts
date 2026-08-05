@@ -39,6 +39,10 @@ export const updateAssetSchema = z.object({
   name: z.string().min(1, "Asset name is required"),
   description: z.string().optional(),
   categoryId: z.string().cuid("Category is required"),
+  acquisitionDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Invalid acquisition date",
+  }),
+  usefulLife: z.number().int().positive().optional(),
   locationId: z.string().cuid().optional(),
   serialNumber: z.string().optional(),
   supplier: z.string().optional(),

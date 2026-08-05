@@ -109,7 +109,11 @@ const DetailJournalModal = ({ journal, onClose }: DetailJournalModalProps) => {
                       <div>
                         <p className="text-sm text-gray-500">Debit</p>
                         <p className="text-sm font-medium text-red-600">
-                          ₦{(line.debit || 0).toLocaleString()}
+                          ₦
+                          {Number(line.debit || 0).toLocaleString(undefined, {
+                            minimumFractionDigits: 4,
+                            maximumFractionDigits: 4,
+                          })}
                         </p>
                       </div>
 
@@ -117,7 +121,11 @@ const DetailJournalModal = ({ journal, onClose }: DetailJournalModalProps) => {
                       <div>
                         <p className="text-sm text-gray-500">Credit</p>
                         <p className="text-sm font-medium text-blue-600">
-                          ₦{(line.credit || 0).toLocaleString()}
+                          ₦
+                          {Number(line.credit || 0).toLocaleString(undefined, {
+                            minimumFractionDigits: 4,
+                            maximumFractionDigits: 4,
+                          })}
                         </p>
                       </div>
                     </div>
@@ -132,7 +140,11 @@ const DetailJournalModal = ({ journal, onClose }: DetailJournalModalProps) => {
                     Total Debit:
                   </span>
                   <span className="text-2xl font-bold text-red-600">
-                    ₦{calculateDebitTotal().toLocaleString()}
+                    ₦
+                    {Number(calculateDebitTotal()).toLocaleString(undefined, {
+                      minimumFractionDigits: 4,
+                      maximumFractionDigits: 4,
+                    })}
                   </span>
                 </div>
               </div>
@@ -143,7 +155,11 @@ const DetailJournalModal = ({ journal, onClose }: DetailJournalModalProps) => {
                     Total Credit:
                   </span>
                   <span className="text-2xl font-bold text-blue-600">
-                    ₦{calculateCreditTotal().toLocaleString()}
+                    ₦
+                    {Number(calculateCreditTotal()).toLocaleString(undefined, {
+                      minimumFractionDigits: 4,
+                      maximumFractionDigits: 4,
+                    })}
                   </span>
                 </div>
               </div>

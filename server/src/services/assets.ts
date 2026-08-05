@@ -139,7 +139,7 @@ export class AssetsService {
       }),
       prisma.asset.count({ where }),
     ]);
-
+    console.log("Assets fetched:", assets);
     return {
       assets,
       pagination: {
@@ -316,6 +316,8 @@ export class AssetsService {
         description: data.description,
         categoryId: data.categoryId,
         locationId: data.locationId,
+        acquisitionDate: new Date(data.acquisitionDate),
+        usefulLife: data.usefulLife,
         serialNumber: data.serialNumber,
         supplier: data.supplier,
       },
@@ -660,6 +662,11 @@ export class AssetsService {
   async reverseDepreciation(data: any, userId: string) {
     const { periodYear, periodMonth, assetIds } = data;
 
+    //derived first day of the month from the period year and month
+
+    const periodStartDate = new Date(periodYear, periodMonth - 1, 1);
+    console.log(`periodStartDate: ${periodStartDate}`);
+
     return await prisma.$transaction(
       async (tx) => {
         // 1. Get assets that were included in the depreciation run
@@ -692,6 +699,9 @@ export class AssetsService {
         });
 
         if (existingEntries.length === 0) {
+          console.log(
+            `No depreciation entries found for period ${periodYear}-${periodMonth} to reverse.`,
+          );
           return {
             reversedAssets: 0,
             totalReversedAmount: 0,
@@ -712,7 +722,12 @@ export class AssetsService {
               asset.category?.glDepreciationAccount?.code;
             const glAccumulatedDepreciationAccount =
               asset.category?.glAccumulatedDepreciationAccount?.code;
-
+            // console.log(
+            //   `Depreciation accounts ${glDepreciationAccount} and ${glAccumulatedDepreciationAccount} for asset ${asset.assetNo} - ${asset.name}`,
+            // );
+            // console.log(
+            //   `Reversing depreciation for asset ${asset.assetNo} - ${asset.name} for period ${periodYear}-${periodMonth}`,
+            // );
             // 3. Post a reversing GL journal entry (swapping debit and credit)
             await glService.postJournal(
               tx,
@@ -734,6 +749,7 @@ export class AssetsService {
               ],
               `Reverse Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}`,
               userId,
+              periodStartDate, // Use the first day of the month for the reversing entry date
             );
 
             totalReversedAmount += depreciationAmount;
@@ -741,9 +757,13 @@ export class AssetsService {
 
           entryIdsToDelete.push(entry.id);
         }
+        console.log(`Total reversed amount so far: ${totalReversedAmount}`);
 
         // 4. Delete the AssetDepreciation records to allow recalculation in the future
         if (entryIdsToDelete.length > 0) {
+          // console.log(
+          //   `Deleting AssetDepreciation records: ${entryIdsToDelete.join(", ")}`,
+          // );
           await tx.assetDepreciation.deleteMany({
             where: {
               id: { in: entryIdsToDelete },

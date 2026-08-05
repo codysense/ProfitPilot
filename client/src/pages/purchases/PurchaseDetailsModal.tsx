@@ -140,10 +140,18 @@ const PurchaseDetailsModal = ({
                           {line.qty} {line.item?.uom || ""}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ₦{line.unitPrice.toLocaleString()}
+                          ₦
+                          {Number(line.unitPrice).toLocaleString(undefined, {
+                            minimumFractionDigits: 4,
+                            maximumFractionDigits: 4,
+                          })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ₦{line.lineTotal.toLocaleString()}
+                          ₦
+                          {Number(line.lineTotal).toLocaleString(undefined, {
+                            minimumFractionDigits: 4,
+                            maximumFractionDigits: 4,
+                          })}
                         </td>
                       </tr>
                     ))}

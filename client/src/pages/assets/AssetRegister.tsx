@@ -58,7 +58,7 @@ const AssetRegister = () => {
         ...(locationFilter && { locationId: locationFilter }),
       }),
   });
-  console.log("Assets data ", data);
+  // console.log("Assets data ", data);
 
   const { data: categories } = useQuery({
     queryKey: ["asset-categories"],
@@ -81,7 +81,7 @@ const AssetRegister = () => {
         ...(locationFilter && { locationId: locationFilter }),
       }),
   });
-  console.log("Assest register ", registerData);
+  // console.log("Assest register ", registerData);
 
   //console.log("Assets ", categories);
 
