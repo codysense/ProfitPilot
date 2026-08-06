@@ -258,6 +258,30 @@ router.get(
   inventoryController.getInventoryTransfers,
 );
 
+router.put(
+  "/transfers/:refId",
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+    "Production Manager",
+  ]),
+  auditLogger("UPDATE", "INVENTORY_TRANSFER"),
+  inventoryController.updateInventoryTransfer,
+);
+
+router.post(
+  "/transfers/:refId/receive",
+  requireRole([
+    "Inventory Manager",
+    "Assistant Inventory Manager",
+    "Senior Accountant",
+    "Production Manager",
+  ]),
+  auditLogger("RECEIVE", "INVENTORY_TRANSFER"),
+  inventoryController.receiveInventoryTransfer,
+);
+
 //Print Inventory Transfer
 router.get(
   "/transfers/print/:id",

@@ -332,6 +332,10 @@ export const inventoryApi = {
         params ? "?" + new URLSearchParams(params as any).toString() : ""
       }`,
     ),
+  updateInventoryTransfer: (refId: string, data: any) =>
+    api.put(`/inventory/transfers/${refId}`, data),
+  receiveInventoryTransfer: (refId: string) =>
+    api.post(`/inventory/transfers/${refId}/receive`),
   printInventoryTransfer: (id: string) =>
     api.get(`/inventory/transfers/print/${id}`),
 

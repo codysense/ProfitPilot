@@ -17,9 +17,13 @@ import CreateTransferModal from "./CreateTransferModal";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
 import DetailTransferModal from "./DetailTransferModal";
+import EditTransferModal from "./EditTransferModal";
+import { GenericSearchSelect } from "../../components/GenericSearchCombo";
+import { ItemSelect } from "../../components/ItemSelect";
 
 interface TransferItem {
   id: string;
+  itemId: string;
   qty: string;
   unitCost: string;
   item: {
@@ -32,6 +36,9 @@ interface TransferItem {
 interface InventoryTransfer {
   id: string;
   refId: string;
+  status: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
   createdAt: string;
   createdBy: {
     name: string;
@@ -56,6 +63,10 @@ const getItemSummary = (items: TransferItem[]) =>
 const InventoryTransfer = () => {
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [fromWarehouseFilter, setFromWarehouseFilter] = useState("");
+  const [toWarehouseFilter, setToWarehouseFilter] = useState("");
+  const [selectedItem, setSelectedItem] = useState("");
   const { user } = useAuthStore();
 
   // Check if user can create transfers (Inventory Manager or GM only)
@@ -65,15 +76,26 @@ const InventoryTransfer = () => {
     user?.roles.includes("General Manager");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["inventory-transfers", { page }],
+    queryKey: [
+      "inventory-transfers",
+      { page, fromWarehouseFilter, toWarehouseFilter, selectedItem },
+    ],
     queryFn: () =>
       inventoryApi.getInventoryTransfers({
         page,
         limit: 10,
+        ...(fromWarehouseFilter && { fromWarehouseId: fromWarehouseFilter }),
+        ...(toWarehouseFilter && { toWarehouseId: toWarehouseFilter }),
+        ...(selectedItem && { itemId: selectedItem }),
       }),
   });
 
-  console.log("Fetched inventory transfers:", data);
+  const { data: warehouses } = useQuery({
+    queryKey: ["warehouses"],
+    queryFn: () => inventoryApi.getWarehouses(),
+  });
+
+  //console.log("Fetched inventory transfers:", data);
 
   const [showViewTransferModal, setShowViewTransferModal] = useState(false);
   const [selectedTransfer, setSelectedTransfer] =
@@ -105,6 +127,14 @@ const InventoryTransfer = () => {
       key: "refId",
       header: "Ref No",
       width: "w-36",
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (t: InventoryTransfer) => (
+        <StatusBadge status={t.status || "INITIATED"} />
+      ),
+      width: "w-28",
     },
     {
       key: "items",
@@ -172,6 +202,12 @@ const InventoryTransfer = () => {
     setShowCreateModal(false);
   };
 
+  const handleEditSuccess = () => {
+    refetch();
+    setShowEditModal(false);
+    setSelectedTransfer(null);
+  };
+
   const actions = (inventoryTransfer: InventoryTransfer) => (
     <div className="flex space-x-2">
       <button
@@ -192,6 +228,19 @@ const InventoryTransfer = () => {
       >
         <Eye className="h-4 w-4" />
       </button>
+
+      {inventoryTransfer.status === "INITIATED" && (
+        <button
+          onClick={() => {
+            setSelectedTransfer(inventoryTransfer);
+            setShowEditModal(true);
+          }}
+          className="text-amber-600 hover:text-amber-900"
+          title="Edit & Receive"
+        >
+          <Edit className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 
@@ -423,7 +472,53 @@ const InventoryTransfer = () => {
           Create Transfer
         </button>
       </div>
-
+      {/* Warehouse and item filter components */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="grid grid-cols-3 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              From Warehouse
+            </label>
+            <GenericSearchSelect
+              data={warehouses?.warehouses || []}
+              value={fromWarehouseFilter}
+              onChange={setFromWarehouseFilter}
+              valueKey="id"
+              searchKeys={["code", "name"]}
+              placeholder="Search warehouse by code or name..."
+              // onSearchRemote={searchWarehouseRemote}
+              displayValue={(wh) => (wh ? `${wh.code} - ${wh.name}` : "")}
+              renderOption={(wh) => `${wh.code} - ${wh.name}`}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              To Warehouse
+            </label>
+            <GenericSearchSelect
+              data={warehouses?.warehouses || []}
+              value={toWarehouseFilter}
+              onChange={setToWarehouseFilter}
+              valueKey="id"
+              searchKeys={["code", "name"]}
+              placeholder="Search warehouse by code or name..."
+              // onSearchRemote={searchWarehouseRemote}
+              displayValue={(wh) => (wh ? `${wh.code} - ${wh.name}` : "")}
+              renderOption={(wh) => `${wh.code} - ${wh.name}`}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Item
+            </label>
+            <ItemSelect
+              value={selectedItem}
+              onChange={(itemId) => setSelectedItem(itemId || "")}
+              typeFilter="FINISHED_GOODS"
+            />
+          </div>
+        </div>
+      </div>
       {/* Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -496,7 +591,6 @@ const InventoryTransfer = () => {
           </div>
         </div>
       </div>
-
       {/* Data Table */}
       <DataTable
         data={data?.transfers || []}
@@ -506,7 +600,6 @@ const InventoryTransfer = () => {
         onPageChange={setPage}
         actions={actions}
       />
-
       {/* Create Modal */}
       {showCreateModal && (
         <CreateTransferModal
@@ -514,7 +607,6 @@ const InventoryTransfer = () => {
           onSuccess={handleCreateTransfer}
         />
       )}
-
       {/* View Transfer Modal */}
       {showViewTransferModal && selectedTransfer && (
         <DetailTransferModal
@@ -522,7 +614,17 @@ const InventoryTransfer = () => {
           onClose={() => setShowViewTransferModal(false)}
         />
       )}
-
+      {/* Edit & Receive Modal */}
+      {showEditModal && selectedTransfer && (
+        <EditTransferModal
+          transfer={selectedTransfer}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedTransfer(null);
+          }}
+          onSuccess={handleEditSuccess}
+        />
+      )}
       {/* Access Denied for Transfer Creation */}
       {showCreateModal && !canCreateTransfer && (
         <div className="fixed inset-0 z-50 overflow-y-auto">

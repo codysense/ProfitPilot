@@ -69,6 +69,17 @@ export const bulkInventoryTransferSchema = z
     path: ["toWarehouseId"],
   });
 
+export const updateBulkInventoryTransferSchema = z.object({
+  transferItems: z
+    .array(
+      z.object({
+        itemId: z.string().min(1),
+        qty: z.number().positive(),
+      }),
+    )
+    .min(1),
+});
+
 export type CreateItemRequest = z.infer<typeof createItemSchema>;
 export type CreateBomRequest = z.infer<typeof createBomSchema>;
 
@@ -121,4 +132,7 @@ export type InventoryAdjustmentRequest = z.infer<
 >;
 export type InventoryTransferRequest = z.infer<
   typeof bulkInventoryTransferSchema
+>;
+export type InventoryTransferUpdateRequest = z.infer<
+  typeof updateBulkInventoryTransferSchema
 >;

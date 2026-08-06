@@ -5,6 +5,7 @@ import {
   createBomSchema,
   inventoryAdjustmentSchema,
   bulkInventoryTransferSchema,
+  updateBulkInventoryTransferSchema,
   createLocationSchema,
   createWarehouseSchema,
   createUOMSchema,
@@ -485,58 +486,148 @@ export class InventoryController {
       const refId = `TRF-${Date.now()}`;
 
       await prisma.$transaction(async (tx) => {
-        // 1️ Create transfer header
+        // 1️ Create transfer header (status will be INITIATED by default)
         const transfer = await tx.inventoryTransfer.create({
           data: {
             refId,
             fromWarehouseId: data.fromWarehouseId,
             toWarehouseId: data.toWarehouseId,
             createdById: req.user!.id,
+            status: "INITIATED",
           },
         });
 
-        // 2️ Process items
+        // 2️ Process items - Only save transfer line records (no costing/stock moves yet)
         for (const item of data.transferItems) {
-          const issueResult = await costingService.issueInventoryForTransfer(
-            tx,
-            item.itemId,
-            data.fromWarehouseId,
-            item.qty,
-            "TRANSFER",
-            refId,
-            req.user!.id,
-          );
-
-          await costingService.receiveInventoryForTransfer(
-            tx,
-            item.itemId,
-            data.toWarehouseId,
-            item.qty,
-            issueResult.unitCost,
-            "TRANSFER",
-            refId,
-            req.user!.id,
-          );
-
-          // 3️ Create transfer line
           await tx.inventoryTransferItem.create({
             data: {
               transferId: transfer.id,
               itemId: item.itemId,
               qty: item.qty,
-              unitCost: issueResult.unitCost,
+              unitCost: 0, // Cost is evaluated at execution/receive time
             },
           });
         }
       });
 
       res.json({
-        message: "Bulk inventory transfer successful",
+        message: "Bulk inventory transfer initiated",
         refId,
       });
     } catch (error) {
       console.error("Bulk transfer error:", error);
       res.status(400).json({ error: "Bulk transfer failed" });
+    }
+  }
+
+  async updateInventoryTransfer(req: AuthRequest, res: Response) {
+    try {
+      const { refId } = req.params;
+      const data = updateBulkInventoryTransferSchema.parse(req.body);
+
+      const transfer = await prisma.inventoryTransfer.findUnique({
+        where: { refId },
+        include: { items: true },
+      });
+
+      if (!transfer) {
+        return res.status(404).json({ error: "Inventory transfer not found" });
+      }
+
+      if (transfer.status !== "INITIATED") {
+        return res.status(400).json({ error: "Only transfers in INITIATED status can be edited" });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        // Remove existing items
+        await tx.inventoryTransferItem.deleteMany({
+          where: { transferId: transfer.id },
+        });
+
+        // Create new ones
+        for (const item of data.transferItems) {
+          await tx.inventoryTransferItem.create({
+            data: {
+              transferId: transfer.id,
+              itemId: item.itemId,
+              qty: item.qty,
+              unitCost: 0,
+            },
+          });
+        }
+      });
+
+      res.json({ message: "Inventory transfer updated successfully" });
+    } catch (error) {
+      console.error("Update transfer error:", error);
+      res.status(400).json({ error: "Failed to update inventory transfer" });
+    }
+  }
+
+  async receiveInventoryTransfer(req: AuthRequest, res: Response) {
+    try {
+      const { refId } = req.params;
+
+      const transfer = await prisma.inventoryTransfer.findUnique({
+        where: { refId },
+        include: { items: true },
+      });
+
+      if (!transfer) {
+        return res.status(404).json({ error: "Inventory transfer not found" });
+      }
+
+      if (transfer.status !== "INITIATED") {
+        return res.status(400).json({ error: "Inventory transfer has already been received or cancelled" });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        // 1️ Process items & move stocks
+        for (const item of transfer.items) {
+          const qtyNum = Number(item.qty);
+          const issueResult = await costingService.issueInventoryForTransfer(
+            tx,
+            item.itemId,
+            transfer.fromWarehouseId,
+            qtyNum,
+            "TRANSFER",
+            transfer.refId,
+            req.user!.id,
+          );
+
+          await costingService.receiveInventoryForTransfer(
+            tx,
+            item.itemId,
+            transfer.toWarehouseId,
+            qtyNum,
+            issueResult.unitCost,
+            "TRANSFER",
+            transfer.refId,
+            req.user!.id,
+          );
+
+          // Update transfer line item with correct cost
+          await tx.inventoryTransferItem.update({
+            where: { id: item.id },
+            data: {
+              unitCost: issueResult.unitCost,
+            },
+          });
+        }
+
+        // 2️ Update status to RECEIVED
+        await tx.inventoryTransfer.update({
+          where: { id: transfer.id },
+          data: {
+            status: "RECEIVED",
+          },
+        });
+      });
+
+      res.json({ message: "Inventory transfer received successfully" });
+    } catch (error) {
+      console.error("Receive transfer error:", error);
+      res.status(400).json({ error: "Failed to receive inventory transfer" });
     }
   }
 

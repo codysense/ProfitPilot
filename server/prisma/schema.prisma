@@ -328,6 +328,7 @@ model InventoryTransfer {
   fromWarehouseId String
   toWarehouseId   String
   createdById     String
+  status          TransferStatus          @default(INITIATED)
   createdAt       DateTime                @default(now())
   createdBy       User                    @relation(fields: [createdById], references: [id])
   fromWarehouse   Warehouse               @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
@@ -343,6 +344,11 @@ model InventoryTransferItem {
   unitCost   Decimal           @db.Decimal(15,4)
   item       Item              @relation(fields: [itemId], references: [id])
   transfer   InventoryTransfer @relation(fields: [transferId], references: [id])
+}
+
+enum TransferStatus {
+  INITIATED
+  RECEIVED
 }
 
 model ProductionOrder {
