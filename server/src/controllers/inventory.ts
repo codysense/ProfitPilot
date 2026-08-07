@@ -309,7 +309,7 @@ export class InventoryController {
   async createBom(req: AuthRequest, res: Response) {
     try {
       const validatedData = createBomSchema.parse(req.body);
-
+      console.log("Validated BOM data:", validatedData);
       const bom = await prisma.$transaction(
         async (tx) => {
           // Deactivate existing BOMs for this item
@@ -535,7 +535,9 @@ export class InventoryController {
       }
 
       if (transfer.status !== "INITIATED") {
-        return res.status(400).json({ error: "Only transfers in INITIATED status can be edited" });
+        return res
+          .status(400)
+          .json({ error: "Only transfers in INITIATED status can be edited" });
       }
 
       await prisma.$transaction(async (tx) => {
@@ -578,7 +580,11 @@ export class InventoryController {
       }
 
       if (transfer.status !== "INITIATED") {
-        return res.status(400).json({ error: "Inventory transfer has already been received or cancelled" });
+        return res
+          .status(400)
+          .json({
+            error: "Inventory transfer has already been received or cancelled",
+          });
       }
 
       await prisma.$transaction(async (tx) => {

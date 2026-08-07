@@ -274,7 +274,7 @@ model BomLine {
   id              String  @id @default(cuid())
   bomId           String
   componentItemId String
-  qtyPer          Decimal @db.Decimal(15, 4)
+  qtyPer          Decimal @db.Decimal(15, 7)
   scrapPercent    Decimal @default(0) @db.Decimal(5, 2)
   bom             Bom     @relation(fields: [bomId], references: [id], onDelete: Cascade)
   componentItem   Item    @relation(fields: [componentItemId], references: [id])
