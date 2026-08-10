@@ -2057,15 +2057,72 @@ ORDER BY v.name;
       orderBy: [{ finishedAt: "asc" }, { item: { name: "asc" } }],
     });
 
-    return orders.map((order, index) => ({
-      no: index + 1,
-      ProductionDate: order.finishedAt
-        ? order.finishedAt.toISOString().split("T")[0]
-        : "",
-      name: order.item?.name ?? "",
-      qtyProduced: order.qtyProduced,
-    }));
+    if (orders.length === 0) return [];
+
+    const orderIds = orders.map((o) => o.id);
+
+    // Sum consumption value per production order in one query
+    const consumption = await prisma.inventoryLedger.groupBy({
+      by: ["refId"],
+      where: {
+        refType: "PRODUCTION", // <-- confirm actual value used in your ledger entries
+        direction: "OUT",
+        refId: { in: orderIds },
+      },
+      _sum: {
+        value: true,
+      },
+    });
+
+    // Map refId -> total consumption cost for quick lookup
+    const costByOrderId = new Map(
+      consumption.map((c) => [c.refId, c._sum.value ?? new Decimal(0)]),
+    );
+
+    return orders.map((order, index) => {
+      const amountUsed = costByOrderId.get(order.id) ?? new Decimal(0);
+
+      return {
+        no: index + 1,
+        ProductionDate: order.finishedAt
+          ? order.finishedAt.toISOString().split("T")[0]
+          : "",
+        name: order.item?.name ?? "",
+        qtyProduced: order.qtyProduced,
+        amountUsed, // total cost of items consumed to produce this order
+      };
+    });
   }
+
+  // async getProductionReport(fromDate: Date, toDate: Date) {
+  //   const newToDate = endOfDayUTC(toDate);
+  //   const newFromDate = startOfDayUTC(fromDate);
+
+  //   const orders = await prisma.productionOrder.findMany({
+  //     where: {
+  //       status: "FINISHED",
+  //       finishedAt: {
+  //         gte: newFromDate,
+  //         lte: newToDate,
+  //       },
+  //     },
+  //     include: {
+  //       item: {
+  //         select: { name: true },
+  //       },
+  //     },
+  //     orderBy: [{ finishedAt: "asc" }, { item: { name: "asc" } }],
+  //   });
+
+  //   return orders.map((order, index) => ({
+  //     no: index + 1,
+  //     ProductionDate: order.finishedAt
+  //       ? order.finishedAt.toISOString().split("T")[0]
+  //       : "",
+  //     name: order.item?.name ?? "",
+  //     qtyProduced: order.qtyProduced,
+  //   }));
+  // }
 
   async getMaterialUsage(fromDate: Date, toDate: Date) {
     const newToDate = endOfDayUTC(toDate);

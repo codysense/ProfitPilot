@@ -138,8 +138,9 @@ const CreateAssetModal = ({ onClose, onSuccess }: CreateAssetModalProps) => {
                   <option value="">Select category</option>
                   {categories?.categories?.map((category: any) => (
                     <option key={category.id} value={category.id}>
-                      {category.code} - {category.name} ({category.usefulLife}{" "}
-                      years, {category.depreciationMethod.replace("_", " ")})
+                      {category.code} - {category.name} (
+                      {category.usefulLife * 12} months,{" "}
+                      {category.depreciationMethod.replace("_", " ")})
                     </option>
                   ))}
                 </select>
@@ -275,7 +276,7 @@ const CreateAssetModal = ({ onClose, onSuccess }: CreateAssetModalProps) => {
                       {selectedCategory.depreciationMethod.replace("_", " ")}
                     </div>
                     <div>
-                      • Useful Life: {selectedCategory.usefulLife} months
+                      • Useful Life: {selectedCategory.usefulLife * 12} months
                     </div>
                     <div>
                       • Residual Value: {selectedCategory.residualValue}%

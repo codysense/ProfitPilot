@@ -928,6 +928,7 @@ const Reports = () => {
             { key: "productionDate", header: "Production Date" },
             { key: "name", header: "Item Name" },
             { key: "qtyProduced", header: "Qty Produced" },
+            { key: "amountUsed", header: "Amount Used" },
           ];
           ReportExporter.exportGenericReport(
             reportData,
@@ -2225,6 +2226,12 @@ const ProductionReport = ({ data }: { data: any }) => {
     { key: "ProductionDate", header: "Production Date", width: "w-32" },
     { key: "name", header: "Item Name", width: "w-32" },
     { key: "qtyProduced", header: "Qty Produced", width: "w-32" },
+    {
+      key: "amountUsed",
+      header: "Amount Used",
+      cell: (item: any) => `₦${Math.abs(item.amountUsed).toLocaleString()}`,
+      width: "w-32",
+    },
   ];
 
   return (

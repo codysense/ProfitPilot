@@ -105,7 +105,7 @@ export class AssetsController {
   async deleteAsset(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      await assetsService.deleteAsset(id);
+      await assetsService.deleteAsset(id, req.user!.id);
       res.json({ message: "Asset deleted successfully" });
     } catch (error) {
       console.error("Delete asset error:", error);

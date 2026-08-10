@@ -30,7 +30,7 @@ const AssetDashboard = () => {
     queryKey: ["asset-register-summary"],
     queryFn: () => assetsApi.getAssetRegister({ limit: 1000 }),
   });
-
+  //console.log(`Asset register ${registerData?.register?.assets}`);
   const handleCapitalizeSuccess = () => {
     setShowCapitalizeModal(false);
     // Refetch data

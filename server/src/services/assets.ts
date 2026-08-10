@@ -130,7 +130,7 @@ export class AssetsService {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          category: { select: { code: true, name: true } },
+          category: { select: { code: true, name: true, usefulLife: true } },
           location: { select: { code: true, name: true } },
           createdByUser: { select: { name: true } },
           purchaseOrder: { select: { orderNo: true } },
@@ -214,34 +214,6 @@ export class AssetsService {
       }
       const assetNo = `AST${String(nextNumber + 1).padStart(6, "0")}`;
 
-      // Get category defaults if not provided
-      // const category = await tx.assetCategory.findUnique({
-      //   where: { id: data.categoryId }
-      // });
-
-      // if (!category) {
-      //   throw new Error('Asset category not found');
-      // }
-
-      // const asset = await tx.asset.create({
-      //   data: {
-      //     assetNo,
-      //     name: data.name,
-      //     description: data.description,
-      //     categoryId: data.categoryId,
-      //     acquisitionDate: new Date(data.acquisitionDate),
-      //     acquisitionCost: new Decimal(data.acquisitionCost),
-      //     residualValue: new Decimal(data.residualValue || (data.acquisitionCost * category.residualValue / 100)),
-      //     usefulLife: data.usefulLife || category.usefulLife,
-      //     depreciationMethod: data.depreciationMethod || category.depreciationMethod,
-      //     locationId: data.locationId,
-      //     serialNumber: data.serialNumber,
-      //     supplier: data.supplier,
-      //     purchaseOrderId: data.purchaseOrderId,
-      //     createdBy: userId
-      //   }
-      // });
-
       const category = await tx.assetCategory.findUnique({
         where: { id: data.categoryId },
         include: { glAssetAccount: true },
@@ -293,7 +265,7 @@ export class AssetsService {
             refId: asset.id,
           },
           {
-            accountCode: glAssetAccount?.code || "1100", // Cash/Bank - will be updated based on payment method
+            accountCode: "3000",
             debit: 0,
             credit: data.acquisitionCost,
             refType: "ASSET_CAPITALIZATION",
@@ -328,22 +300,80 @@ export class AssetsService {
     });
   }
 
-  async deleteAsset(assetId: string) {
-    // Check if asset has depreciation entries
-    const depreciationCount = await prisma.assetDepreciation.count({
-      where: { assetId },
-    });
+  // async deleteAsset(assetId: string) {
+  //   // Check if asset has depreciation entries
+  //   const depreciationCount = await prisma.assetDepreciation.count({
+  //     where: { assetId },
+  //   });
 
-    if (depreciationCount > 0) {
-      throw new Error("Cannot delete asset with depreciation entries");
-    }
+  //   if (depreciationCount > 0) {
+  //     throw new Error("Cannot delete asset with depreciation entries");
+  //   }
 
-    return await prisma.asset.delete({
-      where: { id: assetId },
+  //   return await prisma.asset.delete({
+  //     where: { id: assetId },
+  //   });
+  // }
+
+  // Capitalization from Purchase Orders
+
+  async deleteAsset(assetId: string, userId: string) {
+    return await prisma.$transaction(async (tx) => {
+      const asset = await tx.asset.findUnique({
+        where: { id: assetId },
+      });
+
+      if (!asset) {
+        throw new Error("Asset not found");
+      }
+
+      const depreciationCount = await tx.assetDepreciation.count({
+        where: { assetId },
+      });
+
+      if (depreciationCount > 0) {
+        throw new Error("Cannot delete asset with depreciation entries");
+      }
+
+      // Pull the exact original capitalization lines from the GL
+      const originalLines = await tx.journalLine.findMany({
+        where: {
+          refType: "ASSET_CAPITALIZATION",
+          refId: asset.id,
+        },
+        include: { account: true },
+      });
+
+      if (originalLines.length === 0) {
+        throw new Error(
+          "No GL capitalization entry found for this asset — cannot safely reverse",
+        );
+      }
+
+      // Flip debit/credit on each original line to build the reversal
+      const reversalLines = originalLines.map((line) => ({
+        accountCode: line.account.code,
+        debit: Number(line.credit),
+        credit: Number(line.debit),
+        refType: "ASSET_CAPITALIZATION_REVERSAL",
+        refId: asset.id,
+      }));
+
+      //console.log(`Reversal lines for asset ${asset.assetNo}:`, reversalLines);
+
+      await glService.postJournal(
+        tx,
+        reversalLines,
+        `Asset capitalization reversal: ${asset.name}`,
+        userId,
+      );
+
+      return await tx.asset.delete({
+        where: { id: assetId },
+      });
     });
   }
 
-  // Capitalization from Purchase Orders
   async capitalizeFromPurchase(data: any, userId: string) {
     return await prisma.$transaction(async (tx) => {
       const purchase = await tx.purchase.findUnique({
@@ -1029,6 +1059,8 @@ export class AssetsService {
         netBookValue: Number(asset.acquisitionCost) - accumulatedDepreciation,
       };
     });
+
+    //console.log(`transformedAssets ${transformedAssets}`);
 
     return {
       assets: transformedAssets,
