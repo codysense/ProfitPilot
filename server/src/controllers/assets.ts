@@ -7,6 +7,7 @@ import {
   capitalizeFromPurchaseSchema,
   disposeAssetSchema,
   runDepreciationSchema,
+  recapitaliseSchema,
 } from "../types/assets";
 import { AuthRequest } from "../middleware/auth";
 import { AssetsService } from "../services/assets";
@@ -145,6 +146,22 @@ export class AssetsController {
     } catch (error) {
       console.error("Run depreciation error:", error);
       res.status(400).json({ error: "Failed to run depreciation" });
+    }
+  }
+
+  //Recapitalization
+  async recapitalizeAsset(req: AuthRequest, res: Response) {
+    try {
+      const validatedData = recapitaliseSchema.parse(req.body);
+      const { id } = req.params;
+      const result = await assetsService.recapitalizeAsset(
+        validatedData,
+        req.user!.id,
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Asset Recapitalisation error: ", error);
+      res.status(500).json({ error: "Failed to recapitalize asset" });
     }
   }
 

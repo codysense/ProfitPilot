@@ -2,6 +2,7 @@ import { useAuthStore } from "../store/authStore";
 import toast from "react-hot-toast";
 import { CreatePosReturnRequest } from "../types/api";
 import { get } from "react-hook-form";
+import RecapitalizeAssetModal from "../pages/assets/RecapitalizeAssetModal";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api/v1";
 
@@ -927,6 +928,8 @@ export const assetsApi = {
       }`,
     ),
   createAsset: (data: any) => api.post("/assets", data),
+  recapitalizeAsset: (id: string, data: any) =>
+    api.post(`/assets/recapitalize/${id}`, data),
   updateAsset: (id: string, data: any) => api.put(`/assets/${id}`, data),
   deleteAsset: (id: string) => api.delete(`/assets/${id}`),
 

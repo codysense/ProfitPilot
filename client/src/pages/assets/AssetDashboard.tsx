@@ -12,10 +12,12 @@ import { assetsApi } from "../../lib/api";
 import CapitalizeFromPurchaseModal from "./CapitalizeFromPurchaseModal";
 import RunDepreciationModal from "./RunDepreciationModal";
 import { useAuthStore } from "../../store/authStore";
+import RecapitalizeAssetModal from "./RecapitalizeAssetModal";
 
 const AssetDashboard = () => {
   const [showCapitalizeModal, setShowCapitalizeModal] = useState(false);
   const [showDepreciationModal, setShowDepreciationModal] = useState(false);
+  const [showRecapitalizeModal, setShowRecapitalizeModal] = useState(false);
   const { user } = useAuthStore();
 
   const canManageAssets =
@@ -39,6 +41,10 @@ const AssetDashboard = () => {
   const handleDepreciationSuccess = () => {
     setShowDepreciationModal(false);
     // Refetch data
+  };
+
+  const handleRecapitalizeSuccess = () => {
+    setShowRecapitalizeModal(false);
   };
 
   // Group assets by category for summary
@@ -75,6 +81,15 @@ const AssetDashboard = () => {
           </p>
         </div>
         <div className="flex space-x-2">
+          {canManageAssets && (
+            <button
+              onClick={() => setShowRecapitalizeModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Calculator className="h-4 w-4 mr-2" />
+              Recapitalize Asset
+            </button>
+          )}
           <button
             onClick={() => setShowCapitalizeModal(true)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -308,6 +323,13 @@ const AssetDashboard = () => {
         <RunDepreciationModal
           onClose={() => setShowDepreciationModal(false)}
           onSuccess={handleDepreciationSuccess}
+        />
+      )}
+
+      {showRecapitalizeModal && (
+        <RecapitalizeAssetModal
+          onClose={() => setShowRecapitalizeModal(false)}
+          onSuccess={handleRecapitalizeSuccess}
         />
       )}
     </div>

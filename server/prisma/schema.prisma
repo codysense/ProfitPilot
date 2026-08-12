@@ -70,11 +70,12 @@ model User {
   salesPaid      Sale[] @relation("SalePayer")
 
   // ───── Purchase stage actors ─────
-  purchasesPrepared Purchase[]     @relation("PurchasePreparer")
-  purchasesReceived Purchase[]     @relation("PurchaseReceiver")
-  purchasesInvoiced Purchase[]     @relation("PurchaseInvoicer")
-  purchasesPaid     Purchase[]     @relation("PurchasePayer")
-  refreshTokens     RefreshToken[]
+  purchasesPrepared      Purchase[]              @relation("PurchasePreparer")
+  purchasesReceived      Purchase[]              @relation("PurchaseReceiver")
+  purchasesInvoiced      Purchase[]              @relation("PurchaseInvoicer")
+  purchasesPaid          Purchase[]              @relation("PurchasePayer")
+  refreshTokens          RefreshToken[]
+  assetRecapitalizations AssetRecapitalization[]
 
   @@map("users")
 }
@@ -266,8 +267,8 @@ model Bom {
   productionOrders ProductionOrder[]
 
   @@unique([itemId, version])
-  @@map("boms")
   @@index([itemId], map: "idx_bom_itemid")
+  @@map("boms")
 }
 
 model BomLine {
@@ -318,7 +319,8 @@ model InventoryLedger {
   item           Item            @relation(fields: [itemId], references: [id])
   user           User?           @relation(fields: [userId], references: [id])
   warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
-@@index([itemId, warehouseId, postedAt(sort: Desc)], map: "idx_inventoryledger_item_wh_posted")
+
+  @@index([itemId, warehouseId, postedAt(sort: Desc)], map: "idx_inventoryledger_item_wh_posted")
   @@map("inventory_ledger")
 }
 
@@ -340,8 +342,8 @@ model InventoryTransferItem {
   id         String            @id @default(cuid())
   transferId String
   itemId     String
-  qty        Decimal           @db.Decimal(15,7)
-  unitCost   Decimal           @db.Decimal(15,4)
+  qty        Decimal           @db.Decimal(15, 7)
+  unitCost   Decimal           @db.Decimal(15, 4)
   item       Item              @relation(fields: [itemId], references: [id])
   transfer   InventoryTransfer @relation(fields: [transferId], references: [id])
 }
@@ -579,27 +581,28 @@ model SaleLine {
 }
 
 model ChartOfAccount {
-  id                          String                @id @default(cuid())
-  code                        String                @unique
+  id                          String                  @id @default(cuid())
+  code                        String                  @unique
   name                        String
   accountType                 String
   parentId                    String?
-  isActive                    Boolean               @default(true)
-  createdAt                   DateTime              @default(now())
+  isActive                    Boolean                 @default(true)
+  createdAt                   DateTime                @default(now())
   description                 String?
-  assetCategoriesAccumulated  AssetCategory[]       @relation("AssetCategoryAccumulatedDepreciationAccount")
-  assetCategoriesAsset        AssetCategory[]       @relation("AssetCategoryAssetAccount")
-  assetCategoriesDepreciation AssetCategory[]       @relation("AssetCategoryDepreciationAccount")
-  cashAccounts                CashAccount[]         @relation("CashAccountGLAccount")
-  cashTransactionLinesContra  CashTransactionLine[] @relation("CashTransactionLineContraAccount")
-  cashTransactionLinesGL      CashTransactionLine[] @relation("CashTransactionLineGLAccount")
-  parent                      ChartOfAccount?       @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children                    ChartOfAccount[]      @relation("AccountHierarchy")
+  assetCategoriesAccumulated  AssetCategory[]         @relation("AssetCategoryAccumulatedDepreciationAccount")
+  assetCategoriesAsset        AssetCategory[]         @relation("AssetCategoryAssetAccount")
+  assetCategoriesDepreciation AssetCategory[]         @relation("AssetCategoryDepreciationAccount")
+  cashAccounts                CashAccount[]           @relation("CashAccountGLAccount")
+  cashTransactionLinesContra  CashTransactionLine[]   @relation("CashTransactionLineContraAccount")
+  cashTransactionLinesGL      CashTransactionLine[]   @relation("CashTransactionLineGLAccount")
+  parent                      ChartOfAccount?         @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children                    ChartOfAccount[]        @relation("AccountHierarchy")
   customerPaymentLines        CustomerPaymentLine[]
   journalLines                JournalLine[]
   Memo                        Memo[]
   StockAdjustment             StockAdjustment[]
   vendorPaymentLines          VendorPaymentLine[]
+  assetRecapitalizations      AssetRecapitalization[]
 
   @@map("chart_of_accounts")
 }
@@ -619,6 +622,7 @@ model Journal {
   postedByUser            User                     @relation(fields: [postedBy], references: [id])
   vendorPaymentPostings   VendorPaymentPosting[]
   memos                   Memo[]
+  assetRecapitalizations  AssetRecapitalization[]
 
   @@map("journals")
 }
@@ -1145,34 +1149,35 @@ model AssetCategory {
 }
 
 model Asset {
-  id                  String              @id @default(cuid())
-  assetNo             String              @unique
+  id                  String                  @id @default(cuid())
+  assetNo             String                  @unique
   name                String
   description         String?
   categoryId          String
   acquisitionDate     DateTime
-  acquisitionCost     Decimal             @db.Decimal(15, 2)
-  residualValue       Decimal             @default(0) @db.Decimal(15, 2)
+  acquisitionCost     Decimal                 @db.Decimal(15, 2)
+  residualValue       Decimal                 @default(0) @db.Decimal(15, 2)
   usefulLife          Int
   depreciationMethod  String
   locationId          String?
   serialNumber        String?
   supplier            String?
   purchaseOrderId     String?
-  status              String              @default("ACTIVE")
+  status              String                  @default("ACTIVE")
   disposalDate        DateTime?
-  disposalAmount      Decimal?            @db.Decimal(15, 2)
+  disposalAmount      Decimal?                @db.Decimal(15, 4)
   disposalMethod      String?
   createdBy           String
-  createdAt           DateTime            @default(now())
+  createdAt           DateTime                @default(now())
   vendorId            String?
   depreciationEntries AssetDepreciation[]
   disposals           AssetDisposal[]
-  category            AssetCategory       @relation(fields: [categoryId], references: [id])
-  createdByUser       User                @relation("AssetCreatedBy", fields: [createdBy], references: [id])
-  location            Location?           @relation(fields: [locationId], references: [id])
-  purchaseOrder       Purchase?           @relation(fields: [purchaseOrderId], references: [id])
-  Vendor              Vendor?             @relation(fields: [vendorId], references: [id])
+  category            AssetCategory           @relation(fields: [categoryId], references: [id])
+  createdByUser       User                    @relation("AssetCreatedBy", fields: [createdBy], references: [id])
+  location            Location?               @relation(fields: [locationId], references: [id])
+  purchaseOrder       Purchase?               @relation(fields: [purchaseOrderId], references: [id])
+  Vendor              Vendor?                 @relation(fields: [vendorId], references: [id])
+  recapitalizations   AssetRecapitalization[]
 
   @@map("assets")
 }
@@ -1213,6 +1218,31 @@ model AssetDisposal {
   journal        Journal? @relation(fields: [journalId], references: [id])
 
   @@map("asset_disposals")
+}
+
+model AssetRecapitalization {
+  id                      String   @id @default(cuid())
+  assetId                 String
+  transactionDate         DateTime
+  description             String
+  amount                  Decimal  @db.Decimal(15, 2)
+  transactionType         String // "CAPITAL_IMPROVEMENT" | "RECLASSIFY_EXPENSE"
+  usefulLifeExtension     Int      @default(0) // months added, if any
+  previousAcquisitionCost Decimal  @db.Decimal(15, 2)
+  newAcquisitionCost      Decimal  @db.Decimal(15, 2)
+  previousUsefulLife      Int
+  newUsefulLife           Int
+  sourceAccountId         String? // required for RECLASSIFY_EXPENSE
+  journalId               String?
+  createdBy               String
+  createdAt               DateTime @default(now())
+
+  asset         Asset           @relation(fields: [assetId], references: [id])
+  sourceAccount ChartOfAccount? @relation(fields: [sourceAccountId], references: [id])
+  createdByUser User            @relation(fields: [createdBy], references: [id])
+  journal       Journal?        @relation(fields: [journalId], references: [id])
+
+  @@map("asset_recapitalizations")
 }
 
 model PosSession {
@@ -1371,7 +1401,7 @@ model Memo {
   date   DateTime
 
   module   MemoModule // SALES | PURCHASES
-  memoType MemoType   // CREDIT | DEBIT
+  memoType MemoType // CREDIT | DEBIT
   category memoCategory @default(FINANCIAL)
 
   amount    Decimal
@@ -1403,10 +1433,10 @@ model Memo {
   journal   Journal? @relation(fields: [journalId], references: [id])
 
   //  REVERSAL FIELDS (NEW)
-  isReversal     Boolean   @default(false)
+  isReversal     Boolean @default(false)
   reversedFromId String?
-  reversedFrom   Memo?     @relation("MemoReversal", fields: [reversedFromId], references: [id])
-  reversals      Memo[]    @relation("MemoReversal")
+  reversedFrom   Memo?   @relation("MemoReversal", fields: [reversedFromId], references: [id])
+  reversals      Memo[]  @relation("MemoReversal")
 
   //  Optional audit enhancement
   reversalReason String?
@@ -1421,7 +1451,6 @@ model Memo {
   @@index([customerId])
   @@index([vendorId])
   @@index([reversedFromId]) // 🔥 important for reversal lookup
-
   @@map("memo")
 }
 

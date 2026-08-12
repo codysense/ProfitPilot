@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { GeneralLedgerService } from "./gl";
+import { lte } from "zod";
 
 const prisma = new PrismaClient();
 const glService = new GeneralLedgerService();
@@ -948,6 +949,144 @@ export class AssetsService {
         timeout: 20000, // 20s max runtime
       },
     );
+  }
+
+  async recapitalizeAsset(data: any, userId: string) {
+    return await prisma.$transaction(async (tx) => {
+      const asset = await tx.asset.findUnique({
+        where: { id: data.assetId },
+        include: { category: { include: { glAssetAccount: true } } },
+      });
+
+      if (!asset) {
+        throw new Error("Asset not found");
+      }
+      if (asset.status !== "ACTIVE") {
+        throw new Error("Only active assets can be recapitalized");
+      }
+
+      // const amount = Number(data.amount);
+      // if (amount.lte(0)) {
+      //   throw new Error("Amount must be positive");
+      // }
+
+      const previousAcquisitionCost = asset.acquisitionCost;
+      const newAcquisitionCost = previousAcquisitionCost.add(data.amount);
+
+      const previousUsefulLife = asset.usefulLife;
+      const usefulLifeExtension = data.usefulLifeExtension
+        ? Number(data.usefulLifeExtension)
+        : 0;
+      const newUsefulLife = previousUsefulLife + usefulLifeExtension;
+
+      // Update the asset — increases the depreciable base and (optionally) useful life
+      const updatedAsset = await tx.asset.update({
+        where: { id: asset.id },
+        data: {
+          acquisitionCost: newAcquisitionCost,
+          usefulLife: newUsefulLife,
+        },
+      });
+
+      const assetAccountCode = asset.category.glAssetAccount.code;
+      let creditAccountCode: string;
+      let sourceAccountId: string | null = null;
+
+      // if (data.transactionType === "CAPITAL_IMPROVEMENT") {
+      //   // Mirrors createAsset's credit side — adjust "3000" if you use a
+      //   // different default (e.g. AP if the improvement is on credit)
+      //   creditAccountCode = data.creditAccountCode || "3000";
+      // } else if (data.transactionType === "RECLASSIFY_EXPENSE") {
+      //   if (!data.sourceAccountId) {
+      //     throw new Error(
+      //       "sourceAccountId is required to reclassify an existing expense",
+      //     );
+      //   }
+      //   const sourceAccount = await tx.chartOfAccount.findUnique({
+      //     where: { id: data.sourceAccountId },
+      //   });
+      //   if (!sourceAccount) {
+      //     throw new Error("Source expense account not found");
+      //   }
+      //   creditAccountCode = sourceAccount.code;
+      //   sourceAccountId = sourceAccount.id;
+      // } else {
+      //   throw new Error("Invalid transaction type");
+      // }
+
+      if (!data.sourceAccountId) {
+        throw new Error("sourceAccountId is required ");
+      }
+      const sourceAccount = await tx.chartOfAccount.findUnique({
+        where: { id: data.sourceAccountId },
+      });
+      if (!sourceAccount) {
+        throw new Error("Source expense account not found");
+      }
+      creditAccountCode = sourceAccount.code;
+      sourceAccountId = sourceAccount.id;
+
+      const cashAccount = await tx.cashAccount.findFirst({
+        where: {
+          glAccountId: sourceAccountId,
+        },
+      });
+
+      if (cashAccount) {
+        if (data.amount > 0) {
+          await tx.cashAccount.update({
+            where: { id: cashAccount.id },
+            data: {
+              balance: {
+                decrement: data.amount,
+              },
+            },
+          });
+        }
+      }
+
+      const journalId = await glService.postJournal(
+        tx,
+        [
+          {
+            accountCode: assetAccountCode,
+            debit: data.amount,
+            credit: 0,
+            refType: "ASSET_RECAPITALIZATION",
+            refId: asset.id,
+          },
+          {
+            accountCode: creditAccountCode,
+            debit: 0,
+            credit: data.amount,
+            refType: "ASSET_RECAPITALIZATION",
+            refId: asset.id,
+          },
+        ],
+        `Asset recapitalization: ${data.description}`,
+        userId,
+      );
+
+      const recap = await tx.assetRecapitalization.create({
+        data: {
+          assetId: asset.id,
+          transactionDate: new Date(data.transactionDate),
+          description: data.description,
+          amount: data.amount,
+          transactionType: data.transactionType,
+          usefulLifeExtension,
+          previousAcquisitionCost,
+          newAcquisitionCost,
+          previousUsefulLife,
+          newUsefulLife,
+          sourceAccountId,
+          journalId,
+          createdBy: userId,
+        },
+      });
+
+      return { asset: updatedAsset, recapitalization: recap };
+    });
   }
 
   // Asset Register Report

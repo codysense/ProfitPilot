@@ -48,6 +48,16 @@ export const updateAssetSchema = z.object({
   supplier: z.string().optional(),
 });
 
+export const recapitaliseSchema = z.object({
+  assetId: z.string().min(1, "Asset is required"),
+  transactionDate: z.string().min(1, "Transaction date is required"),
+  description: z.string().min(1, "Description is required"),
+  amount: z.number().positive("Amount must be positive"),
+  transactionType: z.enum(["CAPITAL_IMPROVEMENT", "RECLASSIFY_EXPENSE"]),
+  usefulLifeExtension: z.number().int().min(0).optional(),
+  sourceAccountId: z.string().optional(),
+});
+
 export const capitalizeFromPurchaseSchema = z.object({
   purchaseOrderId: z.string().cuid("Purchase order is required"),
   assets: z
