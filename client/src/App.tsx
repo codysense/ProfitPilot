@@ -27,13 +27,14 @@ import InventoryValuation from "./pages/inventory/Valuation";
 // Purchase Pages
 import PurchaseOrders from "./pages/purchases/Orders";
 import Vendors from "./pages/purchases/Vendors";
-// import Memos from './pages/purchases/PurchaseMemosPage';
+import PurchaseReturns from "./pages/purchases/PurchaseReturns";
 
 // Sales Pages
 import SalesOrders from "./pages/sales/Orders";
 import Customers from "./pages/sales/Customers";
 import SalesMemos from "./pages/sales/SalesMemosPage";
 import CustomerGroups from "./pages/sales/CustomerGroups";
+import SalesReturn from "./pages/sales/SalesReturns";
 
 // Production Pages
 import ProductionOrders from "./pages/production/Orders";
@@ -258,10 +259,10 @@ function App() {
               }
             />
             <Route
-              path="/purchases/memos"
+              path="/purchases/purchase-returns"
               element={
                 <ProtectedRoute allowedModules={["inventory", "purchases"]}>
-                  <Memos />
+                  <PurchaseReturns />
                 </ProtectedRoute>
               }
             />
@@ -297,6 +298,15 @@ function App() {
               element={
                 <ProtectedRoute allowedModules={["sales", "pos"]}>
                   <SalesMemos />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/sales/sales-returns"
+              element={
+                <ProtectedRoute allowedModules={["sales", "pos"]}>
+                  <SalesReturn />
                 </ProtectedRoute>
               }
             />

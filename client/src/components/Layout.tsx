@@ -130,7 +130,7 @@ const Layout = ({ children }: LayoutProps) => {
       children: [
         { name: "Orders", href: "/purchases/orders" },
         { name: "Vendors", href: "/purchases/vendors" },
-        // { name: 'Memos', href: '/purchases/memos' },
+        { name: "Purchase Returns", href: "/purchases/purchase-returns" },
       ],
     },
     {
@@ -143,14 +143,14 @@ const Layout = ({ children }: LayoutProps) => {
         "General Manager",
         "Auditor",
         "Manager",
-        ,
+
         "Senior Accountant",
       ],
       children: [
         { name: "Orders", href: "/sales/orders" },
         { name: "Customers", href: "/sales/customers" },
         { name: "CustomerGroups", href: "/sales/customergroups" },
-        //   { name: 'Memos', href: '/sales/memos' },
+        { name: "Sales Returns", href: "/sales/sales-returns" },
       ],
     },
     {
@@ -161,7 +161,7 @@ const Layout = ({ children }: LayoutProps) => {
         "General Manager",
         "Auditor",
         "Manager",
-        ,
+
         "Senior Accountant",
       ],
     },

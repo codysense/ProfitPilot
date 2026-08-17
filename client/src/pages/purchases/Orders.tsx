@@ -23,6 +23,8 @@ import toast from "react-hot-toast";
 import QRCode from "qrcode";
 import { Vector } from "html2canvas/dist/types/render/vector";
 import { VendorSelect } from "../../components/VendorSelect";
+import { RotateCcw } from "lucide-react";
+import CreatePurchaseReturnModal from "./CreatePurchaseReturnModal";
 
 const PurchaseOrders = () => {
   const [page, setPage] = useState(1);
@@ -32,7 +34,7 @@ const PurchaseOrders = () => {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [vendorFilter, setVendorFilter] = useState<string>("");
-
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(
     null,
   );
@@ -57,7 +59,7 @@ const PurchaseOrders = () => {
         ...(vendorFilter && { vendorId: vendorFilter }),
       }),
   });
-  console.log("Purchases data:", data);
+  // console.log("Purchases data:", data);
 
   const { data: companyInformations } = useQuery({
     queryKey: ["company-info-for-receipt"],
@@ -132,6 +134,12 @@ const PurchaseOrders = () => {
   const handleReceiveSuccess = () => {
     refetch();
     setShowReceiveModal(false);
+    setSelectedPurchase(null);
+  };
+
+  const handleReturnSuccess = () => {
+    refetch();
+    setShowReturnModal(false);
     setSelectedPurchase(null);
   };
 
@@ -456,7 +464,19 @@ const PurchaseOrders = () => {
     return (
       <div className="flex space-x-2">
         {/* View – only for inventory POs */}
-        {isInventoryPO ||
+        {(isInventoryPO || isAssetPO) && (
+          <button
+            onClick={() => {
+              setSelectedPurchase(purchase);
+              setShowDetailsModal(true);
+            }}
+            className="text-blue-600 hover:text-blue-900"
+            title="View Details"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+        )}
+        {/* {isInventoryPO ||
           (isAssetPO && (
             <button
               onClick={() => {
@@ -468,7 +488,7 @@ const PurchaseOrders = () => {
             >
               <Eye className="h-4 w-4" />
             </button>
-          ))}
+          ))} */}
 
         {/* =================  DELETE FOR ASSET PO & INVENTORY ================= */}
         {canPerformActions &&
@@ -547,6 +567,21 @@ const PurchaseOrders = () => {
                 <FileText className="h-4 w-4" />
               </button>
             )}
+
+            {/* Return */}
+            {["RECEIVED", "INVOICED", "PAID"].includes(purchase.status) &&
+              canPerformActions && (
+                <button
+                  onClick={() => {
+                    setSelectedPurchase(purchase);
+                    setShowReturnModal(true);
+                  }}
+                  className="text-orange-600 hover:text-orange-900"
+                  title="Create Return"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              )}
           </>
         )}
       </div>
@@ -704,6 +739,17 @@ const PurchaseOrders = () => {
             setSelectedPurchase(null);
           }}
           onSuccess={handleReceiveSuccess}
+        />
+      )}
+
+      {showReturnModal && selectedPurchase && (
+        <CreatePurchaseReturnModal
+          purchaseId={selectedPurchase.id}
+          onClose={() => {
+            setShowReturnModal(false);
+            setSelectedPurchase(null);
+          }}
+          onSuccess={handleReturnSuccess}
         />
       )}
     </div>

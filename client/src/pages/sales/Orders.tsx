@@ -8,6 +8,7 @@ import {
   Edit,
   Trash2,
   Printer,
+  RotateCcw,
 } from "lucide-react";
 import { managementApi, salesApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
@@ -22,6 +23,7 @@ import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
 import { CustomerSelect } from "../../components/CustomerSelect";
+import CreateSalesReturnModal from "./CreateSalesreturnModal";
 
 const SalesOrders = () => {
   const [page, setPage] = useState(1);
@@ -31,6 +33,7 @@ const SalesOrders = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeliverModal, setShowDeliverModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const { user } = useAuthStore();
 
@@ -64,6 +67,12 @@ const SalesOrders = () => {
       (sale: Sale) => sale.preparer?.name === user?.name,
     );
   }
+
+  const handleReturnSuccess = () => {
+    refetch();
+    setShowReturnModal(false);
+    setSelectedSale(null);
+  };
 
   const columns = [
     {
@@ -520,6 +529,20 @@ const SalesOrders = () => {
           <FileText className="h-4 w-4" />
         </button>
       )}
+
+      {["DELIVERED", "INVOICED", "PAID"].includes(sale.status) &&
+        canPerformActions && (
+          <button
+            onClick={() => {
+              setSelectedSale(sale);
+              setShowReturnModal(true);
+            }}
+            className="text-orange-600 hover:text-orange-900"
+            title="Create Return"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+        )}
     </div>
   );
 
@@ -669,6 +692,18 @@ const SalesOrders = () => {
             setSelectedSale(null);
           }}
           onSuccess={handleDeliverSuccess}
+        />
+      )}
+
+      {/* Create Return Modal */}
+      {showReturnModal && selectedSale && (
+        <CreateSalesReturnModal
+          saleId={selectedSale.id}
+          onClose={() => {
+            setShowReturnModal(false);
+            setSelectedSale(null);
+          }}
+          onSuccess={handleReturnSuccess}
         />
       )}
     </div>

@@ -154,7 +154,14 @@ export interface Purchase {
   orderNo: string;
   vendorId: string;
   orderDate: string;
-  status: "DRAFT" | "ORDERED" | "RECEIVED" | "INVOICED" | "PAID";
+  status:
+    | "DRAFT"
+    | "ORDERED"
+    | "RECEIVED"
+    | "INVOICED"
+    | "PARTIALLY_PAID"
+    | "PAID"
+    | "CANCELLED";
   totalAmount: number;
   balanceAmount: number;
   notes?: string;
@@ -164,6 +171,117 @@ export interface Purchase {
   };
   purchaseLines: PurchaseLine[];
   createdAt: string;
+}
+
+// ───────────────────────────────────────────────
+// Purchase Return
+// ───────────────────────────────────────────────
+
+export type PurchaseReturnStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
+
+export type PurchaseReturnSettlementMethod = "REFUND_CASH" | "SUPPLIER_CREDIT";
+
+export interface PurchaseReturnLine {
+  id: string;
+  purchaseReturnId: string;
+  purchaseLineId: string;
+  itemId: string;
+
+  qty: number;
+  unitPrice: number; // original purchase price — AP basis
+  unitCost: number; // current weighted-avg at confirm — inventory basis
+  lineTotal: number;
+
+  item: {
+    id: string;
+    sku: string;
+    name: string;
+    uom?: string;
+  };
+}
+
+export interface PurchaseReturn {
+  id: string;
+  returnNo: string;
+  purchaseId: string;
+  vendorId: string;
+
+  returnDate: string;
+  reason?: string | null;
+
+  status: PurchaseReturnStatus;
+
+  subtotal: number;
+  tax: number;
+  totalAmount: number;
+
+  inventoryValue: number;
+  costVariance: number;
+
+  settlementMethod?: PurchaseReturnSettlementMethod | null;
+
+  createdAt: string;
+  updatedAt: string;
+
+  preparedBy: string;
+  confirmedBy?: string | null;
+  confirmedAt?: string | null;
+
+  cancelledBy?: string | null;
+  cancelledAt?: string | null;
+
+  purchase: {
+    id: string;
+    orderNo: string;
+  };
+
+  vendor: {
+    id: string;
+    code: string;
+    name: string;
+  };
+
+  preparer?: {
+    name: string;
+  };
+
+  confirmer?: {
+    name: string;
+  } | null;
+
+  canceller?: {
+    name: string;
+  } | null;
+
+  purchaseReturnLines: PurchaseReturnLine[];
+}
+
+// ───────────────────────────────────────────────
+// Returnable-lines lookup (GET /purchase/returns/returnable/:purchaseId)
+// ───────────────────────────────────────────────
+
+export interface ReturnablePurchaseLine {
+  purchaseLineId: string;
+  itemId: string;
+  item: {
+    id: string;
+    sku: string;
+    name: string;
+    uom?: string;
+  };
+  originalQty: number;
+  unitPrice: number;
+  alreadyReturned: number;
+  returnable: number;
+}
+
+export interface ReturnablePurchaseLinesResponse {
+  purchase: {
+    id: string;
+    orderNo: string;
+    status: string;
+  };
+  lines: ReturnablePurchaseLine[];
 }
 
 export interface CreatePurchaseRequest {
@@ -234,6 +352,119 @@ export interface Sale {
   preparer?: {
     name: string;
   };
+}
+
+// ───────────────────────────────────────────────
+// Sales Return
+// ───────────────────────────────────────────────
+
+export type SalesReturnStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
+
+export type ReturnSettlementMethod =
+  | "REFUND_CASH"
+  | "CUSTOMER_CREDIT"
+  | "APPLY_TO_INVOICE";
+
+export interface SalesReturnLine {
+  id: string;
+  salesReturnId: string;
+  saleLineId: string;
+  itemId: string;
+
+  qty: number;
+  unitPrice: number;
+  unitCost: number;
+  lineTotal: number;
+
+  item: {
+    id: string;
+    sku: string;
+    name: string;
+    uom?: string;
+  };
+}
+
+export interface SalesReturn {
+  id: string;
+  returnNo: string;
+  saleId: string;
+  customerId: string;
+  cashAccountId?: string | null;
+
+  returnDate: string;
+  reason?: string | null;
+
+  status: SalesReturnStatus;
+
+  subtotal: number;
+  tax: number;
+  totalAmount: number;
+
+  settlementMethod?: ReturnSettlementMethod | null;
+
+  createdAt: string;
+  updatedAt: string;
+
+  preparedBy: string;
+  confirmedBy?: string | null;
+  confirmedAt?: string | null;
+
+  cancelledBy?: string | null;
+  cancelledAt?: string | null;
+
+  // ───── Relations ─────
+  sale: {
+    id: string;
+    orderNo: string;
+  };
+
+  customer: {
+    id: string;
+    code: string;
+    name: string;
+  };
+
+  preparer?: {
+    name: string;
+  };
+
+  confirmer?: {
+    name: string;
+  } | null;
+
+  canceller?: {
+    name: string;
+  } | null;
+
+  salesReturnLines: SalesReturnLine[];
+}
+
+// ───────────────────────────────────────────────
+// Returnable-lines lookup (GET /sales-returns/returnable/:saleId)
+// ───────────────────────────────────────────────
+
+export interface ReturnableSaleLine {
+  saleLineId: string;
+  itemId: string;
+  item: {
+    id: string;
+    sku: string;
+    name: string;
+    uom?: string;
+  };
+  originalQty: number;
+  unitPrice: number;
+  alreadyReturned: number;
+  returnable: number;
+}
+
+export interface ReturnableLinesResponse {
+  sale: {
+    id: string;
+    orderNo: string;
+    status: string;
+  };
+  lines: ReturnableSaleLine[];
 }
 
 export interface CreateSaleRequest {

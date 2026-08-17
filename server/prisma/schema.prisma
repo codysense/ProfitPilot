@@ -69,6 +69,11 @@ model User {
   salesInvoiced  Sale[] @relation("SaleInvoicer")
   salesPaid      Sale[] @relation("SalePayer")
 
+  //Sales return stage actors
+  salesReturnsPrepared  SalesReturn[] @relation("SalesReturnPreparer")
+  salesReturnsConfirmed SalesReturn[] @relation("SalesReturnConfirmer")
+  salesReturnsCancelled SalesReturn[] @relation("SalesReturnCanceller")
+
   // ───── Purchase stage actors ─────
   purchasesPrepared      Purchase[]              @relation("PurchasePreparer")
   purchasesReceived      Purchase[]              @relation("PurchaseReceiver")
@@ -76,6 +81,11 @@ model User {
   purchasesPaid          Purchase[]              @relation("PurchasePayer")
   refreshTokens          RefreshToken[]
   assetRecapitalizations AssetRecapitalization[]
+
+  // ───── Purchase return stage actors ─────
+  purchaseReturnsPrepared  PurchaseReturn[] @relation("PurchaseReturnPreparer")
+  purchaseReturnsConfirmed PurchaseReturn[] @relation("PurchaseReturnConfirmer")
+  purchaseReturnsCancelled PurchaseReturn[] @relation("PurchaseReturnCanceller")
 
   @@map("users")
 }
@@ -230,6 +240,8 @@ model Item {
   purchaseLines         PurchaseLine[]
   saleLines             SaleLine[]
   wipLedgers            WipLedger[]
+  salesReturnLines      SalesReturnLine[]
+  purchaseReturnLines   PurchaseReturnLine[]
 
   @@map("items")
 }
@@ -453,6 +465,7 @@ model Vendor {
   Memo               Memo[]
   purchasePayments   PurchasePayment[]
   PurchaseRefund     PurchaseRefund[]
+  purchaseReturns    PurchaseReturn[]
   purchases          Purchase[]
   vendorPaymentLines VendorPaymentLine[]
   vendorPayments     VendorPayment[]
@@ -460,6 +473,55 @@ model Vendor {
   createdByUser      User?               @relation("VendorCreatedBy", fields: [createdBy], references: [id])
 
   @@map("vendors")
+}
+
+model VendorPayment {
+  id            String                 @id @default(cuid())
+  paymentNo     String                 @unique
+  vendorId      String
+  cashAccountId String
+  paymentDate   DateTime
+  reference     String?
+  notes         String?
+  totalAmount   Decimal                @db.Decimal(15, 2)
+  status        String                 @default("PREPARED")
+  preparedBy    String
+  approvedBy    String?
+  authorizedBy  String?
+  paidBy        String?
+  preparedAt    DateTime               @default(now())
+  approvedAt    DateTime?
+  authorizedAt  DateTime?
+  paidAt        DateTime?
+  userId        String
+  createdAt     DateTime               @default(now())
+  lines         VendorPaymentLine[]
+  postings      VendorPaymentPosting[]
+  approver      User?                  @relation("VendorPaymentApprovedBy", fields: [approvedBy], references: [id])
+  authorizer    User?                  @relation("VendorPaymentAuthorizedBy", fields: [authorizedBy], references: [id])
+  cashAccount   CashAccount            @relation(fields: [cashAccountId], references: [id])
+  payer         User?                  @relation("VendorPaymentPaidBy", fields: [paidBy], references: [id])
+  preparer      User                   @relation("VendorPaymentPreparedBy", fields: [preparedBy], references: [id])
+  user          User                   @relation("VendorPaymentCreatedBy", fields: [userId], references: [id])
+  vendor        Vendor                 @relation(fields: [vendorId], references: [id])
+
+  @@map("vendor_payments")
+}
+
+model VendorPaymentLine {
+  id              String         @id @default(cuid())
+  vendorPaymentId String
+  purchaseId      String?
+  glAccountId     String
+  lineAmount      Decimal        @db.Decimal(15, 2)
+  description     String?
+  vendorId        String?
+  glAccount       ChartOfAccount @relation(fields: [glAccountId], references: [id])
+  purchase        Purchase?      @relation(fields: [purchaseId], references: [id])
+  Vendor          Vendor?        @relation(fields: [vendorId], references: [id])
+  vendorPayment   VendorPayment  @relation(fields: [vendorPaymentId], references: [id])
+
+  @@map("vendor_payment_lines")
 }
 
 model CustomerGroup {
@@ -495,6 +557,7 @@ model Customer {
   sales            Sale[]
   salesReceipts    SalesReceipt[]
   SalesRefund      SalesRefund[]
+  salesReturns     SalesReturn[]
 
   @@map("customers")
 }
@@ -536,6 +599,7 @@ model Purchase {
   purchasePayments   PurchasePayment[]
   PurchaseRefunds    PurchaseRefund[]
   vendorPaymentLines VendorPaymentLine[]
+  purchaseReturns    PurchaseReturn[]
 
   vendor Vendor @relation(fields: [vendorId], references: [id])
 
@@ -564,18 +628,96 @@ model PurchaseLine {
   item       Item?    @relation(fields: [itemId], references: [id])
   purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
+  purchaseReturnLines PurchaseReturnLine[]
+
   @@map("purchase_lines")
 }
 
-model SaleLine {
-  id        String  @id @default(cuid())
-  saleId    String
-  itemId    String
+enum PurchaseReturnStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+enum PurchaseReturnSettlementMethod {
+  REFUND_CASH
+  SUPPLIER_CREDIT
+  // APPLY_TO_PURCHASE suspended for now — same reasoning as sales side:
+  // the credit-application logic against a specific purchase isn't built yet.
+}
+
+model PurchaseReturn {
+  id         String @id @default(cuid())
+  returnNo   String @unique
+  purchaseId String
+  vendorId   String
+
+  returnDate DateTime @default(now())
+  reason     String?
+
+  status PurchaseReturnStatus @default(DRAFT)
+
+  subtotal    Decimal @db.Decimal(15, 2)
+  tax         Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount Decimal @db.Decimal(15, 2) // = subtotal + tax, at ORIGINAL purchase price (AP basis)
+
+  // Weighted-avg inventory value actually removed, and the resulting
+  // variance posted to 5900. Populated only at CONFIRM.
+  inventoryValue Decimal @default(0) @db.Decimal(15, 2)
+  costVariance   Decimal @default(0) @db.Decimal(15, 2)
+
+  settlementMethod PurchaseReturnSettlementMethod?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  preparedBy  String
+  confirmedBy String?
+  confirmedAt DateTime?
+
+  cancelledBy String?
+  cancelledAt DateTime?
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  vendor   Vendor   @relation(fields: [vendorId], references: [id])
+
+  preparer  User  @relation("PurchaseReturnPreparer", fields: [preparedBy], references: [id])
+  confirmer User? @relation("PurchaseReturnConfirmer", fields: [confirmedBy], references: [id])
+  canceller User? @relation("PurchaseReturnCanceller", fields: [cancelledBy], references: [id])
+
+  purchaseReturnLines PurchaseReturnLine[]
+
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnLine {
+  id               String @id @default(cuid())
+  purchaseReturnId String
+  purchaseLineId   String
+  itemId           String
+
   qty       Decimal @db.Decimal(15, 4)
-  unitPrice Decimal @db.Decimal(15, 4)
-  lineTotal Decimal @db.Decimal(15, 4)
-  item      Item    @relation(fields: [itemId], references: [id])
-  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  unitPrice Decimal @db.Decimal(15, 4) // original purchase price — AP basis
+  unitCost  Decimal @default(0) @db.Decimal(15, 4) // current weighted-avg at confirm — inventory basis
+  lineTotal Decimal @db.Decimal(15, 2) // qty × unitPrice
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  purchaseLine   PurchaseLine   @relation(fields: [purchaseLineId], references: [id])
+  item           Item           @relation(fields: [itemId], references: [id])
+
+  @@map("purchase_return_lines")
+}
+
+model SaleLine {
+  id          String            @id @default(cuid())
+  saleId      String
+  itemId      String
+  qty         Decimal           @db.Decimal(15, 4)
+  unitPrice   Decimal           @db.Decimal(15, 4)
+  lineTotal   Decimal           @db.Decimal(15, 4)
+  item        Item              @relation(fields: [itemId], references: [id])
+  sale        Sale              @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  returnLines SalesReturnLine[]
 
   @@map("sale_lines")
 }
@@ -897,6 +1039,7 @@ model Sale {
   saleLines            SaleLine[]
   salesReceipts        SalesReceipt[]
   SalesRefunds         SalesRefund[]
+  salesReturns         SalesReturn[]
 
   customer Customer @relation(fields: [customerId], references: [id])
 
@@ -907,6 +1050,77 @@ model Sale {
   memos     Memo[]
 
   @@map("sales")
+}
+
+enum SalesReturnStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+enum ReturnSettlementMethod {
+  REFUND_CASH
+  CUSTOMER_CREDIT
+  APPLY_TO_INVOICE
+}
+
+model SalesReturn {
+  id         String @id @default(cuid())
+  returnNo   String @unique
+  saleId     String
+  customerId String
+
+  returnDate DateTime @default(now())
+  reason     String?
+
+  status SalesReturnStatus @default(DRAFT)
+
+  subtotal    Decimal @db.Decimal(15, 2)
+  tax         Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount Decimal @db.Decimal(15, 2)
+
+  settlementMethod ReturnSettlementMethod?
+
+  // ───── Stage tracking ─────
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  preparedBy  String
+  confirmedBy String?
+  confirmedAt DateTime?
+
+  cancelledBy String?
+  cancelledAt DateTime?
+
+  // ───── Relations ─────
+  sale     Sale     @relation(fields: [saleId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  preparer  User  @relation("SalesReturnPreparer", fields: [preparedBy], references: [id])
+  confirmer User? @relation("SalesReturnConfirmer", fields: [confirmedBy], references: [id])
+  canceller User? @relation("SalesReturnCanceller", fields: [cancelledBy], references: [id])
+
+  salesReturnLines SalesReturnLine[]
+
+  @@map("sales_returns")
+}
+
+model SalesReturnLine {
+  id            String @id @default(cuid())
+  salesReturnId String
+  saleLineId    String
+  itemId        String
+
+  qty       Decimal @db.Decimal(15, 4)
+  unitPrice Decimal @db.Decimal(15, 4) // from original sale line — customer credit basis
+  unitCost  Decimal @db.Decimal(15, 4) // resolved at confirm time — inventory/COGS basis
+  lineTotal Decimal @db.Decimal(15, 2)
+
+  salesReturn SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  saleLine    SaleLine    @relation(fields: [saleLineId], references: [id])
+  item        Item        @relation(fields: [itemId], references: [id])
+
+  @@map("sales_return_lines")
 }
 
 model PurchasePayment {
@@ -927,55 +1141,6 @@ model PurchasePayment {
   vendor        Vendor      @relation(fields: [vendorId], references: [id])
 
   @@map("purchase_payments")
-}
-
-model VendorPayment {
-  id            String                 @id @default(cuid())
-  paymentNo     String                 @unique
-  vendorId      String
-  cashAccountId String
-  paymentDate   DateTime
-  reference     String?
-  notes         String?
-  totalAmount   Decimal                @db.Decimal(15, 2)
-  status        String                 @default("PREPARED")
-  preparedBy    String
-  approvedBy    String?
-  authorizedBy  String?
-  paidBy        String?
-  preparedAt    DateTime               @default(now())
-  approvedAt    DateTime?
-  authorizedAt  DateTime?
-  paidAt        DateTime?
-  userId        String
-  createdAt     DateTime               @default(now())
-  lines         VendorPaymentLine[]
-  postings      VendorPaymentPosting[]
-  approver      User?                  @relation("VendorPaymentApprovedBy", fields: [approvedBy], references: [id])
-  authorizer    User?                  @relation("VendorPaymentAuthorizedBy", fields: [authorizedBy], references: [id])
-  cashAccount   CashAccount            @relation(fields: [cashAccountId], references: [id])
-  payer         User?                  @relation("VendorPaymentPaidBy", fields: [paidBy], references: [id])
-  preparer      User                   @relation("VendorPaymentPreparedBy", fields: [preparedBy], references: [id])
-  user          User                   @relation("VendorPaymentCreatedBy", fields: [userId], references: [id])
-  vendor        Vendor                 @relation(fields: [vendorId], references: [id])
-
-  @@map("vendor_payments")
-}
-
-model VendorPaymentLine {
-  id              String         @id @default(cuid())
-  vendorPaymentId String
-  purchaseId      String?
-  glAccountId     String
-  lineAmount      Decimal        @db.Decimal(15, 2)
-  description     String?
-  vendorId        String?
-  glAccount       ChartOfAccount @relation(fields: [glAccountId], references: [id])
-  purchase        Purchase?      @relation(fields: [purchaseId], references: [id])
-  Vendor          Vendor?        @relation(fields: [vendorId], references: [id])
-  vendorPayment   VendorPayment  @relation(fields: [vendorPaymentId], references: [id])
-
-  @@map("vendor_payment_lines")
 }
 
 model VendorPaymentPosting {

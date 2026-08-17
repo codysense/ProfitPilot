@@ -58,10 +58,42 @@ router.post(
   purchaseController.invoicePurchase,
 );
 
+// Purchase return
+router.get("/purchase-returns", purchaseController.getPurchaseReturns);
+
+router.get(
+  "/purchase-returns/returnable-lines/:purchaseId",
+  requireRole(["Inventory Manager", "Senior Accountant", "Auditor"]),
+  purchaseController.getReturnableLines,
+);
+
+router.post(
+  "/purchase-returns/create",
+  requireRole(["Inventory Manager", "Senior Accountant", "Auditor"]),
+  purchaseController.createPurchaseReturn,
+);
+
+router.post(
+  "/purchase-returns/confirm/:id",
+  requireRole(["Inventory Manager", "Senior Accountant", "Auditor"]),
+  purchaseController.confirmPurchaseReturn,
+);
+
+router.delete(
+  "/purchase-returns/cancel/:id",
+  requireRole(["Inventory Manager", "Senior Accountant", "Auditor"]),
+  purchaseController.cancelPurchaseReturn,
+);
+
 // Vendors
 router.get(
   "/vendors",
-  requireRole(["Inventory Manager", "Senior Accountant", "Accountant", "Auditor"]),
+  requireRole([
+    "Inventory Manager",
+    "Senior Accountant",
+    "Accountant",
+    "Auditor",
+  ]),
   purchaseController.getVendors,
 );
 router.post(

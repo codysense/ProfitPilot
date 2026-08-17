@@ -259,11 +259,18 @@ export class ReportsService {
         account.accountType === "OTHER_INCOME"
           ? totalCredits.minus(totalDebits).toNumber()
           : totalDebits.minus(totalCredits).toNumber();
-
+      // console.log(
+      //   "Account",
+      //   account.name,
+      //   "Type",
+      //   account.accountType,
+      //   "Net Amount",
+      //   netAmount,
+      // );
       const accountData = {
         accountCode: account.code,
         accountName: account.name,
-        amount: Math.abs(netAmount),
+        amount: netAmount,
       };
 
       if (account.accountType === "INCOME") {
@@ -1207,10 +1214,10 @@ ORDER BY c.name;
     const newToDate = endOfDayUTC(toDate);
     const newFromDate = startOfDayUTC(fromDate);
 
-    //  Opening Balance before period
+    // Opening Balance before period
     const opening = await prisma.$queryRawUnsafe<{ balance: number }[]>(
       `
-   SELECT COALESCE(SUM(x.balance), 0) AS balance
+ SELECT COALESCE(SUM(x.balance), 0) AS balance
 FROM (
 
   /* ---------------- SALES (DEBIT) ---------------- */
@@ -1236,6 +1243,19 @@ FROM (
 
   UNION ALL
 
+  /* ---------------- SALES RETURNS (CREDIT AR) ---------------- */
+  /* Only returns settled as customer credit or applied to another
+     invoice actually move the AR balance. REFUND_CASH returns net
+     to zero on AR (base return credit + cash-refund debit cancel out),
+     so they're intentionally excluded here. */
+  SELECT -str."totalAmount" AS balance
+  FROM sales_returns str
+  WHERE str."customerId" = $1
+    AND str.status = 'CONFIRMED'
+    AND str."settlementMethod" IN ('CUSTOMER_CREDIT', 'APPLY_TO_INVOICE')
+    AND str."returnDate" < $2
+
+  UNION ALL
   /* ---------------- REFUNDS (DEBIT) ---------------- */
   SELECT srr."amountRefunded" AS balance
   FROM sales_refunds srr
@@ -1244,7 +1264,6 @@ FROM (
 
   UNION ALL
  
-/* ---------------- CUSTOMER CREDIT MEMO (CREDIT AR) ---------------- */
 /* ---------------- CUSTOMER MEMOS ---------------- */
 SELECT 
   CASE 
@@ -1257,16 +1276,15 @@ FROM memo m
 WHERE m."customerId" = $1
   AND m."date" < $2
 
-
 ) x;
-    `,
+  `,
       customerId,
       newFromDate,
     );
 
     const openingBalance = Number(opening[0].balance || 0);
 
-    //  Ledger entries in period
+    // Ledger entries in period
     const entries = await prisma.$queryRawUnsafe<
       {
         type: string;
@@ -1282,7 +1300,7 @@ WHERE m."customerId" = $1
       }[]
     >(
       `
-    SELECT 
+  SELECT 
   'CUSTOMER' AS type,
   c."code" AS account_code,
   c."name" AS account_name,
@@ -1298,7 +1316,6 @@ INNER JOIN customers c ON s."customerId" = c.id
 WHERE c.id = $1
  AND s."orderDate" >= $2
 AND s."orderDate" < ($3 + INTERVAL '1 day')
-
   AND s.status IN ('INVOICED', 'PAID','RETURNED')
 
 UNION ALL
@@ -1330,6 +1347,29 @@ WHERE c.id = $1
 
 UNION ALL
 
+/* ---------------- SALES RETURNS (AR CREDIT) ---------------- */
+SELECT
+  'CUSTOMER' AS type,
+  c."code" AS account_code,
+  c."name" AS account_name,
+  'SALES_RETURN' AS transaction_type,
+  sr."returnNo" AS reference,
+  sr."returnDate" AS date,
+  0 AS debit,
+  sr."totalAmount" AS credit,
+  sr."totalAmount" AS amount,
+  CONCAT('Sales return against ', so."orderNo") AS description
+FROM sales_returns sr
+INNER JOIN customers c ON sr."customerId" = c.id
+INNER JOIN sales so ON sr."saleId" = so.id
+WHERE c.id = $1
+  AND sr.status = 'CONFIRMED'
+  AND sr."settlementMethod" IN ('CUSTOMER_CREDIT', 'APPLY_TO_INVOICE')
+  AND sr."returnDate" >= $2
+  AND sr."returnDate" < ($3 + INTERVAL '1 day')
+
+UNION ALL
+
 /* ---------------- REFUNDS ---------------- */
 SELECT 
   'CUSTOMER' AS type,
@@ -1351,7 +1391,6 @@ WHERE c.id = $1
   UNION ALL
 
 /* ---------------- CUSTOMER MEMOS ---------------- */
-/* ---------------- CUSTOMER MEMOS ---------------- */
 SELECT
   'CUSTOMER' AS type,
   c."code" AS account_code,
@@ -1364,40 +1403,32 @@ SELECT
   END AS transaction_type,
   m."memoNo" AS reference,
   m."date" AS date,
-
-  /* DEBIT LOGIC */
   CASE 
     WHEN m."memoType" = 'DEBIT' AND m."isReversal" = false THEN m."amount"
     WHEN m."memoType" = 'CREDIT' AND m."isReversal" = true THEN m."amount"
     ELSE 0
   END AS debit,
-
-  /* CREDIT LOGIC */
   CASE 
     WHEN m."memoType" = 'CREDIT' AND m."isReversal" = false THEN m."amount"
     WHEN m."memoType" = 'DEBIT' AND m."isReversal" = true THEN m."amount"
     ELSE 0
   END AS credit,
-
   m."amount" AS amount,
   COALESCE(m."description", 'Memo') AS description
-
 FROM memo m
 INNER JOIN customers c ON m."customerId" = c.id
 WHERE c.id = $1
   AND m."date" >= $2
   AND m."date" < ($3 + INTERVAL '1 day')
 
-
 ORDER BY date, transaction_type, reference;
-;
-    `,
+  `,
       customerId,
       newFromDate,
       newToDate,
     );
 
-    //  Totals
+    // Totals
     const totalSales = entries.reduce(
       (sum, e) => sum + Number(e.debit || 0),
       0,
@@ -1418,6 +1449,227 @@ ORDER BY date, transaction_type, reference;
       },
     };
   }
+
+  //   async getCustomerLedger(fromDate: Date, toDate: Date, customerId: string) {
+  //     const newToDate = endOfDayUTC(toDate);
+  //     const newFromDate = startOfDayUTC(fromDate);
+
+  //     //  Opening Balance before period
+  //     const opening = await prisma.$queryRawUnsafe<{ balance: number }[]>(
+  //       `
+  //    SELECT COALESCE(SUM(x.balance), 0) AS balance
+  // FROM (
+
+  //   /* ---------------- SALES (DEBIT) ---------------- */
+  //   SELECT s."totalAmount" AS balance
+  //   FROM sales s
+  //   WHERE s."customerId" = $1
+  //     AND s."orderDate" < $2
+  //     AND s.status IN ('INVOICED', 'PAID', 'RETURNED')
+
+  //   UNION ALL
+
+  //   /* ---------------- PAYMENTS (CREDIT) ---------------- */
+  //   SELECT -SUM(ABS(cpl."lineAmount")) AS balance
+  //   FROM customer_payments cp
+  //   INNER JOIN customer_payment_lines cpl
+  //       ON cpl."customerPaymentId" = cp.id
+  //   INNER JOIN chart_of_accounts coa
+  //       ON coa.id = cpl."glAccountId"
+  //      AND coa.code = '1200'
+  //   WHERE cp."customerId" = $1
+  //     AND cp.status = 'PAID'
+  //     AND cp."paymentDate" < $2
+
+  //   UNION ALL
+
+  //   /* ---------------- RETURN (DEBIT) ---------------- */
+  //   SELECT str."totalAmount" AS balance
+  //   FROM sales_returns str
+  //   WHERE str."customerId" = $1
+  //     AND str."returnDate" < $2
+
+  //   UNION ALL
+  //   /* ---------------- REFUNDS (DEBIT) ---------------- */
+  //   SELECT srr."amountRefunded" AS balance
+  //   FROM sales_refunds srr
+  //   WHERE srr."customerId" = $1
+  //     AND srr."refundDate" < $2
+
+  //   UNION ALL
+
+  // /* ---------------- CUSTOMER CREDIT MEMO (CREDIT AR) ---------------- */
+  // /* ---------------- CUSTOMER MEMOS ---------------- */
+  // SELECT
+  //   CASE
+  //     WHEN m."memoType" = 'CREDIT' AND m."isReversal" = false  THEN -m."amount"
+  //     WHEN m."memoType" = 'DEBIT' AND m."isReversal" = false THEN  m."amount"
+  //     WHEN m."memoType" = 'CREDIT' AND m."isReversal" = true  THEN m."amount"
+  //     WHEN m."memoType" = 'DEBIT' AND m."isReversal" = true THEN  -m."amount"
+  //   END AS balance
+  // FROM memo m
+  // WHERE m."customerId" = $1
+  //   AND m."date" < $2
+
+  // ) x;
+  //     `,
+  //       customerId,
+  //       newFromDate,
+  //     );
+
+  //     const openingBalance = Number(opening[0].balance || 0);
+
+  //     //  Ledger entries in period
+  //     const entries = await prisma.$queryRawUnsafe<
+  //       {
+  //         type: string;
+  //         account_code: string;
+  //         account_name: string;
+  //         transaction_type: string;
+  //         reference: string;
+  //         date: Date;
+  //         debit: number;
+  //         credit: number;
+  //         balance: number;
+  //         description: string;
+  //       }[]
+  //     >(
+  //       `
+  //     SELECT
+  //   'CUSTOMER' AS type,
+  //   c."code" AS account_code,
+  //   c."name" AS account_name,
+  //   'SALE' AS transaction_type,
+  //   s."orderNo" AS reference,
+  //   s."orderDate" AS date,
+  //   s."totalAmount" AS debit,
+  //   0 AS credit,
+  //   s."totalAmount" AS amount,
+  //   'Sales Invoice' AS description
+  // FROM sales s
+  // INNER JOIN customers c ON s."customerId" = c.id
+  // WHERE c.id = $1
+  //  AND s."orderDate" >= $2
+  // AND s."orderDate" < ($3 + INTERVAL '1 day')
+
+  //   AND s.status IN ('INVOICED', 'PAID','RETURNED')
+
+  // UNION ALL
+
+  // /* ---------------- CUSTOMER PAYMENTS (AR CLEARING) ---------------- */
+  // SELECT
+  //   'CUSTOMER' AS type,
+  //   c."code" AS account_code,
+  //   c."name" AS account_name,
+  //   'RECEIPT' AS transaction_type,
+  //   cp."paymentNo" AS reference,
+  //   cp."paymentDate" AS date,
+  //   0 AS debit,
+  //   ABS(cpl."lineAmount") AS credit,
+  //   ABS(cpl."lineAmount") AS amount,
+  //   CONCAT('Customer payment ', COALESCE(cp."reference", '')) AS description
+  // FROM customer_payments cp
+  // INNER JOIN customer_payment_lines cpl
+  //     ON cpl."customerPaymentId" = cp.id
+  // INNER JOIN chart_of_accounts coa
+  //     ON coa.id = cpl."glAccountId"
+  //    AND coa.code = '1200'
+  // INNER JOIN customers c
+  //     ON cp."customerId" = c.id
+  // WHERE c.id = $1
+  //   AND cp.status = 'PAID'
+  //   AND cp."paymentDate" >= $2
+  //   AND cp."paymentDate" < ($3 + INTERVAL '1 day')
+
+  // UNION ALL
+
+  // /* ---------------- REFUNDS ---------------- */
+  // SELECT
+  //   'CUSTOMER' AS type,
+  //   c."code" AS account_code,
+  //   c."name" AS account_name,
+  //   'REFUND' AS transaction_type,
+  //   srr."refundNo" AS reference,
+  //   srr."refundDate" AS date,
+  //   srr."amountRefunded" AS debit,
+  //   0 AS credit,
+  //   srr."amountRefunded" AS amount,
+  //   CONCAT('Payment refunded ', COALESCE(srr."reference", '')) AS description
+  // FROM sales_refunds srr
+  // INNER JOIN customers c ON srr."customerId" = c.id
+  // WHERE c.id = $1
+  //   AND srr."refundDate" >= $2
+  //   AND srr."refundDate" < ($3 + INTERVAL '1 day')
+
+  //   UNION ALL
+
+  // /* ---------------- CUSTOMER MEMOS ---------------- */
+  // /* ---------------- CUSTOMER MEMOS ---------------- */
+  // SELECT
+  //   'CUSTOMER' AS type,
+  //   c."code" AS account_code,
+  //   c."name" AS account_name,
+  //   CASE
+  //     WHEN m."memoType" = 'CREDIT' and m."isReversal" = false THEN 'CREDIT_MEMO'
+  //     WHEN m."memoType" = 'DEBIT' and m."isReversal" = false THEN 'DEBIT_MEMO'
+  //     WHEN m."memoType" = 'CREDIT' and m."isReversal" = true THEN 'CREDIT_MEMO_REVERSAL'
+  //     ELSE 'DEBIT_MEMO_REVERSAL'
+  //   END AS transaction_type,
+  //   m."memoNo" AS reference,
+  //   m."date" AS date,
+
+  //   /* DEBIT LOGIC */
+  //   CASE
+  //     WHEN m."memoType" = 'DEBIT' AND m."isReversal" = false THEN m."amount"
+  //     WHEN m."memoType" = 'CREDIT' AND m."isReversal" = true THEN m."amount"
+  //     ELSE 0
+  //   END AS debit,
+
+  //   /* CREDIT LOGIC */
+  //   CASE
+  //     WHEN m."memoType" = 'CREDIT' AND m."isReversal" = false THEN m."amount"
+  //     WHEN m."memoType" = 'DEBIT' AND m."isReversal" = true THEN m."amount"
+  //     ELSE 0
+  //   END AS credit,
+
+  //   m."amount" AS amount,
+  //   COALESCE(m."description", 'Memo') AS description
+
+  // FROM memo m
+  // INNER JOIN customers c ON m."customerId" = c.id
+  // WHERE c.id = $1
+  //   AND m."date" >= $2
+  //   AND m."date" < ($3 + INTERVAL '1 day')
+
+  // ORDER BY date, transaction_type, reference;
+  // ;
+  //     `,
+  //       customerId,
+  //       newFromDate,
+  //       newToDate,
+  //     );
+
+  //     //  Totals
+  //     const totalSales = entries.reduce(
+  //       (sum, e) => sum + Number(e.debit || 0),
+  //       0,
+  //     );
+  //     const totalPayments = entries.reduce(
+  //       (sum, e) => sum + Number(e.credit || 0),
+  //       0,
+  //     );
+  //     const closingBalance = openingBalance + totalSales - totalPayments;
+
+  //     return {
+  //       openingBalance,
+  //       entries,
+  //       totals: {
+  //         totalSales,
+  //         totalPayments,
+  //         closingBalance,
+  //       },
+  //     };
+  //   }
 
   async getSalesReport(fromDate: Date, toDate: Date, customerId?: string) {
     const newToDate = endOfDayUTC(toDate);
@@ -1577,14 +1829,249 @@ ORDER BY date, transaction_type, reference;
     };
   }
 
+  //   async getVendorLedger(fromDate: Date, toDate: Date, vendorId: string) {
+  //     const newToDate = endOfDayUTC(toDate);
+  //     const newFromDate = startOfDayUTC(fromDate);
+
+  //     //  Opening Balance before period
+  //     const opening = await prisma.$queryRawUnsafe<{ balance: number }[]>(
+  //       `
+  //     SELECT COALESCE(SUM(x.balance), 0) AS balance
+  // FROM (
+
+  //     /* PURCHASES */
+  //     SELECT p."totalAmount" AS balance
+  //     FROM purchases p
+  //     WHERE p."vendorId" = $1
+  //       AND p."orderDate" < $2
+  //       AND p."status" != 'DRAFT'
+
+  //     UNION ALL
+
+  //     /* PAYMENTS (AP 2000) */
+  //     SELECT -SUM(vpl."lineAmount")
+  //     FROM vendor_payments vp
+  //     INNER JOIN vendor_payment_lines vpl
+  //         ON vpl."vendorPaymentId" = vp.id
+  //     INNER JOIN chart_of_accounts coa
+  //         ON coa.id = vpl."glAccountId"
+  //        AND coa.code = '2000'
+  //     WHERE vp."vendorId" = $1
+  //       AND vp.status = 'PAID'
+  //       AND vp."paymentDate" < $2
+
+  //     UNION ALL
+
+  //     /* PURCHASE REFUNDS */
+  //     SELECT -pr."amount"
+  //     FROM purchase_refunds pr
+  //     WHERE pr."vendorId" = $1
+  //       AND pr."refundDate" < $2
+
+  //     UNION ALL
+
+  //     /* DEBIT MEMOS (reduce AP) */
+  //     SELECT -m."amount"
+  //     FROM memo m
+  //     WHERE m."vendorId" = $1
+  //       AND m."memoType" = 'DEBIT'
+  //       AND m."date" < $2
+
+  //     UNION ALL
+
+  //     /* CREDIT MEMOS (increase AP) */
+  //     SELECT m."amount"
+  //     FROM memo m
+  //     WHERE m."vendorId" = $1
+  //       AND m."memoType" = 'CREDIT'
+  //       AND m."date" < $2
+
+  // ) x;
+
+  //     `,
+  //       vendorId,
+  //       newFromDate,
+  //     );
+
+  //     const openingBalance = Number(opening[0]?.balance || 0);
+
+  //     //  Ledger entries in period
+  //     const entries = await prisma.$queryRawUnsafe<
+  //       {
+  //         type: string;
+  //         account_code: string;
+  //         account_name: string;
+  //         transaction_type: string;
+  //         reference: string;
+  //         date: Date;
+  //         debit: number;
+  //         credit: number;
+  //         balance: number;
+  //         description: string;
+  //       }[]
+  //     >(
+  //       `
+  //     /* ---------------- PURCHASE INVOICES ---------------- */
+  // SELECT
+  //     'VENDOR' AS type,
+  //     v."code" AS account_code,
+  //     v."name" AS account_name,
+  //     'PURCHASE' AS transaction_type,
+  //     p."orderNo" AS reference,
+  //     p."orderDate" AS date,
+  //     0 AS debit,
+  //     p."totalAmount" AS credit,
+  //     p."totalAmount" AS balance,
+  //     'Purchase Invoice' AS description
+  // FROM purchases p
+  // INNER JOIN vendors v ON p."vendorId" = v."id"
+  // WHERE v."id" = $1
+  //   AND p."orderDate" >= $2
+  //   AND p."orderDate" < ($3 + INTERVAL '1 day')
+  //   AND p."status" IN ('INVOICED', 'PAID', 'PARTIALLY_PAID', 'RETURNED')
+
+  // UNION ALL
+
+  // /* ---------------- PAYMENTS (ACCOUNTS PAYABLE – CODE 2000) ---------------- */
+  // SELECT
+  //     'VENDOR' AS type,
+  //     v."code" AS account_code,
+  //     v."name" AS account_name,
+  //     'PAYMENT' AS transaction_type,
+  //     vp."paymentNo" AS reference,
+  //     vp."paymentDate" AS date,
+  //     SUM(vpl."lineAmount") AS debit,
+  //     0 AS credit,
+  //     -SUM(vpl."lineAmount") AS balance,
+  //     CONCAT('Payment made ', COALESCE(vp."reference", '')) AS description
+  // FROM vendor_payments vp
+  // INNER JOIN vendor_payment_lines vpl
+  //     ON vpl."vendorPaymentId" = vp.id
+  // INNER JOIN chart_of_accounts coa
+  //     ON coa.id = vpl."glAccountId"
+  //    AND coa.code = '2000'                  -- Accounts Payable
+  // INNER JOIN vendors v
+  //     ON vp."vendorId" = v."id"
+  // WHERE v."id" = $1
+  //   AND vp.status = 'PAID'
+  //   AND vp."paymentDate" >= $2
+  //   AND vp."paymentDate" < ($3 + INTERVAL '1 day')
+  // GROUP BY vp.id, v."code", v."name"
+
+  // UNION ALL
+
+  // /* ---------------- PURCHASE REFUNDS / CREDIT NOTES ---------------- */
+  // SELECT
+  //     'VENDOR' AS type,
+  //     v."code" AS account_code,
+  //     v."name" AS account_name,
+  //     'REFUND' AS transaction_type,
+  //     pr."refundNo" AS reference,
+  //     pr."refundDate" AS date,
+  //     pr."amount" AS debit,
+  //     0 AS credit,
+  //     -pr."amount" AS balance,
+  //     CONCAT('Refund issued ', COALESCE(pr."reference", '')) AS description
+  // FROM purchase_refunds pr
+  // INNER JOIN vendors v ON pr."vendorId" = v."id"
+  // WHERE v."id" = $1
+  //   AND pr."refundDate" >= $2
+  //   AND pr."refundDate" < ($3 + INTERVAL '1 day')
+
+  //   UNION ALL
+
+  // SELECT
+  //     'VENDOR' AS type,
+  //     v."code" AS account_code,
+  //     v."name" AS account_name,
+  //     'DEBIT_MEMO' AS transaction_type,
+  //     m."memoNo" AS reference,
+  //     m."date" AS date,
+  //     m."amount" AS debit,
+  //     0 AS credit,
+  //     -m."amount" AS balance,
+  //     m."description" AS description
+  // FROM memo m
+  // INNER JOIN vendors v ON m."vendorId" = v."id"
+  // WHERE v."id" = $1
+  //   AND m."memoType" = 'DEBIT'
+  //   AND m."date" >= $2
+  //   AND m."date" < ($3 + INTERVAL '1 day')
+
+  //   UNION ALL
+
+  // SELECT
+  //     'VENDOR' AS type,
+  //     v."code" AS account_code,
+  //     v."name" AS account_name,
+  //     'CREDIT_MEMO' AS transaction_type,
+  //     m."memoNo" AS reference,
+  //     m."date" AS date,
+  //     0 AS debit,
+  //     m."amount" AS credit,
+  //     m."amount" AS balance,
+  //     m."description" AS description
+  // FROM memo m
+  // INNER JOIN vendors v ON m."vendorId" = v."id"
+  // WHERE v."id" = $1
+  //   AND m."memoType" = 'CREDIT'
+  //   AND m."date" >= $2
+  //   AND m."date" < ($3 + INTERVAL '1 day')
+
+  // ORDER BY date, transaction_type, reference;
+  //     `,
+  //       vendorId,
+  //       newFromDate,
+  //       newToDate,
+  //     );
+
+  //     //  Totals
+  //     const totalPurchases = entries.reduce(
+  //       (sum, e) => sum + Number(e.credit || 0),
+  //       0,
+  //     );
+  //     const totalPayments = entries.reduce(
+  //       (sum, e) => sum + Number(e.debit || 0),
+  //       0,
+  //     );
+  //     // const netMovement = entries.reduce(
+  //     //   (sum, e) => sum + Number(e.debit || 0) - Number(e.credit || 0),
+  //     //   0,
+  //     // );
+
+  //     // const closingBalance = openingBalance + netMovement;
+
+  //     const totalDebits = entries.reduce(
+  //       (sum, e) => sum + Number(e.debit || 0),
+  //       0,
+  //     );
+
+  //     const totalCredits = entries.reduce(
+  //       (sum, e) => sum + Number(e.credit || 0),
+  //       0,
+  //     );
+
+  //     const closingBalance = openingBalance + totalCredits - totalDebits;
+
+  //     return {
+  //       openingBalance,
+  //       entries,
+  //       totals: {
+  //         totalPurchases,
+  //         totalPayments,
+  //         closingBalance,
+  //       },
+  //     };
+  //   }
+
   async getVendorLedger(fromDate: Date, toDate: Date, vendorId: string) {
     const newToDate = endOfDayUTC(toDate);
     const newFromDate = startOfDayUTC(fromDate);
 
-    //  Opening Balance before period
+    // Opening Balance before period
     const opening = await prisma.$queryRawUnsafe<{ balance: number }[]>(
       `
-    SELECT COALESCE(SUM(x.balance), 0) AS balance
+  SELECT COALESCE(SUM(x.balance), 0) AS balance
 FROM (
 
     /* PURCHASES */
@@ -1607,6 +2094,19 @@ FROM (
     WHERE vp."vendorId" = $1
       AND vp.status = 'PAID'
       AND vp."paymentDate" < $2
+
+    UNION ALL
+
+    /* PURCHASE RETURNS (AP CLEARING) */
+    /* Only SUPPLIER_CREDIT returns reduce AP. REFUND_CASH returns net
+       to zero on AP — the base return debit is reversed by the cash
+       refund's AP credit — so they're excluded here. */
+    SELECT -pret."totalAmount" AS balance
+    FROM purchase_returns pret
+    WHERE pret."vendorId" = $1
+      AND pret.status = 'CONFIRMED'
+      AND pret."settlementMethod" = 'SUPPLIER_CREDIT'
+      AND pret."returnDate" < $2
 
     UNION ALL
 
@@ -1636,14 +2136,14 @@ FROM (
 
 ) x;
 
-    `,
+  `,
       vendorId,
       newFromDate,
     );
 
     const openingBalance = Number(opening[0]?.balance || 0);
 
-    //  Ledger entries in period
+    // Ledger entries in period
     const entries = await prisma.$queryRawUnsafe<
       {
         type: string;
@@ -1659,7 +2159,7 @@ FROM (
       }[]
     >(
       `
-    /* ---------------- PURCHASE INVOICES ---------------- */
+  /* ---------------- PURCHASE INVOICES ---------------- */
 SELECT 
     'VENDOR' AS type,
     v."code" AS account_code,
@@ -1697,7 +2197,7 @@ INNER JOIN vendor_payment_lines vpl
     ON vpl."vendorPaymentId" = vp.id
 INNER JOIN chart_of_accounts coa
     ON coa.id = vpl."glAccountId"
-   AND coa.code = '2000'                  -- Accounts Payable
+   AND coa.code = '2000'
 INNER JOIN vendors v
     ON vp."vendorId" = v."id"
 WHERE v."id" = $1
@@ -1705,6 +2205,29 @@ WHERE v."id" = $1
   AND vp."paymentDate" >= $2
   AND vp."paymentDate" < ($3 + INTERVAL '1 day')
 GROUP BY vp.id, v."code", v."name"
+
+UNION ALL
+
+/* ---------------- PURCHASE RETURNS (AP DEBIT) ---------------- */
+SELECT
+    'VENDOR' AS type,
+    v."code" AS account_code,
+    v."name" AS account_name,
+    'PURCHASE_RETURN' AS transaction_type,
+    pret."returnNo" AS reference,
+    pret."returnDate" AS date,
+    pret."totalAmount" AS debit,
+    0 AS credit,
+    -pret."totalAmount" AS balance,
+    CONCAT('Purchase return against ', po."orderNo") AS description
+FROM purchase_returns pret
+INNER JOIN vendors v ON pret."vendorId" = v."id"
+INNER JOIN purchases po ON pret."purchaseId" = po.id
+WHERE v."id" = $1
+  AND pret.status = 'CONFIRMED'
+  AND pret."settlementMethod" = 'SUPPLIER_CREDIT'
+  AND pret."returnDate" >= $2
+  AND pret."returnDate" < ($3 + INTERVAL '1 day')
 
 UNION ALL
 
@@ -1766,15 +2289,14 @@ WHERE v."id" = $1
   AND m."date" >= $2
   AND m."date" < ($3 + INTERVAL '1 day')
 
-
 ORDER BY date, transaction_type, reference;
-    `,
+  `,
       vendorId,
       newFromDate,
       newToDate,
     );
 
-    //  Totals
+    // Totals
     const totalPurchases = entries.reduce(
       (sum, e) => sum + Number(e.credit || 0),
       0,
@@ -1783,12 +2305,6 @@ ORDER BY date, transaction_type, reference;
       (sum, e) => sum + Number(e.debit || 0),
       0,
     );
-    // const netMovement = entries.reduce(
-    //   (sum, e) => sum + Number(e.debit || 0) - Number(e.credit || 0),
-    //   0,
-    // );
-
-    // const closingBalance = openingBalance + netMovement;
 
     const totalDebits = entries.reduce(
       (sum, e) => sum + Number(e.debit || 0),
@@ -1822,12 +2338,12 @@ ORDER BY date, transaction_type, reference;
         vendor_name: string;
         total_purchases: number;
         total_payments: number;
-        // total_refunds: number;
+        total_returns: number;
         outstanding_balance: number;
       }[]
     >(
       `
-    SELECT 
+  SELECT 
     v.id   AS vendor_id,
     v.code AS vendor_code,
     v.name AS vendor_name,
@@ -1837,12 +2353,14 @@ ORDER BY date, transaction_type, reference;
     COALESCE(r.total_refunds, 0) AS total_refunds,
     COALESCE(dm.total_debit_memos, 0) AS total_debit_memos,
     COALESCE(cm.total_credit_memos, 0) AS total_credit_memos,
+    COALESCE(pret.total_returns, 0) AS total_returns,
 
     COALESCE(p.total_purchases, 0)
       - COALESCE(pay.total_payments, 0)
       - COALESCE(r.total_refunds, 0)
       - COALESCE(dm.total_debit_memos, 0)
       + COALESCE(cm.total_credit_memos, 0)
+      - COALESCE(pret.total_returns, 0)
       AS outstanding_balance
 
 FROM vendors v
@@ -1873,6 +2391,18 @@ LEFT JOIN (
       AND vp."paymentDate" <= $1
     GROUP BY vp."vendorId"
 ) pay ON pay."vendorId" = v.id
+
+/* PURCHASE RETURNS (SUPPLIER_CREDIT only — REFUND_CASH nets to zero on AP) */
+LEFT JOIN (
+    SELECT
+        "vendorId",
+        SUM("totalAmount") AS total_returns
+    FROM purchase_returns
+    WHERE "returnDate" <= $1
+      AND status = 'CONFIRMED'
+      AND "settlementMethod" = 'SUPPLIER_CREDIT'
+    GROUP BY "vendorId"
+) pret ON pret."vendorId" = v.id
 
 /* REFUNDS */
 LEFT JOIN (
@@ -1909,14 +2439,116 @@ LEFT JOIN (
 
 ORDER BY v.name;
 
-
-  `,
+`,
       newAsOfDate,
     );
 
-    // console.log("Vendor Balances Result:", result);
     return result;
   }
+
+  //   async getVendorBalances(asOfDate: Date) {
+  //     const newAsOfDate = endOfDayUTC(asOfDate);
+  //     const result = await prisma.$queryRawUnsafe<
+  //       {
+  //         vendor_id: string;
+  //         vendor_code: string;
+  //         vendor_name: string;
+  //         total_purchases: number;
+  //         total_payments: number;
+  //         // total_refunds: number;
+  //         outstanding_balance: number;
+  //       }[]
+  //     >(
+  //       `
+  //     SELECT
+  //     v.id   AS vendor_id,
+  //     v.code AS vendor_code,
+  //     v.name AS vendor_name,
+
+  //     COALESCE(p.total_purchases, 0) AS total_purchases,
+  //     COALESCE(pay.total_payments, 0) AS total_payments,
+  //     COALESCE(r.total_refunds, 0) AS total_refunds,
+  //     COALESCE(dm.total_debit_memos, 0) AS total_debit_memos,
+  //     COALESCE(cm.total_credit_memos, 0) AS total_credit_memos,
+
+  //     COALESCE(p.total_purchases, 0)
+  //       - COALESCE(pay.total_payments, 0)
+  //       - COALESCE(r.total_refunds, 0)
+  //       - COALESCE(dm.total_debit_memos, 0)
+  //       + COALESCE(cm.total_credit_memos, 0)
+  //       AS outstanding_balance
+
+  // FROM vendors v
+
+  // /* PURCHASES */
+  // LEFT JOIN (
+  //     SELECT
+  //         "vendorId",
+  //         SUM("totalAmount") AS total_purchases
+  //     FROM purchases
+  //     WHERE "orderDate" <= $1
+  //       AND status IN ('INVOICED', 'PAID', 'PARTIALLY_PAID', 'RETURNED')
+  //     GROUP BY "vendorId"
+  // ) p ON p."vendorId" = v.id
+
+  // /* PAYMENTS */
+  // LEFT JOIN (
+  //     SELECT
+  //         vp."vendorId",
+  //         SUM(vpl."lineAmount") AS total_payments
+  //     FROM vendor_payments vp
+  //     INNER JOIN vendor_payment_lines vpl
+  //         ON vpl."vendorPaymentId" = vp.id
+  //     INNER JOIN chart_of_accounts coa
+  //         ON coa.id = vpl."glAccountId"
+  //        AND coa.code = '2000'
+  //     WHERE vp.status IN ('PAID', 'PARTIALLY_PAID', 'RETURNED', 'INVOICED')
+  //       AND vp."paymentDate" <= $1
+  //     GROUP BY vp."vendorId"
+  // ) pay ON pay."vendorId" = v.id
+
+  // /* REFUNDS */
+  // LEFT JOIN (
+  //     SELECT
+  //         "vendorId",
+  //         SUM("amount") AS total_refunds
+  //     FROM purchase_refunds
+  //     WHERE "refundDate" <= $1
+  //     GROUP BY "vendorId"
+  // ) r ON r."vendorId" = v.id
+
+  // /* DEBIT MEMOS */
+  // LEFT JOIN (
+  //     SELECT
+  //         "vendorId",
+  //         SUM("amount") AS total_debit_memos
+  //     FROM memo
+  //     WHERE "memoType" = 'DEBIT'
+  //       AND "date" <= $1
+  //       AND "vendorId" IS NOT NULL
+  //     GROUP BY "vendorId"
+  // ) dm ON dm."vendorId" = v.id
+
+  // /* CREDIT MEMOS */
+  // LEFT JOIN (
+  //     SELECT
+  //         "vendorId",
+  //         SUM("amount") AS total_credit_memos
+  //     FROM memo
+  //     WHERE "memoType" = 'CREDIT'
+  //       AND "date" <= $1
+  //     GROUP BY "vendorId"
+  // ) cm ON cm."vendorId" = v.id
+
+  // ORDER BY v.name;
+
+  //   `,
+  //       newAsOfDate,
+  //     );
+
+  //     // console.log("Vendor Balances Result:", result);
+  //     return result;
+  //   }
 
   async getCashFlow(fromDate: Date, toDate: Date) {
     const newToDate = endOfDayUTC(toDate);

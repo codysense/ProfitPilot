@@ -566,6 +566,9 @@ export class AssetsService {
   async runDepreciation(data: any, userId: string) {
     const { periodYear, periodMonth, assetIds } = data;
 
+    // create transaction date from period year and month - last day of the month
+    const transactionDate = new Date(periodYear, periodMonth, 0); // last day of the month
+
     return await prisma.$transaction(
       async (tx) => {
         // Get assets to depreciate
@@ -659,6 +662,7 @@ export class AssetsService {
               ],
               `Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}`,
               userId,
+              transactionDate,
             );
           }
         }
@@ -672,7 +676,7 @@ export class AssetsService {
             },
             data: {
               isPosted: true,
-              postedAt: new Date(),
+              postedAt: new Date(transactionDate),
             },
           });
         }

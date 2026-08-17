@@ -409,6 +409,36 @@ export const productionApi = {
 };
 
 // Purchase API
+// export const purchaseApi = {
+//   getPurchases: (params?: {
+//     page?: number;
+//     limit?: number;
+//     paymentStatus?: string;
+//     vendorId?: string;
+//   }) =>
+//     api.get(
+//       `/purchase/orders${
+//         params ? "?" + new URLSearchParams(params as any).toString() : ""
+//       }`,
+//     ),
+//   createPurchase: (data: any) => api.post("/purchase/orders", data),
+//   updatePurchase: (id: string, data: any) =>
+//     api.put(`/purchase/orders/${id}`, data),
+//   deletePurchase: (id: string) => api.delete(`/purchase/orders/${id}`),
+//   printPurchaseOrder: (id: string) => api.get(`/purchase/orders/${id}/print`),
+//   receivePurchase: (id: string, data: any) =>
+//     api.post(`/purchase/orders/${id}/receive`, data),
+//   invoicePurchase: (id: string, data?: any) =>
+//     api.post(`/purchase/orders/${id}/invoice`, data),
+//   getVendors: (params?: { page?: number; limit?: number; search?: string }) =>
+//     api.get(
+//       `/purchase/vendors${
+//         params ? "?" + new URLSearchParams(params as any).toString() : ""
+//       }`,
+//     ),
+//   createVendor: (data: any) => api.post("/purchase/vendors", data),
+
+//Purchase Return line
 export const purchaseApi = {
   getPurchases: (params?: {
     page?: number;
@@ -437,7 +467,30 @@ export const purchaseApi = {
       }`,
     ),
   createVendor: (data: any) => api.post("/purchase/vendors", data),
+
+  // ───── Purchase Returns ─────
+  getReturnableLines: (purchaseId: string) =>
+    api.get(`/purchase/purchase-returns/returnable-lines/${purchaseId}`),
+  createPurchaseReturn: (data: any) =>
+    api.post("/purchase/purchase-returns/create", data),
+  confirmPurchaseReturn: (id: string, data: any) =>
+    api.post(`/purchase/purchase-returns/confirm/${id}`, data),
+  getPurchaseReturns: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    vendorId?: string;
+  }) =>
+    api.get(
+      `/purchase/purchase-returns${
+        params ? "?" + new URLSearchParams(params as any).toString() : ""
+      }`,
+    ),
+  cancelPurchaseReturn: (id: string) =>
+    api.post(`/purchase/purchase-returns/${id}/cancel`),
 };
+
+// };
 
 // Sales API
 export const salesApi = {
@@ -462,6 +515,27 @@ export const salesApi = {
         params ? "?" + new URLSearchParams(params as any).toString() : ""
       }`,
     ),
+
+  getSalesReturns: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }) =>
+    api.get(
+      `/sales/sales-returns/get-sales-returns${
+        params ? "?" + new URLSearchParams(params as any).toString() : ""
+      }`,
+    ),
+
+  cancelSalesReturn: (id: string) =>
+    api.get(`/sales/sales-return/cancel/${id}`),
+
+  getReturnableLines: (saleId: string) =>
+    api.get(`/sales/sales-return/returnable-lines/${saleId}`),
+
+  createSalesReturn: (data: any) => api.post("/sales/sales-return/", data),
+  confirmSalesReturn: (id: string, data: any) =>
+    api.post(`/sales/sales-return/confirm/${id}`, data),
 
   createSale: (data: any) => api.post("/sales/orders", data),
   updateSale: (id: string, data: any) => api.put(`/sales/orders/${id}`, data),
