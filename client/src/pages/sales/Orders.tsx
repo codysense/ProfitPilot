@@ -23,7 +23,7 @@ import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
 import { CustomerSelect } from "../../components/CustomerSelect";
-import CreateSalesReturnModal from "./CreateSalesreturnModal";
+import CreateSalesReturnModal from "./CreateSalesReturnModal";
 
 const SalesOrders = () => {
   const [page, setPage] = useState(1);
