@@ -468,7 +468,7 @@ export const purchaseApi = {
     ),
   createVendor: (data: any) => api.post("/purchase/vendors", data),
 
-  // ───── Purchase Returns ─────
+  //  Purchase Returns
   getReturnableLines: (purchaseId: string) =>
     api.get(`/purchase/purchase-returns/returnable-lines/${purchaseId}`),
   createPurchaseReturn: (data: any) =>

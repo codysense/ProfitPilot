@@ -490,7 +490,6 @@ const PurchaseOrders = () => {
             </button>
           ))} */}
 
-        {/* =================  DELETE FOR ASSET PO & INVENTORY ================= */}
         {canPerformActions &&
           ["DRAFT", "ORDERED"].includes(purchase.status) && (
             <button
@@ -502,7 +501,6 @@ const PurchaseOrders = () => {
             </button>
           )}
 
-        {/* ================= INVENTORY PO ================= */}
         {isInventoryPO && (
           <>
             {/* Edit */}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Building,
@@ -19,6 +19,7 @@ const AssetDashboard = () => {
   const [showDepreciationModal, setShowDepreciationModal] = useState(false);
   const [showRecapitalizeModal, setShowRecapitalizeModal] = useState(false);
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const canManageAssets =
     user?.roles.includes("Auditor") || user?.roles.includes("General Manager");
@@ -30,21 +31,31 @@ const AssetDashboard = () => {
 
   const { data: registerData } = useQuery({
     queryKey: ["asset-register-summary"],
-    queryFn: () => assetsApi.getAssetRegister({ limit: 1000 }),
+    queryFn: () => assetsApi.getAssetRegister({ status: "ACTIVE", limit: 1000 }),
   });
   //console.log(`Asset register ${registerData?.register?.assets}`);
   const handleCapitalizeSuccess = () => {
     setShowCapitalizeModal(false);
-    // Refetch data
+    queryClient.invalidateQueries({ queryKey: ["asset-valuation"] });
+    queryClient.invalidateQueries({ queryKey: ["asset-register-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["assets"] });
   };
 
   const handleDepreciationSuccess = () => {
     setShowDepreciationModal(false);
-    // Refetch data
+    queryClient.invalidateQueries({ queryKey: ["asset-valuation"] });
+    queryClient.invalidateQueries({ queryKey: ["asset-register-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["assets"] });
+    queryClient.invalidateQueries({
+      queryKey: ["active-assets-for-depreciation"],
+    });
   };
 
   const handleRecapitalizeSuccess = () => {
     setShowRecapitalizeModal(false);
+    queryClient.invalidateQueries({ queryKey: ["asset-valuation"] });
+    queryClient.invalidateQueries({ queryKey: ["asset-register-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["assets"] });
   };
 
   // Group assets by category for summary

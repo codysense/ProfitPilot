@@ -322,21 +322,133 @@ export class AssetsService {
     return await prisma.$transaction(async (tx) => {
       const asset = await tx.asset.findUnique({
         where: { id: assetId },
+        include: {
+          category: {
+            include: {
+              glAssetAccount: true,
+              glDepreciationAccount: true,
+              glAccumulatedDepreciationAccount: true,
+            },
+          },
+          depreciationEntries: {
+            orderBy: [{ periodYear: "asc" }, { periodMonth: "asc" }],
+          },
+          recapitalizations: true,
+          disposals: true,
+        },
       });
 
       if (!asset) {
         throw new Error("Asset not found");
       }
 
-      const depreciationCount = await tx.assetDepreciation.count({
-        where: { assetId },
-      });
+      // 1. Reverse all posted Depreciation Entries in GL
+      const glDepreciationAccount = asset.category?.glDepreciationAccount?.code;
+      const glAccumulatedDepreciationAccount =
+        asset.category?.glAccumulatedDepreciationAccount?.code;
 
-      if (depreciationCount > 0) {
-        throw new Error("Cannot delete asset with depreciation entries");
+      for (const entry of asset.depreciationEntries) {
+        const depreciationAmount = Number(entry.depreciationAmount);
+        if (
+          depreciationAmount > 0 &&
+          glDepreciationAccount &&
+          glAccumulatedDepreciationAccount
+        ) {
+          const periodStartDate = new Date(
+            entry.periodYear,
+            entry.periodMonth - 1,
+            1,
+          );
+          await glService.postJournal(
+            tx,
+            [
+              {
+                accountCode: glDepreciationAccount,
+                debit: 0,
+                credit: depreciationAmount, // Credit expense to reduce it
+                refType: "REVERSED_DEPRECIATION",
+                refId: asset.id,
+              },
+              {
+                accountCode: glAccumulatedDepreciationAccount,
+                debit: depreciationAmount, // Debit accumulated depreciation to reduce it
+                credit: 0,
+                refType: "REVERSED_DEPRECIATION",
+                refId: asset.id,
+              },
+            ],
+            `Reverse Depreciation on asset deletion: ${asset.assetNo} - ${asset.name} (${entry.periodYear}-${String(entry.periodMonth).padStart(2, "0")})`,
+            userId,
+            periodStartDate,
+          );
+        }
       }
 
-      // Pull the exact original capitalization lines from the GL
+      // Delete AssetDepreciation records
+      await tx.assetDepreciation.deleteMany({
+        where: { assetId: asset.id },
+      });
+
+      // 2. Reverse Recapitalizations (if any)
+      for (const recap of asset.recapitalizations) {
+        const recapAmount = Number(recap.amount);
+        if (recapAmount > 0) {
+          const assetAccountCode = asset.category?.glAssetAccount?.code;
+          let creditAccountCode = "3000";
+          if (recap.sourceAccountId) {
+            const srcAcc = await tx.chartOfAccount.findUnique({
+              where: { id: recap.sourceAccountId },
+            });
+            if (srcAcc) creditAccountCode = srcAcc.code;
+
+            // If source account was a cash account, refund/increment balance
+            const cashAccount = await tx.cashAccount.findFirst({
+              where: { glAccountId: recap.sourceAccountId },
+            });
+            if (cashAccount) {
+              await tx.cashAccount.update({
+                where: { id: cashAccount.id },
+                data: {
+                  balance: {
+                    increment: recap.amount,
+                  },
+                },
+              });
+            }
+          }
+
+          if (assetAccountCode) {
+            await glService.postJournal(
+              tx,
+              [
+                {
+                  accountCode: assetAccountCode,
+                  debit: 0,
+                  credit: recapAmount,
+                  refType: "ASSET_RECAPITALIZATION_REVERSAL",
+                  refId: asset.id,
+                },
+                {
+                  accountCode: creditAccountCode,
+                  debit: recapAmount,
+                  credit: 0,
+                  refType: "ASSET_RECAPITALIZATION_REVERSAL",
+                  refId: asset.id,
+                },
+              ],
+              `Asset recapitalization reversal on deletion: ${asset.assetNo} - ${asset.name}`,
+              userId,
+            );
+          }
+        }
+      }
+
+      // Delete AssetRecapitalization records
+      await tx.assetRecapitalization.deleteMany({
+        where: { assetId: asset.id },
+      });
+
+      // 3. Reverse Capitalization Entries in GL
       const originalLines = await tx.journalLine.findMany({
         where: {
           refType: "ASSET_CAPITALIZATION",
@@ -345,30 +457,48 @@ export class AssetsService {
         include: { account: true },
       });
 
-      if (originalLines.length === 0) {
-        throw new Error(
-          "No GL capitalization entry found for this asset — cannot safely reverse",
+      if (originalLines.length > 0) {
+        const reversalLines = originalLines.map((line) => ({
+          accountCode: line.account.code,
+          debit: Number(line.credit),
+          credit: Number(line.debit),
+          refType: "ASSET_CAPITALIZATION_REVERSAL",
+          refId: asset.id,
+        }));
+
+        await glService.postJournal(
+          tx,
+          reversalLines,
+          `Asset capitalization reversal: ${asset.assetNo} - ${asset.name}`,
+          userId,
         );
       }
 
-      // Flip debit/credit on each original line to build the reversal
-      const reversalLines = originalLines.map((line) => ({
-        accountCode: line.account.code,
-        debit: Number(line.credit),
-        credit: Number(line.debit),
-        refType: "ASSET_CAPITALIZATION_REVERSAL",
-        refId: asset.id,
-      }));
+      // 4. Reverse / Clean up Disposals (if any)
+      if (asset.disposals && asset.disposals.length > 0) {
+        await tx.assetDisposal.deleteMany({
+          where: { assetId: asset.id },
+        });
+      }
 
-      //console.log(`Reversal lines for asset ${asset.assetNo}:`, reversalLines);
+      // 5. If capitalized from Purchase Order, check if other assets exist; if not, revert PO status to ORDERED
+      if (asset.purchaseOrderId) {
+        const otherAssetsCount = await tx.asset.count({
+          where: {
+            purchaseOrderId: asset.purchaseOrderId,
+            id: { not: asset.id },
+          },
+        });
 
-      await glService.postJournal(
-        tx,
-        reversalLines,
-        `Asset capitalization reversal: ${asset.name}`,
-        userId,
-      );
+        if (otherAssetsCount === 0) {
+          await tx.purchase.update({
+            where: { id: asset.purchaseOrderId },
+            data: { status: "ORDERED" },
+          });
+        }
+      }
 
+      // 6. Delete the asset record completely
       return await tx.asset.delete({
         where: { id: assetId },
       });
@@ -496,7 +626,11 @@ export class AssetsService {
       where: { id: assetId },
       include: {
         depreciationEntries: {
-          orderBy: { createdAt: "desc" },
+          orderBy: [
+            { periodYear: "desc" },
+            { periodMonth: "desc" },
+            { createdAt: "desc" },
+          ],
           take: 1,
         },
       },
@@ -507,10 +641,19 @@ export class AssetsService {
     }
 
     const acquisitionDate = new Date(asset.acquisitionDate);
-    const currentDate = new Date(periodYear, periodMonth - 1, 1);
+    // End of the depreciation period month (e.g. Aug 31, 23:59:59.999)
+    const periodEndDate = new Date(
+      periodYear,
+      periodMonth,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
 
-    // Check if asset was acquired before the depreciation period
-    if (acquisitionDate > currentDate) {
+    // Check if asset was acquired before or during the depreciation period
+    if (acquisitionDate > periodEndDate) {
       return {
         depreciationAmount: 0,
         accumulatedDepreciation: 0,
@@ -533,13 +676,18 @@ export class AssetsService {
     }
 
     if (asset.depreciationMethod === "STRAIGHT_LINE") {
-      // Straight-line: (Cost - Residual) / Useful Life / 12 months
-      const monthlyDepreciation = depreciableAmount / asset.usefulLife;
+      // Straight-line: (Cost - Residual) / Useful Life
+      const usefulLife = asset.usefulLife > 0 ? asset.usefulLife : 60;
+      const monthlyDepreciation = depreciableAmount / usefulLife;
       depreciationAmount = monthlyDepreciation;
     } else {
-      // Reducing balance: Rate = (1 - (Residual/Cost)^(1/Life)) * 100
+      // Reducing balance
+      const usefulLife = asset.usefulLife > 0 ? asset.usefulLife : 60;
+      const effectiveResidual =
+        residualValue > 0 ? residualValue : acquisitionCost * 0.01;
       const rate =
-        (1 - Math.pow(residualValue / acquisitionCost, 1 / asset.usefulLife)) *
+        (1 -
+          Math.pow(effectiveResidual / acquisitionCost, 1 / usefulLife)) *
         100;
       const currentBookValue = acquisitionCost - accumulatedDepreciation;
       depreciationAmount = (currentBookValue * rate) / 100;
@@ -610,11 +758,6 @@ export class AssetsService {
           const glAccumulatedDepreciationAccount =
             asset.category?.glAccumulatedDepreciationAccount?.code;
 
-          // console.log(`Calculating depreciation for asset ${asset.assetNo} - ${asset.name} for period ${periodYear}-${periodMonth}`);
-          // console.log(
-          //   `GL Depreciation Account: ${glDepreciationAccount}, GL Accumulated Depreciation Account: ${glAccumulatedDepreciationAccount}`,
-          // );
-
           if (existingEntry) {
             continue; // Skip if already calculated
           }
@@ -626,6 +769,29 @@ export class AssetsService {
           );
 
           if (calculation.depreciationAmount > 0) {
+            const journalId = await glService.postJournal(
+              tx,
+              [
+                {
+                  accountCode: glDepreciationAccount, // Depreciation Expense
+                  debit: calculation.depreciationAmount,
+                  credit: 0,
+                  refType: "DEPRECIATION",
+                  refId: asset.id,
+                },
+                {
+                  accountCode: glAccumulatedDepreciationAccount, // Accumulated Depreciation
+                  debit: 0,
+                  credit: calculation.depreciationAmount,
+                  refType: "DEPRECIATION",
+                  refId: asset.id,
+                },
+              ],
+              `Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}: ${asset.assetNo} - ${asset.name}`,
+              userId,
+              transactionDate,
+            );
+
             const entry = await tx.assetDepreciation.create({
               data: {
                 assetId: asset.id,
@@ -636,49 +802,15 @@ export class AssetsService {
                   calculation.accumulatedDepreciation,
                 ),
                 netBookValue: new Decimal(calculation.netBookValue),
+                journalId,
+                isPosted: true,
+                postedAt: new Date(transactionDate),
               },
             });
 
             depreciationEntries.push(entry);
             totalDepreciation += calculation.depreciationAmount;
-
-            const journalId = await glService.postJournal(
-              tx,
-              [
-                {
-                  accountCode: glDepreciationAccount, // Depreciation Expense (will be updated per category)
-                  debit: calculation.depreciationAmount,
-                  credit: 0,
-                  refType: "DEPRECIATION",
-                  refId: `${periodYear}-${periodMonth}`,
-                },
-                {
-                  accountCode: glAccumulatedDepreciationAccount, // Accumulated Depreciation (will be updated per category)
-                  debit: 0,
-                  credit: calculation.depreciationAmount,
-                  refType: "DEPRECIATION",
-                  refId: `${periodYear}-${periodMonth}`,
-                },
-              ],
-              `Depreciation for ${periodYear}-${String(periodMonth).padStart(2, "0")}`,
-              userId,
-              transactionDate,
-            );
           }
-        }
-
-        // Post consolidated depreciation journal entry
-        if (totalDepreciation > 0) {
-          // Mark entries as posted
-          await tx.assetDepreciation.updateMany({
-            where: {
-              id: { in: depreciationEntries.map((e) => e.id) },
-            },
-            data: {
-              isPosted: true,
-              postedAt: new Date(transactionDate),
-            },
-          });
         }
 
         return {
@@ -833,7 +965,11 @@ export class AssetsService {
               },
             },
             depreciationEntries: {
-              orderBy: { createdAt: "desc" },
+              orderBy: [
+                { periodYear: "desc" },
+                { periodMonth: "desc" },
+                { createdAt: "desc" },
+              ],
               take: 1,
             },
           },
@@ -996,28 +1132,6 @@ export class AssetsService {
       let creditAccountCode: string;
       let sourceAccountId: string | null = null;
 
-      // if (data.transactionType === "CAPITAL_IMPROVEMENT") {
-      //   // Mirrors createAsset's credit side — adjust "3000" if you use a
-      //   // different default (e.g. AP if the improvement is on credit)
-      //   creditAccountCode = data.creditAccountCode || "3000";
-      // } else if (data.transactionType === "RECLASSIFY_EXPENSE") {
-      //   if (!data.sourceAccountId) {
-      //     throw new Error(
-      //       "sourceAccountId is required to reclassify an existing expense",
-      //     );
-      //   }
-      //   const sourceAccount = await tx.chartOfAccount.findUnique({
-      //     where: { id: data.sourceAccountId },
-      //   });
-      //   if (!sourceAccount) {
-      //     throw new Error("Source expense account not found");
-      //   }
-      //   creditAccountCode = sourceAccount.code;
-      //   sourceAccountId = sourceAccount.id;
-      // } else {
-      //   throw new Error("Invalid transaction type");
-      // }
-
       if (!data.sourceAccountId) {
         throw new Error("sourceAccountId is required ");
       }
@@ -1167,9 +1281,17 @@ export class AssetsService {
                   ],
                 }
               : undefined,
-            orderBy: {
-              createdAt: "desc",
-            },
+            orderBy: [
+              {
+                periodYear: "desc",
+              },
+              {
+                periodMonth: "desc",
+              },
+              {
+                createdAt: "desc",
+              },
+            ],
             take: 1,
           },
         },
@@ -1262,7 +1384,11 @@ export class AssetsService {
               },
             ],
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: [
+            { periodYear: "desc" },
+            { periodMonth: "desc" },
+            { createdAt: "desc" },
+          ],
           take: 1,
         },
       },

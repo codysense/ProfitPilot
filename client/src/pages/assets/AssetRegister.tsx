@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Search,
@@ -33,6 +33,7 @@ const AssetRegister = () => {
   const [showDepreciationModal, setShowDepreciationModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const canManageAssets =
     user?.roles.includes("Senior Accountant") ||
@@ -180,11 +181,17 @@ const AssetRegister = () => {
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
-    if (confirm(`Are you sure you want to delete asset ${asset.assetNo}?`)) {
+    if (confirm(`Are you sure you want to delete asset ${asset.assetNo}? This will remove the asset and reverse all its capitalization and depreciation journal entries.`)) {
       try {
         await assetsApi.deleteAsset(asset.id);
         toast.success("Asset deleted successfully");
         refetch();
+        queryClient.invalidateQueries({ queryKey: ["assets"] });
+        queryClient.invalidateQueries({ queryKey: ["asset-valuation"] });
+        queryClient.invalidateQueries({ queryKey: ["asset-register-summary"] });
+        queryClient.invalidateQueries({
+          queryKey: ["active-assets-for-depreciation"],
+        });
       } catch (error) {
         console.error("Delete asset error:", error);
       }
@@ -227,7 +234,7 @@ const AssetRegister = () => {
           <TrendingDown className="h-4 w-4" />
         </button>
       )}
-      {(asset._count?.depreciationEntries || 0) === 0 && canManageAssets && (
+      {canManageAssets && (
         <button
           onClick={() => handleDeleteAsset(asset)}
           className="text-red-600 hover:text-red-900"

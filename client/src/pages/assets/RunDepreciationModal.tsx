@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, Calculator, CheckCircle } from "lucide-react";
+import { X, Calculator, CheckCircle, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { assetsApi } from "../../lib/api";
 import StatusBadge from "../../components/StatusBadge";
@@ -26,6 +26,7 @@ const RunDepreciationModal = ({
   onSuccess,
 }: RunDepreciationModalProps) => {
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
 
   const {
     register,
@@ -40,12 +41,26 @@ const RunDepreciationModal = ({
     },
   });
 
-  // console.log("Selected Assets:", selectedAssets);
+  const { data: categoriesData } = useQuery({
+    queryKey: ["asset-categories"],
+    queryFn: () => assetsApi.getAssetCategories(),
+  });
 
   const { data: assetsData } = useQuery({
     queryKey: ["active-assets-for-depreciation"],
     queryFn: () => assetsApi.getAssets({ status: "ACTIVE", limit: 1000 }),
   });
+
+  const allActiveAssets = assetsData?.assets || [];
+
+  const filteredAssets = allActiveAssets.filter((asset: any) => {
+    if (!categoryFilter) return true;
+    return asset.categoryId === categoryFilter;
+  });
+
+  const isAllFilteredSelected =
+    filteredAssets.length > 0 &&
+    filteredAssets.every((asset: any) => selectedAssets.includes(asset.id));
 
   const handleAssetToggle = (assetId: string) => {
     setSelectedAssets((prev) =>
@@ -56,20 +71,34 @@ const RunDepreciationModal = ({
   };
 
   const handleSelectAll = () => {
-    if (selectedAssets.length === assetsData?.assets?.length) {
-      setSelectedAssets([]);
+    if (isAllFilteredSelected) {
+      const filteredIds = new Set(filteredAssets.map((a: any) => a.id));
+      setSelectedAssets((prev) => prev.filter((id) => !filteredIds.has(id)));
     } else {
-      setSelectedAssets(
-        assetsData?.assets?.map((asset: any) => asset.id) || [],
-      );
+      const newSelected = new Set([
+        ...selectedAssets,
+        ...filteredAssets.map((a: any) => a.id),
+      ]);
+      setSelectedAssets(Array.from(newSelected));
     }
   };
 
   const onSubmit = async (data: RunDepreciationFormData) => {
     try {
+      let targetAssetIds: string[] | undefined = undefined;
+
+      if (selectedAssets.length > 0) {
+        targetAssetIds = selectedAssets;
+      } else if (categoryFilter) {
+        targetAssetIds = filteredAssets.map((a: any) => a.id);
+      }
+
       const submitData = {
         ...data,
-        assetIds: selectedAssets.length > 0 ? selectedAssets : undefined,
+        assetIds:
+          targetAssetIds && targetAssetIds.length > 0
+            ? targetAssetIds
+            : undefined,
       };
 
       const result = await assetsApi.runDepreciation(submitData);
@@ -167,28 +196,62 @@ const RunDepreciationModal = ({
                 </p>
               </div>
 
-              {/* Asset Selection */}
+              {/* Category Filter & Asset Selection */}
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h4 className="text-md font-medium text-gray-900">
                     Select Assets (Optional)
                   </h4>
-                  <button
-                    type="button"
-                    onClick={handleSelectAll}
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    {selectedAssets.length === assetsData?.assets?.length
-                      ? "Deselect All"
-                      : "Select All"}
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="border border-gray-300 rounded-md shadow-sm py-1.5 px-3 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">All Categories</option>
+                        {categoriesData?.categories?.map((cat: any) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.code} - {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSelectAll}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {isAllFilteredSelected
+                        ? "Deselect All Filtered"
+                        : "Select All Filtered"}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bg-yellow-50 p-3 rounded-md mb-4">
-                  <p className="text-sm text-yellow-800">
-                    Leave empty to run depreciation for all active assets.
-                    Select specific assets to run depreciation only for those.
-                  </p>
+                <div className="bg-yellow-50 p-3 rounded-md mb-4 text-sm text-yellow-800">
+                  {categoryFilter ? (
+                    <p>
+                      Filtering by category:{" "}
+                      <strong>
+                        {
+                          categoriesData?.categories?.find(
+                            (c: any) => c.id === categoryFilter,
+                          )?.name
+                        }
+                      </strong>
+                      .{" "}
+                      {selectedAssets.length > 0
+                        ? `${selectedAssets.length} specific asset(s) selected.`
+                        : "All active assets in this category will be processed."}
+                    </p>
+                  ) : (
+                    <p>
+                      Leave empty to run depreciation for all active assets.
+                      Filter by category or select specific assets as needed.
+                    </p>
+                  )}
                 </div>
 
                 <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
@@ -198,11 +261,7 @@ const RunDepreciationModal = ({
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           <input
                             type="checkbox"
-                            checked={
-                              selectedAssets.length ===
-                                assetsData?.assets?.length &&
-                              assetsData?.assets?.length > 0
-                            }
+                            checked={isAllFilteredSelected}
                             onChange={handleSelectAll}
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
@@ -222,51 +281,64 @@ const RunDepreciationModal = ({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {assetsData?.assets?.map((asset: any) => (
-                        <tr key={asset.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <input
-                              type="checkbox"
-                              checked={selectedAssets.includes(asset.id)}
-                              onChange={() => handleAssetToggle(asset.id)}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {asset.assetNo}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {asset.name}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {asset.category?.name}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ₦{asset.acquisitionCost.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <StatusBadge
-                              status={asset.depreciationMethod.replace(
-                                "_",
-                                " ",
-                              )}
-                              variant="info"
-                            />
+                      {filteredAssets.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-4 py-8 text-center text-sm text-gray-500"
+                          >
+                            No active assets found for the selected category.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        filteredAssets.map((asset: any) => (
+                          <tr key={asset.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={selectedAssets.includes(asset.id)}
+                                onChange={() => handleAssetToggle(asset.id)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {asset.assetNo}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {asset.name}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {asset.category?.name}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              ₦{asset.acquisitionCost.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <StatusBadge
+                                status={asset.depreciationMethod.replace(
+                                  "_",
+                                  " ",
+                                )}
+                                variant="info"
+                              />
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
 
                 <div className="mt-3 text-sm text-gray-600">
                   {selectedAssets.length > 0
-                    ? `${selectedAssets.length} assets selected`
-                    : "All active assets will be processed"}
+                    ? `${selectedAssets.length} asset(s) selected`
+                    : categoryFilter
+                      ? `All active assets in the selected category (${filteredAssets.length}) will be processed`
+                      : `All active assets (${allActiveAssets.length}) will be processed`}
                 </div>
               </div>
 
