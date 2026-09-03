@@ -275,6 +275,7 @@ export class AssetsService {
         ],
         `Asset capitalization: ${asset.name}`,
         userId,
+        new Date(data.acquisitionDate),
       );
 
       return asset;
@@ -642,15 +643,7 @@ export class AssetsService {
 
     const acquisitionDate = new Date(asset.acquisitionDate);
     // End of the depreciation period month (e.g. Aug 31, 23:59:59.999)
-    const periodEndDate = new Date(
-      periodYear,
-      periodMonth,
-      0,
-      23,
-      59,
-      59,
-      999,
-    );
+    const periodEndDate = new Date(periodYear, periodMonth, 0, 23, 59, 59, 999);
 
     // Check if asset was acquired before or during the depreciation period
     if (acquisitionDate > periodEndDate) {
@@ -686,8 +679,7 @@ export class AssetsService {
       const effectiveResidual =
         residualValue > 0 ? residualValue : acquisitionCost * 0.01;
       const rate =
-        (1 -
-          Math.pow(effectiveResidual / acquisitionCost, 1 / usefulLife)) *
+        (1 - Math.pow(effectiveResidual / acquisitionCost, 1 / usefulLife)) *
         100;
       const currentBookValue = acquisitionCost - accumulatedDepreciation;
       depreciationAmount = (currentBookValue * rate) / 100;
