@@ -53,6 +53,8 @@ export class PurchaseController {
         status,
         vendorId,
         paymentStatus,
+        dateFrom,
+        dateTo,
       } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
@@ -63,6 +65,11 @@ export class PurchaseController {
         where.status = {
           in: ["INVOICED", "PARTIALLY_PAID"],
         };
+      }
+      if (dateFrom || dateTo) {
+        where.orderDate = {};
+        if (dateFrom) where.orderDate.gte = new Date(String(dateFrom));
+        if (dateTo) where.orderDate.lte = new Date(String(dateTo));
       }
 
       const [purchases, total] = await Promise.all([
@@ -823,12 +830,25 @@ export class PurchaseController {
 
   async getPurchaseReturns(req: AuthRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, status, vendorId } = req.query;
+      const {
+        page = 1,
+        limit = 10,
+        status,
+        vendorId,
+        dateFrom,
+        dateTo,
+      } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
       if (status) where.status = status;
       if (vendorId) where.vendorId = vendorId;
+
+      if (dateFrom || dateTo) {
+        where.returnDate = {};
+        if (dateFrom) where.returnDate.gte = new Date(String(dateFrom));
+        if (dateTo) where.returnDate.lte = new Date(String(dateTo));
+      }
 
       const [returns, total] = await Promise.all([
         prisma.purchaseReturn.findMany({

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Package,
@@ -6,9 +6,9 @@ import {
   ShoppingCart,
   TrendingUp,
   DollarSign,
-  Clock,
-  Users,
   AlertTriangle,
+  Calendar,
+  RotateCcw,
 } from "lucide-react";
 import {
   inventoryApi,
@@ -18,9 +18,69 @@ import {
   cashApi,
   posApi,
 } from "../lib/api";
-
 import { useAuthStore } from "../store/authStore";
+
+type PeriodFilter = "today" | "this_week" | "this_month" | "this_year";
+
+const getPeriodDates = (period: PeriodFilter) => {
+  const now = new Date();
+  let start: Date;
+  const end = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+
+  switch (period) {
+    case "today": {
+      start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0,
+        0,
+      );
+      break;
+    }
+    case "this_week": {
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      start = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0, 0);
+      break;
+    }
+    case "this_month": {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      break;
+    }
+    case "this_year": {
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      break;
+    }
+  }
+
+  return {
+    dateFrom: start.toISOString(),
+    dateTo: end.toISOString(),
+  };
+};
+
+const periodLabels: Record<PeriodFilter, string> = {
+  today: "Today",
+  this_week: "This Week",
+  this_month: "This Month",
+  this_year: "This Year",
+};
+
 const Dashboard = () => {
+  const [period, setPeriod] = useState<PeriodFilter>("this_month");
+  const { dateFrom, dateTo } = getPeriodDates(period);
+
   const { data: inventory } = useQuery({
     queryKey: ["inventory-valuation"],
     queryFn: () => inventoryApi.getInventoryValuation(),
@@ -38,94 +98,140 @@ const Dashboard = () => {
   });
 
   const { data: purchases } = useQuery({
-    queryKey: ["purchases", { limit: 10 }],
-    queryFn: () => purchaseApi.getPurchases({ limit: 10 }),
+    queryKey: ["purchases-dashboard", period, dateFrom, dateTo],
+    queryFn: () =>
+      purchaseApi.getPurchases({
+        dateFrom,
+        dateTo,
+        limit: 1000,
+      }),
+  });
+
+  const { data: purchaseReturns } = useQuery({
+    queryKey: ["purchase-returns-dashboard", period, dateFrom, dateTo],
+    queryFn: () =>
+      purchaseApi.getPurchaseReturns({
+        status: "CONFIRMED",
+        dateFrom,
+        dateTo,
+        limit: 1000,
+      }),
   });
 
   const { data: sales } = useQuery({
-    queryKey: ["sales", { limit: 10 }],
-    queryFn: () => salesApi.getSalesforDashboard(),
+    queryKey: ["sales-dashboard", period, dateFrom, dateTo],
+    queryFn: () => salesApi.getSalesforDashboard({ dateFrom, dateTo }),
   });
 
-  // console.log("Sales Data for Dashboard:", sales);
-
-  //FILTER SALES TO ONLY THIS MONTH
-
-  let filteredSales = sales?.sales;
-  // const filteredSales = sales?.sales.filter((sale: any) => {
-  //   const saleDate = new Date(sale.orderDate);
-  //   const now = new Date();
-  //   return (
-  //     saleDate.getMonth() === now.getMonth() &&
-  //     saleDate.getFullYear() === now.getFullYear()
-  //   );
-  // });
-
-  //console.log("Filtered Sales for this month:", filteredSales);
-
-  //get pos sales for this month
   const { data: posSales } = useQuery({
-    queryKey: ["pos-sales"],
+    queryKey: ["pos-sales-dashboard", period, dateFrom, dateTo],
     queryFn: () =>
       posApi.getSalesForDashboard({
         status: "COMPLETED",
-        dateFrom: new Date(
-          Date.UTC(new Date().getFullYear(), new Date().getMonth(), 1),
-        ).toISOString(),
-        dateTo: new Date().toISOString(),
+        dateFrom,
+        dateTo,
       }),
   });
-  // console.log("POS Sales Data:", posSales);
 
-  //Filter pos sales to only this
-  // if (posSales) {
-  //   posSales.sales = posSales.sales.filter((sale: any) => {
-  //     const saleDate = new Date(sale.createdAt);
-  //     const now = new Date();
-  //     return (
-  //       saleDate.getMonth() === now.getMonth() &&
-  //       saleDate.getFullYear() === now.getFullYear()
-  //     );
-  //   });
-  // }
+  const { data: salesReturns } = useQuery({
+    queryKey: ["sales-returns-dashboard", period, dateFrom, dateTo],
+    queryFn: () =>
+      salesApi.getSalesReturns({
+        status: "CONFIRMED",
+        dateFrom,
+        dateTo,
+        limit: 1000,
+      }),
+  });
 
-  // console.log("Filtered POS Sales for this month:", posSales);
-
-  //if user is not accountant or gm, filter pos sales to only those created by the user
-  if (posSales && !canviewall) {
-    posSales.sales = posSales.sales.filter(
-      (sale: any) => sale.user?.name === user?.name,
-    );
-  }
-
-  //calculate total pos sales amount for the month
-  const totalPosSalesAmount = posSales?.sales?.reduce(
-    (sum: number, sale: any) => sum + Number(sale.totalAmount || 0),
-    0,
-  );
-
-  //if user is not accountant or gm, filter sales orders to only those created by the user
-  if (filteredSales && !canviewall) {
-    filteredSales = filteredSales.filter(
-      (sale: any) => sale.preparer?.name === user?.name,
-    );
-  }
-
-  //calculate total sales amount for the month
-  const totalSalesAmount = sales?.sales?.reduce(
-    (sum: number, sale: any) => sum + Number(sale.totalAmount || 0),
-    0,
-  );
-
-  //console.log("regular sale", totalSalesAmount);
-  //console.log("Pos Sales", totalPosSalesAmount);
+  const { data: posReturns } = useQuery({
+    queryKey: ["pos-returns-dashboard", period, dateFrom, dateTo],
+    queryFn: () =>
+      posApi.getReturns({
+        dateFrom,
+        dateTo,
+        limit: 1000,
+      }),
+  });
 
   const { data: cashAccounts } = useQuery({
     queryKey: ["cash-accounts"],
     queryFn: () => cashApi.getCashAccounts(),
   });
 
-  // const filteredAccounts = cashAccounts?.accounts?.filter((account: any) => account.name !== 'Memo Clearing');
+  // Filter Sales Orders based on permissions
+  let filteredSales = sales?.sales || [];
+  if (!canviewall) {
+    filteredSales = filteredSales.filter(
+      (sale: any) => sale.preparer?.name === user?.name,
+    );
+  }
+
+  // Filter POS Sales based on permissions
+  let filteredPosSales = posSales?.sales || [];
+  if (!canviewall) {
+    filteredPosSales = filteredPosSales.filter(
+      (sale: any) => sale.user?.name === user?.name,
+    );
+  }
+
+  // Filter Sales Returns based on permissions
+  let filteredSalesReturns = salesReturns?.salesReturns || [];
+  if (!canviewall) {
+    filteredSalesReturns = filteredSalesReturns.filter(
+      (ret: any) => ret.preparer?.name === user?.name,
+    );
+  }
+
+  // Filter POS Returns based on permissions
+  let filteredPosReturns = posReturns?.returns || [];
+  if (!canviewall) {
+    filteredPosReturns = filteredPosReturns.filter(
+      (ret: any) => ret.user?.name === user?.name,
+    );
+  }
+
+  // Gross Sales calculation
+  const totalSalesAmount = filteredSales.reduce(
+    (sum: number, sale: any) => sum + Number(sale.totalAmount || 0),
+    0,
+  );
+
+  const totalPosSalesAmount = filteredPosSales.reduce(
+    (sum: number, sale: any) => sum + Number(sale.totalAmount || 0),
+    0,
+  );
+
+  const totalGrossSales = totalSalesAmount + totalPosSalesAmount;
+
+  // Sales Returns calculation
+  const totalSalesReturnsAmount = filteredSalesReturns.reduce(
+    (sum: number, ret: any) => sum + Number(ret.totalAmount || 0),
+    0,
+  );
+
+  const totalPosReturnsAmount = filteredPosReturns.reduce(
+    (sum: number, ret: any) =>
+      sum + Number(ret.totalAmount || ret.refundAmount || 0),
+    0,
+  );
+
+  const totalSalesReturns = totalSalesReturnsAmount + totalPosReturnsAmount;
+
+  // Net Sales (Gross - Returns)
+  const netSalesAmount = totalGrossSales - totalSalesReturns;
+
+  // Purchases & Purchase Returns calculation
+  const totalPurchasesAmount = (purchases?.purchases || []).reduce(
+    (sum: number, p: any) => sum + Number(p.totalAmount || 0),
+    0,
+  );
+
+  const totalPurchaseReturnsAmount = (
+    purchaseReturns?.purchaseReturns || []
+  ).reduce((sum: number, pr: any) => sum + Number(pr.totalAmount || 0), 0);
+
+  const netPurchasesAmount = totalPurchasesAmount - totalPurchaseReturnsAmount;
 
   const stats = [
     {
@@ -133,14 +239,12 @@ const Dashboard = () => {
       value: inventory
         ? `₦${
             inventory.totalValue?.toLocaleString(undefined, {
-              minimumFractionDigits: 4,
-              maximumFractionDigits: 4,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
             }) || "0"
           }`
         : "₦0",
       icon: Package,
-      // change: '+4.75%',
-      // changeType: 'increase'
     },
     {
       name: "Active Production Orders",
@@ -149,8 +253,6 @@ const Dashboard = () => {
           (po: any) => po.status === "IN_PROGRESS",
         ).length || 0,
       icon: Factory,
-      // change: '+8.2%',
-      // changeType: 'increase'
     },
     {
       name: "Pending Purchases",
@@ -158,35 +260,47 @@ const Dashboard = () => {
         purchases?.purchases?.filter((p: any) => p.status === "ORDERED")
           .length || 0,
       icon: ShoppingCart,
-      // change: '-2.1%',
-      // changeType: 'decrease'
     },
     {
-      name: "Sales This Month",
+      name: `Net Sales (${periodLabels[period]})`,
       value: `₦${
-        (totalSalesAmount + (totalPosSalesAmount || 0)).toLocaleString(
-          undefined,
-          {
-            minimumFractionDigits: 4,
-            maximumFractionDigits: 4,
-          },
-        ) || "0"
+        netSalesAmount.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) || "0"
       }`,
+      subtitle: `Gross: ₦${totalGrossSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} | Returns: -₦${totalSalesReturns.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
       icon: TrendingUp,
-      // change: '+12.5%',
-      // changeType: 'increase'
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome to ProfitPilot ERP System</p>
+      {/* Header with Period Filter Dropdown */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Welcome to ProfitPilot ERP System</p>
+        </div>
+
+        {/* Period Filter Dropdown */}
+        <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm self-start sm:self-auto">
+          <Calendar className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-gray-700">Period:</span>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as PeriodFilter)}
+            className="text-sm font-semibold text-gray-900 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer pr-2"
+          >
+            <option value="today">Today</option>
+            <option value="this_week">This Week</option>
+            <option value="this_month">This Month</option>
+            <option value="this_year">This Year</option>
+          </select>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <div
@@ -203,19 +317,15 @@ const Dashboard = () => {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       {stat.name}
                     </dt>
-                    <dd className="flex items-baseline">
+                    <dd className="mt-1">
                       <div className="text-xl font-semibold text-gray-900">
                         {stat.value}
                       </div>
-                      <div
-                        className={`ml-2 flex items-baseline text-sm font-semibold ${
-                          stat.changeType === "increase"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {stat.change}
-                      </div>
+                      {stat.subtitle && (
+                        <p className="text-xs text-gray-500 mt-1 truncate">
+                          {stat.subtitle}
+                        </p>
+                      )}
                     </dd>
                   </dl>
                 </div>
@@ -223,6 +333,75 @@ const Dashboard = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Sales & Purchases Return Summary */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        {/* Sales & Returns Breakdown */}
+        <div className="bg-white shadow rounded-lg p-5">
+          <div className="flex items-center justify-between border-b pb-3 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+              <TrendingUp className="h-4 w-4 mr-2 text-green-600" />
+              Sales & Returns Summary ({periodLabels[period]})
+            </h3>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>Gross Sales (SO + POS):</span>
+              <span className="font-medium text-gray-900">
+                ₦{totalGrossSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between text-red-600">
+              <span className="flex items-center">
+                <RotateCcw className="h-3.5 w-3.5 mr-1 text-red-500" />
+                Sales Returns (SO + POS):
+              </span>
+              <span className="font-medium">
+                -₦{totalSalesReturns.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between border-t pt-2 font-semibold text-gray-900">
+              <span>Net Sales:</span>
+              <span className={netSalesAmount >= 0 ? "text-green-600" : "text-red-600"}>
+                ₦{netSalesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Purchases & Returns Breakdown */}
+        <div className="bg-white shadow rounded-lg p-5">
+          <div className="flex items-center justify-between border-b pb-3 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+              <ShoppingCart className="h-4 w-4 mr-2 text-blue-600" />
+              Purchases & Returns Summary ({periodLabels[period]})
+            </h3>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>Gross Purchases:</span>
+              <span className="font-medium text-gray-900">
+                ₦{totalPurchasesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between text-green-600">
+              <span className="flex items-center">
+                <RotateCcw className="h-3.5 w-3.5 mr-1 text-green-500" />
+                Purchase Returns:
+              </span>
+              <span className="font-medium">
+                -₦{totalPurchaseReturnsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between border-t pt-2 font-semibold text-gray-900">
+              <span>Net Purchases:</span>
+              <span className="text-blue-600">
+                ₦{netPurchasesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Cash Account Balances */}
@@ -399,12 +578,12 @@ const Dashboard = () => {
                       {purchase.orderNo}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {purchase.vendor.name}
+                      {purchase.vendor?.name}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium">
-                      ₦{purchase.totalAmount.toLocaleString()}
+                      ₦{Number(purchase.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-xs text-gray-500">
                       {new Date(purchase.orderDate).toLocaleDateString()}
@@ -425,7 +604,7 @@ const Dashboard = () => {
             </h3>
           </div>
           <div className="px-4 py-4 sm:px-6">
-            {sales?.sales?.slice(0, 5).map((sale: any) => (
+            {filteredSales.slice(0, 5).map((sale: any) => (
               <div
                 key={sale.id}
                 className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0"
@@ -434,7 +613,7 @@ const Dashboard = () => {
                   <p className="text-sm font-medium text-gray-900">
                     {sale.orderNo}
                   </p>
-                  <p className="text-sm text-gray-500">{sale.customer.name}</p>
+                  <p className="text-sm text-gray-500">{sale.customer?.name}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium">

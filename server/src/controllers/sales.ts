@@ -154,11 +154,12 @@ export class SalesController {
 
   async getSalesForDashboard(req: AuthRequest, res: Response) {
     try {
+      const { dateFrom, dateTo } = req.query;
       const now = new Date();
-      const startDate = new Date(
-        Date.UTC(now.getFullYear(), now.getMonth(), 1),
-      );
-      const endDate = new Date();
+      const startDate = dateFrom
+        ? new Date(dateFrom as string)
+        : new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+      const endDate = dateTo ? new Date(dateTo as string) : new Date();
 
       const sales = await prisma.sale.findMany({
         where: {
@@ -687,12 +688,25 @@ export class SalesController {
 
   async getSalesReturns(req: AuthRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, status, customerId } = req.query;
+      const {
+        page = 1,
+        limit = 10,
+        status,
+        customerId,
+        dateFrom,
+        dateTo,
+      } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
       if (status) where.status = status;
       if (customerId) where.customerId = customerId;
+
+      if (dateFrom || dateTo) {
+        where.returnDate = {};
+        if (dateFrom) where.returnDate.gte = new Date(String(dateFrom));
+        if (dateTo) where.returnDate.lte = new Date(String(dateTo));
+      }
 
       const [returns, total] = await Promise.all([
         prisma.salesReturn.findMany({

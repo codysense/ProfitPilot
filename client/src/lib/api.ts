@@ -445,6 +445,9 @@ export const purchaseApi = {
     limit?: number;
     paymentStatus?: string;
     vendorId?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
   }) =>
     api.get(
       `/purchase/orders${
@@ -480,6 +483,8 @@ export const purchaseApi = {
     limit?: number;
     status?: string;
     vendorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
   }) =>
     api.get(
       `/purchase/purchase-returns${
@@ -509,6 +514,8 @@ export const salesApi = {
     page?: number;
     limit?: number;
     status?: string | string[];
+    dateFrom?: string;
+    dateTo?: string;
   }) =>
     api.get(
       `/sales/orders/dashboard${
@@ -520,6 +527,8 @@ export const salesApi = {
     page?: number;
     limit?: number;
     status?: string;
+    dateFrom?: string;
+    dateTo?: string;
   }) =>
     api.get(
       `/sales/sales-returns/get-sales-returns${
