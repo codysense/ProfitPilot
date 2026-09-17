@@ -29,7 +29,10 @@ export const createBomSchema = z.object({
   bomLines: z.array(
     z.object({
       componentItemId: z.string().cuid(),
-      qtyPer: z.number().positive(),
+      qtyPer: z
+        .string()
+        .min(1, "Quantity per unit is required")
+        .regex(/^\d+(\.\d+)?$/, "Quantity per unit must be a valid number"),
       scrapPercent: z.number().min(0).max(100).default(0),
     }),
   ),

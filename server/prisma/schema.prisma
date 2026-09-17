@@ -261,7 +261,7 @@ model ItemPriceList {
   id            String  @id @default(cuid())
   itemId        String
   customerGroup String
-  price         Decimal @db.Decimal(15, 4)
+  price         Decimal @db.Decimal
   item          Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([itemId, customerGroup])
@@ -287,7 +287,7 @@ model BomLine {
   id              String  @id @default(cuid())
   bomId           String
   componentItemId String
-  qtyPer          Decimal @db.Decimal(15, 7)
+  qtyPer          Decimal @db.Decimal
   scrapPercent    Decimal @default(0) @db.Decimal(5, 2)
   bom             Bom     @relation(fields: [bomId], references: [id], onDelete: Cascade)
   componentItem   Item    @relation(fields: [componentItemId], references: [id])
@@ -319,11 +319,11 @@ model InventoryLedger {
   refId          String
   direction      LedgerDirection
   qty            Decimal         @db.Decimal(15, 7)
-  unitCost       Decimal         @db.Decimal(15, 4)
-  value          Decimal         @db.Decimal(15, 4)
-  runningQty     Decimal         @db.Decimal(15, 4)
-  runningValue   Decimal         @db.Decimal(15, 4)
-  runningAvgCost Decimal         @db.Decimal(15, 4)
+  unitCost       Decimal         @db.Decimal
+  value          Decimal         @db.Decimal
+  runningQty     Decimal         @db.Decimal(15, 7)
+  runningValue   Decimal         @db.Decimal
+  runningAvgCost Decimal         @db.Decimal
   batchId        String?
   postedAt       DateTime        @default(now())
   userId         String?
@@ -713,8 +713,8 @@ model SaleLine {
   saleId      String
   itemId      String
   qty         Decimal           @db.Decimal(15, 4)
-  unitPrice   Decimal           @db.Decimal(15, 4)
-  lineTotal   Decimal           @db.Decimal(15, 4)
+  unitPrice   Decimal           @db.Decimal
+  lineTotal   Decimal           @db.Decimal
   item        Item              @relation(fields: [itemId], references: [id])
   sale        Sale              @relation(fields: [saleId], references: [id], onDelete: Cascade)
   returnLines SalesReturnLine[]

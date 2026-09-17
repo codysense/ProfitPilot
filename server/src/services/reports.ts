@@ -1101,6 +1101,7 @@ export class ReportsService {
         customer_name: string;
         total_sales: number;
         total_receipts: number;
+        total_returns: number;
         outstanding_balance: number;
       }[]
     >(
@@ -1115,6 +1116,7 @@ SELECT
     COALESCE(r.total_refunds, 0) AS total_refunds,
     COALESCE(dm.total_debit_memos, 0) AS total_debit_memos,
     COALESCE(cm.total_credit_memos, 0) AS total_credit_memos,
+    COALESCE(sr.total_returns, 0) AS total_returns,
 
     /* FINAL OUTSTANDING */
     COALESCE(s.total_sales, 0)
@@ -1122,6 +1124,7 @@ SELECT
       + COALESCE(r.total_refunds, 0)
       + COALESCE(dm.total_debit_memos, 0)
       - COALESCE(cm.total_credit_memos, 0)
+      - COALESCE(sr.total_returns, 0)
       AS outstanding_balance
 
 FROM customers c
@@ -1153,6 +1156,19 @@ LEFT JOIN (
       AND cp."paymentDate" <= $1
     GROUP BY cp."customerId"
 ) p ON p."customerId" = c.id
+
+
+/* ---------------- SALES RETURNS (CUSTOMER_CREDIT or APPLY_TO_INVOICE only — REFUND_CASH nets to zero on AR) ---------------- */
+LEFT JOIN (
+    SELECT
+        "customerId",
+        SUM("totalAmount") AS total_returns
+    FROM sales_returns
+    WHERE "returnDate" <= $1
+      AND status = 'CONFIRMED'
+      AND "settlementMethod" IN ('CUSTOMER_CREDIT', 'APPLY_TO_INVOICE')
+    GROUP BY "customerId"
+) sr ON sr."customerId" = c.id
 
 
 /* ---------------- REFUNDS ---------------- */
