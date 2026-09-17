@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { productionApi, inventoryApi } from "../../lib/api";
 import { ProductionOrder } from "../../types/api";
 import toast from "react-hot-toast";
+import { ItemSelect } from "../../components/ItemSelect";
 
 const editProductionOrderSchema = z.object({
   itemId: z.string().min(1, "Item is required"),
@@ -16,6 +17,12 @@ const editProductionOrderSchema = z.object({
 });
 
 type EditProductionOrderFormData = z.infer<typeof editProductionOrderSchema>;
+
+interface ProductionBom {
+  id: string;
+  version: string | number;
+  bomLines: unknown[];
+}
 
 interface EditProductionOrderModalProps {
   order: ProductionOrder;
@@ -32,6 +39,7 @@ const EditProductionOrderModal = ({
     register,
     handleSubmit,
     watch,
+    setValue,
     reset,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EditProductionOrderFormData>({
@@ -47,21 +55,19 @@ const EditProductionOrderModal = ({
 
   const selectedItemId = watch("itemId");
 
-  const { data: finishedGoods } = useQuery({
-    queryKey: ["finished-goods-for-edit-production"],
-    queryFn: () =>
-      inventoryApi.getItems({ type: "FINISHED_GOODS", limit: 100 }),
-  });
-
   const { data: warehouses } = useQuery({
     queryKey: ["warehouses-for-edit"],
     queryFn: () => inventoryApi.getWarehouses(),
   });
 
-  const { data: boms } = useQuery({
+  const { data: boms } = useQuery<ProductionBom[] | null>({
     queryKey: ["boms-for-edit-item", selectedItemId],
-    queryFn: () =>
-      selectedItemId ? inventoryApi.getBoms({ itemId: selectedItemId }) : null,
+    queryFn: async () => {
+      if (!selectedItemId) return null;
+      return (await inventoryApi.getBoms({
+        itemId: selectedItemId,
+      })) as ProductionBom[];
+    },
     enabled: !!selectedItemId,
   });
 
@@ -134,17 +140,17 @@ const EditProductionOrderModal = ({
                 <label className="block text-sm font-medium text-gray-700">
                   Finished Goods Item *
                 </label>
-                <select
-                  {...register("itemId")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="">Select finished goods item</option>
-                  {finishedGoods?.items?.map((item: any) => (
-                    <option key={item.id} value={item.id}>
-                      {item.sku} - {item.name}
-                    </option>
-                  ))}
-                </select>
+                <ItemSelect
+                  value={watch("itemId") || ""}
+                  onChange={(val) =>
+                    setValue("itemId", val, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  typeFilter="FINISHED_GOODS"
+                  error={errors.itemId?.message}
+                />
                 {errors.itemId && (
                   <p className="mt-1 text-sm text-red-600">
                     {errors.itemId.message}
@@ -207,7 +213,7 @@ const EditProductionOrderModal = ({
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">No BOM - Manual material planning</option>
-                    {boms.map((bom: any) => (
+                    {boms.map((bom) => (
                       <option key={bom.id} value={bom.id}>
                         Version {bom.version} ({bom.bomLines.length} components)
                       </option>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { any, z } from "zod";
 import { X, Plus, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { inventoryApi } from "../../lib/api";
@@ -15,7 +15,10 @@ const createBomSchema = z.object({
     .array(
       z.object({
         componentItemId: z.string().min(1, "Component is required"),
-        qtyPer: z.number().positive("Quantity must be positive"),
+        qtyPer: z
+          .string()
+          .min(1, "Quantity per unit is required")
+          .regex(/^\d+(\.\d+)?$/, "Quantity per unit must be a valid number"),
         scrapPercent: z.number().min(0).max(100).default(0),
       }),
     )
@@ -41,7 +44,7 @@ const CreateBomModal = ({ onClose, onSuccess }: CreateBomModalProps) => {
     resolver: zodResolver(createBomSchema),
     defaultValues: {
       version: "1.0",
-      bomLines: [{ componentItemId: "", qtyPer: 1, scrapPercent: 0 }],
+      bomLines: [{ componentItemId: "", qtyPer: "1", scrapPercent: 0 }],
     },
   });
 
@@ -225,10 +228,10 @@ const CreateBomModal = ({ onClose, onSuccess }: CreateBomModalProps) => {
                           </label>
                           <input
                             {...register(`bomLines.${index}.qtyPer`, {
-                              valueAsNumber: true,
+                              //valueAsNumber: true,
                             })}
-                            type="number"
-                            step="0.0000001"
+                            type="string"
+                            step="any"
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             placeholder="1.0000000"
                           />

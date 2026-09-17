@@ -3,10 +3,10 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { X, Plus, Trash2, Save } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { inventoryApi } from "../../lib/api";
 import { Bom } from "../../types/api";
 import toast from "react-hot-toast";
+import { ItemSelect } from "../../components/ItemSelect";
 
 const editBomSchema = z.object({
   version: z.string().min(1, "Version is required"),
@@ -14,7 +14,10 @@ const editBomSchema = z.object({
     .array(
       z.object({
         componentItemId: z.string().min(1, "Component is required"),
-        qtyPer: z.number().positive("Quantity must be positive"),
+        qtyPer: z
+          .string()
+          .min(1, "Quantity per unit is required")
+          .regex(/^\d+(\.\d+)?$/, "Quantity per unit must be a valid number"),
         scrapPercent: z.number().min(0).max(100).default(0),
       }),
     )
@@ -35,6 +38,8 @@ const EditBomModal = ({ bom, onClose, onSuccess }: EditBomModalProps) => {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EditBomFormData>({
     resolver: zodResolver(editBomSchema),
@@ -42,8 +47,8 @@ const EditBomModal = ({ bom, onClose, onSuccess }: EditBomModalProps) => {
       version: bom.version,
       bomLines: bom.bomLines.map((line) => ({
         componentItemId: line.componentItemId,
-        qtyPer: line.qtyPer,
-        scrapPercent: line.scrapPercent,
+        qtyPer: String(line.qtyPer),
+        scrapPercent: Number(line.scrapPercent || 0),
       })),
     },
   });
@@ -53,19 +58,14 @@ const EditBomModal = ({ bom, onClose, onSuccess }: EditBomModalProps) => {
     name: "bomLines",
   });
 
-  const { data: rawMaterials } = useQuery({
-    queryKey: ["raw-materials-for-edit"],
-    queryFn: () => inventoryApi.getItems({ type: "RAW_MATERIAL", limit: 100 }),
-  });
-
   // Reset form when bom changes
   useEffect(() => {
     reset({
       version: bom.version,
       bomLines: bom.bomLines.map((line) => ({
         componentItemId: line.componentItemId,
-        qtyPer: line.qtyPer,
-        scrapPercent: line.scrapPercent,
+        qtyPer: String(line.qtyPer),
+        scrapPercent: Number(line.scrapPercent || 0),
       })),
     });
   }, [bom, reset]);
@@ -87,13 +87,15 @@ const EditBomModal = ({ bom, onClose, onSuccess }: EditBomModalProps) => {
 
   const createNewVersion = () => {
     const currentVersion = parseFloat(bom.version);
-    const newVersion = (currentVersion + 0.1).toFixed(1);
+    const newVersion = isNaN(currentVersion)
+      ? "2.0"
+      : (currentVersion + 0.1).toFixed(1);
     reset({
       version: newVersion,
       bomLines: bom.bomLines.map((line) => ({
         componentItemId: line.componentItemId,
-        qtyPer: line.qtyPer,
-        scrapPercent: line.scrapPercent,
+        qtyPer: String(line.qtyPer),
+        scrapPercent: Number(line.scrapPercent || 0),
       })),
     });
   };
@@ -169,7 +171,7 @@ const EditBomModal = ({ bom, onClose, onSuccess }: EditBomModalProps) => {
                     onClick={() =>
                       append({
                         componentItemId: "",
-                        qtyPer: 1,
+                        qtyPer: "1",
                         scrapPercent: 0,
                       })
                     }
@@ -210,19 +212,28 @@ const EditBomModal = ({ bom, onClose, onSuccess }: EditBomModalProps) => {
                             <label className="block text-sm font-medium text-gray-700">
                               Component Item *
                             </label>
-                            <select
-                              {...register(`bomLines.${index}.componentItemId`)}
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            >
-                              <option value="">Select component</option>
-                              {rawMaterials?.items?.map((item: any) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.sku} - {item.name} ({item.uom})
-                                  {item.standardCost &&
-                                    ` - ₦${item.standardCost}`}
-                                </option>
-                              ))}
-                            </select>
+                            <ItemSelect
+                              value={
+                                watch(`bomLines.${index}.componentItemId`) ||
+                                field.componentItemId ||
+                                ""
+                              }
+                              typeFilter="RAW_MATERIAL"
+                              onChange={(val) =>
+                                setValue(
+                                  `bomLines.${index}.componentItemId`,
+                                  val,
+                                  {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  },
+                                )
+                              }
+                              error={
+                                errors.bomLines?.[index]?.componentItemId
+                                  ?.message
+                              }
+                            />
                             {errors.bomLines?.[index]?.componentItemId && (
                               <p className="mt-1 text-sm text-red-600">
                                 {
@@ -239,12 +250,12 @@ const EditBomModal = ({ bom, onClose, onSuccess }: EditBomModalProps) => {
                             </label>
                             <input
                               {...register(`bomLines.${index}.qtyPer`, {
-                                valueAsNumber: true,
+                                // valueAsNumber: true,
                               })}
-                              type="number"
-                              step="0.0000001"
+                              type="string"
+                              step="any"
                               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                              placeholder="1.0000000"
+                              placeholder="1.00000000000000000"
                             />
                             {errors.bomLines?.[index]?.qtyPer && (
                               <p className="mt-1 text-sm text-red-600">

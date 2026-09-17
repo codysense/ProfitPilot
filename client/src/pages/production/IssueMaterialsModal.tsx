@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { X, Plus, Trash2, Calculator, AlertTriangle } from "lucide-react";
@@ -8,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { productionApi, inventoryApi } from "../../lib/api";
 import { ProductionOrder } from "../../types/api";
 import toast from "react-hot-toast";
+import { ItemSelect } from "../../components/ItemSelect";
 
 const issueMaterialsSchema = z.object({
   materials: z
@@ -53,52 +53,24 @@ const IssueMaterialsModal = ({
     name: "materials",
   });
 
-  const { data: rawMaterials } = useQuery({
-    queryKey: ["raw-materials-for-issue"],
-    queryFn: () => inventoryApi.getItems({ type: "RAW_MATERIAL", limit: 100 }),
+  // Fallback query to fetch active BOM if not included directly in order object
+  const { data: boms } = useQuery<any[]>({
+    queryKey: ["boms-for-order-item", order.itemId],
+    queryFn: () => inventoryApi.getBoms({ itemId: order.itemId }),
+    enabled: !order.bom && !!order.itemId,
   });
 
-  const bomItemIds = order.bom?.bomLines.map((l) => l.componentItemId) ?? [];
+  const currentBom = useMemo(() => {
+    return order.bom || boms?.find((b: any) => b.isActive) || boms?.[0];
+  }, [order.bom, boms]);
 
-  const missingBomIds = bomItemIds.filter(
-    (id) => !rawMaterials?.items?.some((item: any) => item.id === id),
-  );
+  const watchedMaterials = watch("materials") || [];
 
-  const { data: missingBomItems } = useQuery({
-    queryKey: ["missing-bom-materials", missingBomIds],
-    queryFn: async () => {
-      const results = await Promise.all(
-        missingBomIds.map((id) => inventoryApi.getItemById(id)),
-      );
-      return results;
-    },
-    enabled: missingBomIds.length > 0,
-  });
-
-  const allMaterials = React.useMemo(() => {
-    const base = rawMaterials?.items ?? [];
-    const extra = missingBomItems ?? [];
-
-    const merged = [...base];
-
-    extra.forEach((item: any) => {
-      if (!merged.some((m: any) => m.id === item.id)) {
-        merged.push(item);
-      }
-    });
-
-    return merged;
-  }, [rawMaterials, missingBomItems]);
-
-  // Get stock information for materials
-  type StockInfo = {
-    qty: number;
-    avgCost: number;
-  };
-
-  const selectedItemIds = watch("materials")
-    .map((m) => m.itemId)
-    .filter(Boolean);
+  const selectedItemIds = useMemo(() => {
+    return watchedMaterials
+      .map((m) => m?.itemId)
+      .filter(Boolean) as string[];
+  }, [watchedMaterials]);
 
   const { data: stockData } = useQuery({
     queryKey: ["materials-stock", selectedItemIds, order.warehouseId],
@@ -112,8 +84,8 @@ const IssueMaterialsModal = ({
 
           return {
             itemId,
-            qty: stock.qty,
-            avgCost: stock.avgCost,
+            qty: Number(stock.qty || 0),
+            avgCost: Number(stock.avgCost || 0),
           };
         } catch {
           return {
@@ -137,85 +109,36 @@ const IssueMaterialsModal = ({
         {} as Record<string, { qty: number; avgCost: number }>,
       );
     },
-    enabled: selectedItemIds.length > 0,
+    enabled: selectedItemIds.length > 0 && !!order.warehouseId,
   });
-
-  // const { data: stockData } = useQuery({
-  //   queryKey: ["materials-stock", order.warehouseId],
-  //   queryFn: async () => {
-  //     if (!rawMaterials?.items) return {};
-
-  //     const stockPromises = rawMaterials.items.map(async (item: any) => {
-  //       try {
-  //         const stock = await inventoryApi.getItemStock(
-  //           item.id,
-  //           order.warehouseId,
-  //         );
-  //         return {
-  //           itemId: item.id,
-  //           qty: stock.qty,
-  //           avgCost: stock.avgCost,
-  //         };
-  //       } catch {
-  //         return {
-  //           itemId: item.id,
-  //           qty: 0,
-  //           avgCost: 0,
-  //         };
-  //       }
-  //     });
-
-  //     const stockResults = await Promise.all(stockPromises);
-
-  //     return stockResults.reduce(
-  //       (acc, result) => {
-  //         acc[result.itemId] = {
-  //           qty: result.qty,
-  //           avgCost: result.avgCost,
-  //         };
-  //         return acc;
-  //       },
-  //       {} as Record<string, StockInfo>,
-  //     );
-  //   },
-  //   enabled: !!rawMaterials?.items,
-  // });
 
   // Auto-calculate materials from BOM
   const calculateFromBOM = () => {
-    if (!order.bom?.bomLines) {
-      alert("No BOM available for this item");
+    if (!currentBom?.bomLines?.length) {
+      toast.error("No BOM available for this item");
       return;
     }
 
-    const calculatedMaterials = order.bom.bomLines.map((line) => {
+    const calculatedMaterials = currentBom.bomLines.map((line: any) => {
       const baseQty = Number(line.qtyPer) * Number(order.qtyTarget);
-      const scrapMultiplier = 1 + Number(line.scrapPercent) / 100;
+      const scrapMultiplier = 1 + Number(line.scrapPercent || 0) / 100;
       const totalQty = baseQty * scrapMultiplier;
 
       return {
         itemId: line.componentItemId,
-        //qty: Math.round(totalQty * 1000) / 1000, // Round to 3 decimal places
-        qty: Math.round(totalQty * 1e7) / 1e7, // round to 7 decimal places for precision
+        qty: Math.round(totalQty * 1e7) / 1e7,
       };
     });
 
     reset({ materials: calculatedMaterials });
   };
 
-  // Initialize with BOM data if available
+  // Initialize with BOM data when modal opens or BOM loads
   useEffect(() => {
-    if (
-      rawMaterials?.items?.length &&
-      order.bom?.bomLines &&
-      fields.length === 1 &&
-      !fields[0].itemId
-    ) {
+    if (currentBom?.bomLines?.length) {
       calculateFromBOM();
     }
-  }, [rawMaterials, order.bom]);
-
-  const watchedMaterials = watch("materials");
+  }, [currentBom]);
 
   // Calculate total estimated cost
   const calculateTotalCost = () => {
@@ -280,8 +203,8 @@ const IssueMaterialsModal = ({
                       BOM Available:
                     </span>
                     <div className="font-medium">
-                      {order.bom
-                        ? `Yes (${order.bom.bomLines.length} components)`
+                      {currentBom
+                        ? `Yes (${currentBom.bomLines?.length || 0} components)`
                         : "No"}
                     </div>
                   </div>
@@ -289,11 +212,11 @@ const IssueMaterialsModal = ({
               </div>
 
               {/* BOM Information */}
-              {order.bom && (
+              {currentBom && (
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-medium text-green-900">
-                      Bill of Materials (Version {order.bom.version || "1.0"})
+                      Bill of Materials (Version {currentBom.version || "1.0"})
                     </h4>
                     <button
                       type="button"
@@ -305,22 +228,25 @@ const IssueMaterialsModal = ({
                     </button>
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {order.bom.bomLines.map((line, index) => {
+                    {currentBom.bomLines?.map((line: any, index: number) => {
                       const baseQty =
                         Number(line.qtyPer) * Number(order.qtyTarget);
                       const scrapMultiplier =
-                        1 + Number(line.scrapPercent) / 100;
+                        1 + Number(line.scrapPercent || 0) / 100;
                       const totalQty = baseQty * scrapMultiplier;
 
                       return (
                         <div key={index} className="text-sm">
                           <div className="font-medium">
-                            {line.componentItem.sku}
+                            {line.componentItem?.sku || line.componentItemId}
+                            {line.componentItem?.name
+                              ? ` - ${line.componentItem.name}`
+                              : ""}
                           </div>
                           <div className="text-green-700">
                             {line.qtyPer} × {order.qtyTarget} = {baseQty}{" "}
-                            {line.componentItem.uom}
-                            {line.scrapPercent > 0 && (
+                            {line.componentItem?.uom || "units"}
+                            {Number(line.scrapPercent || 0) > 0 && (
                               <span className="text-orange-600">
                                 {" "}
                                 (+{line.scrapPercent}% scrap ={" "}
@@ -364,29 +290,21 @@ const IssueMaterialsModal = ({
                           <label className="block text-sm font-medium text-gray-700">
                             Material *
                           </label>
-                          <select
-                            {...register(`materials.${index}.itemId`)}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          >
-                            {rawMaterials
-                              ? "Select material"
-                              : "Loading materials..."}
-                            {allMaterials.map((item: any) => (
-                              <option key={item.id} value={item.id}>
-                                {item.sku} - {item.name}
-                              </option>
-                            ))}
-                            {/* {rawMaterials?.items?.map((item: any) => (
-                              <option key={item.id} value={item.id}>
-                                {item.sku} - {item.name}
-                                (Stock: {stockData?.[item.id]?.qty ?? 0}{" "}
-                                {item.uom})
-                                {stockData?.[item.id]?.avgCost
-                                  ? ` - ₦${stockData[item.id].avgCost.toLocaleString()}`
-                                  : ""}
-                              </option>
-                            ))} */}
-                          </select>
+                          <ItemSelect
+                            value={
+                              watch(`materials.${index}.itemId`) ||
+                              field.itemId ||
+                              ""
+                            }
+                            typeFilter="RAW_MATERIAL"
+                            onChange={(val) =>
+                              setValue(`materials.${index}.itemId`, val, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }
+                            error={errors.materials?.[index]?.itemId?.message}
+                          />
                           {errors.materials?.[index]?.itemId && (
                             <p className="mt-1 text-sm text-red-600">
                               {errors.materials[index]?.itemId?.message}
@@ -400,16 +318,15 @@ const IssueMaterialsModal = ({
                           </label>
                           <div className="mt-1 p-2 bg-white border border-gray-200 rounded-md text-sm">
                             {(() => {
-                              const selectedItem = rawMaterials?.items?.find(
-                                (item: any) =>
-                                  item.id === watchedMaterials[index]?.itemId,
+                              const currentItemId = watch(
+                                `materials.${index}.itemId`,
                               );
+                              const currentQty =
+                                watch(`materials.${index}.qty`) || 0;
                               const stock =
-                                stockData?.[watchedMaterials[index]?.itemId]
-                                  ?.qty || 0;
+                                stockData?.[currentItemId]?.qty || 0;
 
-                              const isInsufficient =
-                                stock < (watchedMaterials[index]?.qty || 0);
+                              const isInsufficient = stock < currentQty;
 
                               return (
                                 <div
@@ -423,7 +340,7 @@ const IssueMaterialsModal = ({
                                     <AlertTriangle className="h-4 w-4 mr-1" />
                                   )}
                                   <span>
-                                    {stock} {selectedItem?.uom || "units"}
+                                    {stock} units
                                   </span>
                                 </div>
                               );

@@ -188,9 +188,9 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                 <input
                   {...register("minimumStockLevel", { valueAsNumber: true })}
                   type="number"
-                  step="0.01"
+                  step="any"
                   className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="0.00"
+                  placeholder="0.00000000000000000"
                 />
               </div>
 
@@ -269,7 +269,7 @@ const EditItemModal = ({ item, onClose, onSuccess }: EditItemModalProps) => {
                             valueAsNumber: true,
                           })}
                           type="number"
-                          step="0.01"
+                          step="any"
                           className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         />
                       </div>
