@@ -26,7 +26,13 @@ router.get(
 );
 router.get(
   "/general-ledger",
-  requireRole(["General Manager", "Auditor", "Manager", "Senior Accountant"]),
+  requireRole([
+    "General Manager",
+    "Auditor",
+    "Manager",
+    "Senior Accountant",
+    "Accountant",
+  ]),
   reportsController.getGeneralLedger,
 );
 router.get(
@@ -36,12 +42,18 @@ router.get(
 );
 router.get(
   "/vendor-balances",
-  requireRole(["Inventory Manager", "Auditor", "Manager", "Senior Accountant"]),
+  requireRole([
+    "Inventory Manager",
+    "Auditor",
+    "Manager",
+    "Senior Accountant",
+    "Accountant",
+  ]),
   reportsController.getVendorBalances,
 );
 router.get(
   "/customer-balances",
-  requireRole(["Senior Accountant", "Auditor", "Manager"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager", "Accountant"]),
   reportsController.getCustomerBalances,
 );
 router.get(
@@ -51,7 +63,7 @@ router.get(
 );
 router.get(
   "/customer-ledger",
-  requireRole(["Senior Accountant", "Auditor", "Manager"]),
+  requireRole(["Senior Accountant", "Auditor", "Manager", "Accountant"]),
   reportsController.getCustomerLedger,
 );
 router.get(
@@ -61,7 +73,13 @@ router.get(
 );
 router.get(
   "/vendor-ledger",
-  requireRole(["Inventory Manager", "Auditor", "Manager", "Senior Accountant"]),
+  requireRole([
+    "Inventory Manager",
+    "Auditor",
+    "Manager",
+    "Senior Accountant",
+    "Accountant",
+  ]),
   reportsController.getVendorLedger,
 );
 router.get(
