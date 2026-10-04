@@ -1024,6 +1024,8 @@ export const assetsApi = {
   runDepreciation: (data: any) => api.post("/assets/depreciation/run", data),
   getDepreciationSchedule: (assetId: string) =>
     api.get(`/assets/${assetId}/depreciation`),
+  reverseRecapAndAugustDepreciation: () =>
+    api.post("/assets/reverse-recap-august"),
 
   // Disposal
   disposeAsset: (assetId: string, data: any) =>

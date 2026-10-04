@@ -246,4 +246,23 @@ export class AssetsController {
       res.status(500).json({ error: "Failed to fetch purchase orders" });
     }
   }
+
+  async reverseRecapAndAugustDepreciation(req: AuthRequest, res: Response) {
+    try {
+      const targetAssetIds = [
+        "cmo04po4v01mxnc0bf2lozkmq",
+        "cmo08710702l8nc0bpsa4vzay",
+      ];
+      const results = await assetsService.reverseRecapAndAugustDepreciation(
+        targetAssetIds,
+        req.user!.id,
+      );
+      res.json({ message: "Reversal completed successfully", results });
+    } catch (error) {
+      console.error("Reversal error:", error);
+      res.status(500).json({
+        error: "Failed to reverse recapitalization and depreciation",
+      });
+    }
+  }
 }

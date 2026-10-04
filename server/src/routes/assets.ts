@@ -110,4 +110,11 @@ router.get(
   assetsController.getAssetValuation,
 );
 
+router.post(
+  "/reverse-recap-august",
+  requireRole(["General Manager", "Senior Accountant", "Auditor"]),
+  auditLogger("REVERSE_RECAP_DEPRECIATION", "ASSET"),
+  assetsController.reverseRecapAndAugustDepreciation,
+);
+
 export default router;

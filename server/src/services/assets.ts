@@ -632,7 +632,9 @@ export class AssetsService {
             { periodMonth: "desc" },
             { createdAt: "desc" },
           ],
-          take: 1,
+        },
+        recapitalizations: {
+          orderBy: { transactionDate: "asc" },
         },
       },
     });
@@ -645,56 +647,86 @@ export class AssetsService {
     // End of the depreciation period month (e.g. Aug 31, 23:59:59.999)
     const periodEndDate = new Date(periodYear, periodMonth, 0, 23, 59, 59, 999);
 
+    // Filter recapitalizations that occurred on or before this period end date
+    const eligibleRecaps = (asset.recapitalizations || []).filter(
+      (r) => new Date(r.transactionDate) <= periodEndDate,
+    );
+
+    const totalRecapAmount = eligibleRecaps.reduce(
+      (sum, r) => sum + Number(r.amount),
+      0,
+    );
+
+    const totalAcquisitionCost = Number(asset.acquisitionCost) + totalRecapAmount;
+
     // Check if asset was acquired before or during the depreciation period
     if (acquisitionDate > periodEndDate) {
       return {
         depreciationAmount: 0,
         accumulatedDepreciation: 0,
-        netBookValue: Number(asset.acquisitionCost),
+        netBookValue: totalAcquisitionCost,
       };
     }
 
-    const acquisitionCost = Number(asset.acquisitionCost);
     const residualValue = Number(asset.residualValue);
-    const depreciableAmount = acquisitionCost - residualValue;
 
     let depreciationAmount = 0;
     let accumulatedDepreciation = 0;
 
-    // Get previous accumulated depreciation
-    if (asset.depreciationEntries.length > 0) {
-      accumulatedDepreciation = Number(
-        asset.depreciationEntries[0].accumulatedDepreciation,
-      );
+    // Get previous accumulated depreciation and months depreciated prior to this period
+    const priorEntries = (asset.depreciationEntries || []).filter((entry) => {
+      if (entry.periodYear < periodYear) return true;
+      if (entry.periodYear === periodYear && entry.periodMonth < periodMonth)
+        return true;
+      return false;
+    });
+
+    if (priorEntries.length > 0) {
+      accumulatedDepreciation = Number(priorEntries[0].accumulatedDepreciation);
+    }
+
+    const monthsDepreciated = priorEntries.length;
+    const totalUsefulLife = asset.usefulLife > 0 ? asset.usefulLife : 60;
+    const remainingUsefulLife = Math.max(1, totalUsefulLife - monthsDepreciated);
+
+    // Current Book Value before this period's depreciation
+    const currentBookValue = totalAcquisitionCost - accumulatedDepreciation;
+    const depreciableRemaining = Math.max(0, currentBookValue - residualValue);
+
+    if (depreciableRemaining <= 0) {
+      return {
+        depreciationAmount: 0,
+        accumulatedDepreciation,
+        netBookValue: Math.max(residualValue, currentBookValue),
+      };
     }
 
     if (asset.depreciationMethod === "STRAIGHT_LINE") {
-      // Straight-line: (Cost - Residual) / Useful Life
-      const usefulLife = asset.usefulLife > 0 ? asset.usefulLife : 60;
-      const monthlyDepreciation = depreciableAmount / usefulLife;
-      depreciationAmount = monthlyDepreciation;
+      // Prospective Straight-line: Depreciate remaining book value over remaining life
+      const monthlyDepreciation = depreciableRemaining / remainingUsefulLife;
+      depreciationAmount = Math.min(monthlyDepreciation, depreciableRemaining);
     } else {
-      // Reducing balance
-      const usefulLife = asset.usefulLife > 0 ? asset.usefulLife : 60;
+      // Reducing balance: Rate applied to current book value
       const effectiveResidual =
-        residualValue > 0 ? residualValue : acquisitionCost * 0.01;
+        residualValue > 0 ? residualValue : totalAcquisitionCost * 0.01;
       const rate =
-        (1 - Math.pow(effectiveResidual / acquisitionCost, 1 / usefulLife)) *
+        (1 - Math.pow(effectiveResidual / totalAcquisitionCost, 1 / totalUsefulLife)) *
         100;
-      const currentBookValue = acquisitionCost - accumulatedDepreciation;
       depreciationAmount = (currentBookValue * rate) / 100;
     }
 
     // Ensure we don't depreciate below residual value
-    const newAccumulatedDepreciation =
-      accumulatedDepreciation + depreciationAmount;
-    if (newAccumulatedDepreciation > depreciableAmount) {
-      depreciationAmount = depreciableAmount - accumulatedDepreciation;
+    const maxDepreciableForMonth = Math.max(
+      0,
+      currentBookValue - residualValue,
+    );
+    if (depreciationAmount > maxDepreciableForMonth) {
+      depreciationAmount = maxDepreciableForMonth;
     }
 
     const finalAccumulatedDepreciation =
       accumulatedDepreciation + depreciationAmount;
-    const netBookValue = acquisitionCost - finalAccumulatedDepreciation;
+    const netBookValue = totalAcquisitionCost - finalAccumulatedDepreciation;
 
     return {
       depreciationAmount: Math.max(0, depreciationAmount),
@@ -1103,7 +1135,9 @@ export class AssetsService {
       // }
 
       const previousAcquisitionCost = asset.acquisitionCost;
-      const newAcquisitionCost = previousAcquisitionCost.add(data.amount);
+      // Accounting standard (IFRS / GAAP): Do NOT overwrite historical acquisitionCost.
+      // Capital improvements are tracked via AssetRecapitalization and added prospectively to Net Book Value.
+      const newAcquisitionCost = previousAcquisitionCost;
 
       const previousUsefulLife = asset.usefulLife;
       const usefulLifeExtension = data.usefulLifeExtension
@@ -1111,11 +1145,10 @@ export class AssetsService {
         : 0;
       const newUsefulLife = previousUsefulLife + usefulLifeExtension;
 
-      // Update the asset — increases the depreciable base and (optionally) useful life
+      // Update the asset's useful life (if extended) without changing historical acquisitionCost
       const updatedAsset = await tx.asset.update({
         where: { id: asset.id },
         data: {
-          acquisitionCost: newAcquisitionCost,
           usefulLife: newUsefulLife,
         },
       });
@@ -1249,6 +1282,15 @@ export class AssetsService {
               name: true,
             },
           },
+          recapitalizations: {
+            where: asOfDate
+              ? {
+                  transactionDate: {
+                    lte: new Date(asOfDate),
+                  },
+                }
+              : undefined,
+          },
           depreciationEntries: {
             where: asOfDate
               ? {
@@ -1310,10 +1352,19 @@ export class AssetsService {
           ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
           : 0;
 
+      const totalRecapAmount = (asset.recapitalizations || []).reduce(
+        (sum: number, r: any) => sum + Number(r.amount),
+        0,
+      );
+      const grossCost = Number(asset.acquisitionCost) + totalRecapAmount;
+
       return {
         ...asset,
+        acquisitionCost: grossCost, // Return total capitalized cost for reporting
+        originalAcquisitionCost: Number(asset.acquisitionCost),
+        recapitalizedAmount: totalRecapAmount,
         accumulatedDepreciation,
-        netBookValue: Number(asset.acquisitionCost) - accumulatedDepreciation,
+        netBookValue: grossCost - accumulatedDepreciation,
       };
     });
 
@@ -1335,6 +1386,9 @@ export class AssetsService {
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
       include: {
+        recapitalizations: {
+          orderBy: { transactionDate: "asc" },
+        },
         depreciationEntries: {
           orderBy: [{ periodYear: "asc" }, { periodMonth: "asc" }],
         },
@@ -1345,8 +1399,18 @@ export class AssetsService {
       throw new Error("Asset not found");
     }
 
+    const totalRecapAmount = (asset.recapitalizations || []).reduce(
+      (sum: number, r: any) => sum + Number(r.amount),
+      0,
+    );
+
     return {
-      asset,
+      asset: {
+        ...asset,
+        acquisitionCost: Number(asset.acquisitionCost) + totalRecapAmount,
+        originalAcquisitionCost: Number(asset.acquisitionCost),
+        recapitalizedAmount: totalRecapAmount,
+      },
       schedule: asset.depreciationEntries,
     };
   }
@@ -1364,6 +1428,11 @@ export class AssetsService {
       },
       include: {
         category: { select: { code: true, name: true } },
+        recapitalizations: {
+          where: {
+            transactionDate: { lte: cutoffDate },
+          },
+        },
         depreciationEntries: {
           where: {
             OR: [
@@ -1391,7 +1460,11 @@ export class AssetsService {
     let totalNetBookValue = 0;
 
     const valuation = assets.map((asset) => {
-      const cost = Number(asset.acquisitionCost);
+      const recapAmount = (asset.recapitalizations || []).reduce(
+        (sum: number, r: any) => sum + Number(r.amount),
+        0,
+      );
+      const cost = Number(asset.acquisitionCost) + recapAmount;
       const accumulated =
         asset.depreciationEntries.length > 0
           ? Number(asset.depreciationEntries[0].accumulatedDepreciation)
@@ -1407,6 +1480,8 @@ export class AssetsService {
         name: asset.name,
         category: asset.category,
         acquisitionCost: cost,
+        originalAcquisitionCost: Number(asset.acquisitionCost),
+        recapitalizedAmount: recapAmount,
         accumulatedDepreciation: accumulated,
         netBookValue: netBook,
       };
@@ -1423,4 +1498,161 @@ export class AssetsService {
       asOfDate: cutoffDate,
     };
   }
+
+  // Script helper: Reverse Recapitalizations and August Depreciation for specific assets
+  async reverseRecapAndAugustDepreciation(assetIds: string[], userId: string) {
+    return await prisma.$transaction(async (tx) => {
+      const results: any[] = [];
+
+      for (const assetId of assetIds) {
+        const asset = await tx.asset.findUnique({
+          where: { id: assetId },
+          include: {
+            category: {
+              include: {
+                glAssetAccount: true,
+                glDepreciationAccount: true,
+                glAccumulatedDepreciationAccount: true,
+              },
+            },
+            recapitalizations: true,
+            depreciationEntries: {
+              where: { periodMonth: 8 },
+            },
+          },
+        });
+
+        if (!asset) {
+          results.push({ assetId, status: "NOT_FOUND" });
+          continue;
+        }
+
+        const assetSummary: any = {
+          assetId,
+          assetNo: asset.assetNo,
+          name: asset.name,
+          reversedDepreciations: [],
+          reversedRecapitalizations: [],
+        };
+
+        // 1. Reverse August Depreciation
+        if (asset.depreciationEntries.length > 0) {
+          const glDep = asset.category?.glDepreciationAccount?.code;
+          const glAcc = asset.category?.glAccumulatedDepreciationAccount?.code;
+
+          for (const dep of asset.depreciationEntries) {
+            const amt = Number(dep.depreciationAmount);
+            if (amt > 0 && glDep && glAcc) {
+              await glService.postJournal(
+                tx,
+                [
+                  {
+                    accountCode: glDep,
+                    debit: 0,
+                    credit: amt,
+                    refType: "REVERSED_DEPRECIATION",
+                    refId: `${asset.id}-${dep.periodYear}-${dep.periodMonth}`,
+                  },
+                  {
+                    accountCode: glAcc,
+                    debit: amt,
+                    credit: 0,
+                    refType: "REVERSED_DEPRECIATION",
+                    refId: `${asset.id}-${dep.periodYear}-${dep.periodMonth}`,
+                  },
+                ],
+                `Reverse August Depreciation: ${asset.assetNo} - ${asset.name} (${dep.periodYear}-08)`,
+                userId,
+                new Date(dep.periodYear, dep.periodMonth - 1, 1),
+              );
+            }
+
+            await tx.assetDepreciation.delete({ where: { id: dep.id } });
+            assetSummary.reversedDepreciations.push({
+              id: dep.id,
+              periodYear: dep.periodYear,
+              periodMonth: dep.periodMonth,
+              amount: amt,
+            });
+          }
+        }
+
+        // 2. Reverse Recapitalizations
+        if (asset.recapitalizations.length > 0) {
+          let totalLifeExt = 0;
+
+          for (const recap of asset.recapitalizations) {
+            const amt = Number(recap.amount);
+            totalLifeExt += Number(recap.usefulLifeExtension || 0);
+
+            const assetAcc = asset.category?.glAssetAccount?.code;
+            let creditAcc = "3000";
+
+            if (recap.sourceAccountId) {
+              const srcAcc = await tx.chartOfAccount.findUnique({
+                where: { id: recap.sourceAccountId },
+              });
+              if (srcAcc) creditAcc = srcAcc.code;
+
+              const cashAcc = await tx.cashAccount.findFirst({
+                where: { glAccountId: recap.sourceAccountId },
+              });
+              if (cashAcc) {
+                await tx.cashAccount.update({
+                  where: { id: cashAcc.id },
+                  data: { balance: { increment: recap.amount } },
+                });
+              }
+            }
+
+            if (assetAcc && amt > 0) {
+              await glService.postJournal(
+                tx,
+                [
+                  {
+                    accountCode: assetAcc,
+                    debit: 0,
+                    credit: amt,
+                    refType: "ASSET_RECAPITALIZATION_REVERSAL",
+                    refId: recap.id,
+                  },
+                  {
+                    accountCode: creditAcc,
+                    debit: amt,
+                    credit: 0,
+                    refType: "ASSET_RECAPITALIZATION_REVERSAL",
+                    refId: recap.id,
+                  },
+                ],
+                `Asset Recapitalization Reversal: ${asset.assetNo} - ${recap.description}`,
+                userId,
+                new Date(recap.transactionDate),
+              );
+            }
+
+            await tx.assetRecapitalization.delete({ where: { id: recap.id } });
+            assetSummary.reversedRecapitalizations.push({
+              id: recap.id,
+              amount: amt,
+              description: recap.description,
+            });
+          }
+
+          if (totalLifeExt > 0) {
+            const restoredLife = Math.max(1, asset.usefulLife - totalLifeExt);
+            await tx.asset.update({
+              where: { id: asset.id },
+              data: { usefulLife: restoredLife },
+            });
+            assetSummary.restoredUsefulLife = restoredLife;
+          }
+        }
+
+        results.push(assetSummary);
+      }
+
+      return results;
+    });
+  }
 }
+

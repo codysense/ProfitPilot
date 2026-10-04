@@ -168,6 +168,36 @@ const AssetRegister = () => {
     setShowCreateModal(false);
   };
 
+  const [isReversing, setIsReversing] = useState(false);
+
+  const handleReverseRecapAugust = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to reverse August depreciation and recapitalizations for assets AST000022 and AST000060?",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsReversing(true);
+      const res: any = await assetsApi.reverseRecapAndAugustDepreciation();
+      toast.success(res?.message || "Reversal completed successfully");
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-valuation"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-register-summary"] });
+      queryClient.invalidateQueries({
+        queryKey: ["active-assets-for-depreciation"],
+      });
+    } catch (error) {
+      console.error("Reversal error:", error);
+      toast.error("Failed to perform reversal");
+    } finally {
+      setIsReversing(false);
+    }
+  };
+
   const handleEditAsset = () => {
     refetch();
     setShowEditModal(false);
@@ -254,13 +284,25 @@ const AssetRegister = () => {
           <h1 className="text-2xl font-bold text-gray-900">Asset Register</h1>
           <p className="text-gray-600">Manage fixed assets and depreciation</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Asset
-        </button>
+        <div className="flex space-x-2">
+          {canManageAssets && (
+            <button
+              onClick={handleReverseRecapAugust}
+              disabled={isReversing}
+              className="inline-flex items-center px-4 py-2 border border-amber-600 text-sm font-medium rounded-md text-amber-700 bg-amber-50 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
+            >
+              <TrendingDown className="h-4 w-4 mr-2" />
+              {isReversing ? "Reversing..." : "Fix August Recap & Depreciation"}
+            </button>
+          )}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Asset
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
