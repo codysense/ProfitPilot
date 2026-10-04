@@ -168,35 +168,35 @@ const AssetRegister = () => {
     setShowCreateModal(false);
   };
 
-  const [isReversing, setIsReversing] = useState(false);
+  // const [isReversing, setIsReversing] = useState(false);
 
-  const handleReverseRecapAugust = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to reverse August depreciation and recapitalizations for assets AST000022 and AST000060?",
-      )
-    ) {
-      return;
-    }
+  // const handleReverseRecapAugust = async () => {
+  //   if (
+  //     !confirm(
+  //       "Are you sure you want to reverse August depreciation and recapitalizations for assets AST000022 and AST000060?",
+  //     )
+  //   ) {
+  //     return;
+  //   }
 
-    try {
-      setIsReversing(true);
-      const res: any = await assetsApi.reverseRecapAndAugustDepreciation();
-      toast.success(res?.message || "Reversal completed successfully");
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["assets"] });
-      queryClient.invalidateQueries({ queryKey: ["asset-valuation"] });
-      queryClient.invalidateQueries({ queryKey: ["asset-register-summary"] });
-      queryClient.invalidateQueries({
-        queryKey: ["active-assets-for-depreciation"],
-      });
-    } catch (error) {
-      console.error("Reversal error:", error);
-      toast.error("Failed to perform reversal");
-    } finally {
-      setIsReversing(false);
-    }
-  };
+  //   try {
+  //     setIsReversing(true);
+  //     const res: any = await assetsApi.reverseRecapAndAugustDepreciation();
+  //     toast.success(res?.message || "Reversal completed successfully");
+  //     refetch();
+  //     queryClient.invalidateQueries({ queryKey: ["assets"] });
+  //     queryClient.invalidateQueries({ queryKey: ["asset-valuation"] });
+  //     queryClient.invalidateQueries({ queryKey: ["asset-register-summary"] });
+  //     queryClient.invalidateQueries({
+  //       queryKey: ["active-assets-for-depreciation"],
+  //     });
+  //   } catch (error) {
+  //     console.error("Reversal error:", error);
+  //     toast.error("Failed to perform reversal");
+  //   } finally {
+  //     setIsReversing(false);
+  //   }
+  // };
 
   const handleEditAsset = () => {
     refetch();
@@ -211,7 +211,11 @@ const AssetRegister = () => {
   };
 
   const handleDeleteAsset = async (asset: Asset) => {
-    if (confirm(`Are you sure you want to delete asset ${asset.assetNo}? This will remove the asset and reverse all its capitalization and depreciation journal entries.`)) {
+    if (
+      confirm(
+        `Are you sure you want to delete asset ${asset.assetNo}? This will remove the asset and reverse all its capitalization and depreciation journal entries.`,
+      )
+    ) {
       try {
         await assetsApi.deleteAsset(asset.id);
         toast.success("Asset deleted successfully");
@@ -285,7 +289,7 @@ const AssetRegister = () => {
           <p className="text-gray-600">Manage fixed assets and depreciation</p>
         </div>
         <div className="flex space-x-2">
-          {canManageAssets && (
+          {/* {canManageAssets && (
             <button
               onClick={handleReverseRecapAugust}
               disabled={isReversing}
@@ -294,7 +298,7 @@ const AssetRegister = () => {
               <TrendingDown className="h-4 w-4 mr-2" />
               {isReversing ? "Reversing..." : "Fix August Recap & Depreciation"}
             </button>
-          )}
+          )} */}
           <button
             onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
