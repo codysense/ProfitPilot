@@ -351,7 +351,9 @@ export const reportsApi = {
     api.get(`/reports/profit-loss?${new URLSearchParams(params).toString()}`),
   getTrialBalance: (params?: { asOfDate?: string }) =>
     api.get(`/reports/trial-balance${params ? '?' + new URLSearchParams(params as any).toString() : ''}`),
-  getGeneralLedger: (params: { dateFrom: string; dateTo: string; accountId?: string }) =>
+  getJournalRefTypes: () =>
+    api.get<{ refTypes: string[] }>("/reports/journal-ref-types"),
+  getGeneralLedger: (params: { dateFrom: string; dateTo: string; accountId?: string; refType?: string }) =>
     api.get(`/reports/general-ledger?${new URLSearchParams(params as any).toString()}`),
   getCashFlow: (params: { dateFrom: string; dateTo: string }) =>
     api.get(`/reports/cash-flow?${new URLSearchParams(params).toString()}`),

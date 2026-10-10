@@ -31,6 +31,7 @@ import { CustomerSelect } from "../components/CustomerSelect";
 import { VendorSelect } from "../components/VendorSelect";
 import { ChartAccountSelect } from "../components/ChartAccountSelect";
 import { GenericSearchSelect } from "../components/GenericSearchCombo";
+import { RefTypeSelect } from "../components/RefTypeSelect";
 
 const Reports = () => {
   const [selectedReport, setSelectedReport] = useState("");
@@ -47,6 +48,7 @@ const Reports = () => {
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [accountFilter, setAccountFilter] = useState("");
+  const [refTypeFilter, setRefTypeFilter] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [remoteItem, setRemoteItem] = useState<T | null>(null);
 
@@ -59,6 +61,11 @@ const Reports = () => {
   const { data: items } = useQuery({
     queryKey: ["items-for-reports"],
     queryFn: () => inventoryApi.getItems({ limit: 100 }),
+  });
+
+  const { data: refTypesData } = useQuery({
+    queryKey: ["journal-ref-types"],
+    queryFn: () => reportsApi.getJournalRefTypes(),
   });
 
   // const { data: customers } = useQuery({
@@ -150,6 +157,7 @@ const Reports = () => {
       category: "Financial",
       requiresDateRange: true,
       supportAccount: true,
+      supportRefType: true,
     },
     {
       id: "cash-flow",
@@ -446,6 +454,7 @@ const Reports = () => {
             dateFrom,
             dateTo,
             accountId: accountFilter,
+            refType: refTypeFilter,
           });
           break;
         case "cash-flow":
@@ -693,9 +702,11 @@ const Reports = () => {
             { key: "journalNo", header: "Journal No" },
             { key: "accountCode", header: "Account Code" },
             { key: "accountName", header: "Account Name" },
+            { key: "refType", header: "Ref Type" },
             { key: "memo", header: "Description" },
             { key: "debit", header: "Debit" },
             { key: "credit", header: "Credit" },
+            { key: "runningBalance", header: "Running Balance" },
           ];
           console.log("Export Data", reportData);
           ReportExporter.exportGenericReport(
@@ -1421,7 +1432,7 @@ const Reports = () => {
               {selectedReportConfig?.supportAccount && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Chart Of Accounts *
+                    Chart Of Accounts
                   </label>
                   <ChartAccountSelect
                     accounts={accounts?.accounts || []}
@@ -1441,6 +1452,19 @@ const Reports = () => {
                       </option>
                     ))}
                   </select> */}
+                </div>
+              )}
+              {selectedReportConfig?.supportRefType && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ref Type
+                  </label>
+                  <RefTypeSelect
+                    refTypes={refTypesData?.refTypes || []}
+                    value={refTypeFilter}
+                    onChange={setRefTypeFilter}
+                    placeholder="Search or select Ref Type..."
+                  />
                 </div>
               )}
               {selectedReportConfig?.supportUsers && (

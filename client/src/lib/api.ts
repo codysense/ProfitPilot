@@ -749,10 +749,13 @@ export const reportsApi = {
         params ? "?" + new URLSearchParams(params as any).toString() : ""
       }`,
     ),
+  getJournalRefTypes: () =>
+    api.get<{ refTypes: string[] }>("/reports/journal-ref-types"),
   getGeneralLedger: (params: {
     dateFrom: string;
     dateTo: string;
     accountId?: string;
+    refType?: string;
   }) =>
     api.get(
       `/reports/general-ledger?${new URLSearchParams(params as any).toString()}`,

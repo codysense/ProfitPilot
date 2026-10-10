@@ -25,6 +25,17 @@ router.get(
   reportsController.getTrialBalance,
 );
 router.get(
+  "/journal-ref-types",
+  requireRole([
+    "General Manager",
+    "Auditor",
+    "Manager",
+    "Senior Accountant",
+    "Accountant",
+  ]),
+  reportsController.getJournalRefTypes,
+);
+router.get(
   "/general-ledger",
   requireRole([
     "General Manager",

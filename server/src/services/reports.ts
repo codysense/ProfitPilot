@@ -876,7 +876,24 @@ export class ReportsService {
     );
   }
 
-  async getGeneralLedger(fromDate: Date, toDate: Date, accountId?: string) {
+  async getJournalRefTypes(): Promise<string[]> {
+    const distinctRefTypes = await prisma.journalLine.findMany({
+      where: { refType: { not: null } },
+      distinct: ["refType"],
+      select: { refType: true },
+      orderBy: { refType: "asc" },
+    });
+    return distinctRefTypes
+      .map((r) => r.refType!)
+      .filter((val): val is string => typeof val === "string" && val.trim().length > 0);
+  }
+
+  async getGeneralLedger(
+    fromDate: Date,
+    toDate: Date,
+    accountId?: string,
+    refType?: string,
+  ) {
     const fromDateStart = startOfDayUTC(fromDate);
     const toDateEnd = endOfDayUTC(toDate);
     const where: any = {
@@ -888,8 +905,12 @@ export class ReportsService {
       },
     };
 
-    if (accountId) {
+    if (accountId && accountId !== "ALL") {
       where.accountId = accountId;
+    }
+
+    if (refType && refType !== "ALL") {
+      where.refType = refType;
     }
 
     // Get journal lines for the period
@@ -918,8 +939,12 @@ export class ReportsService {
       },
     };
 
-    if (accountId) {
+    if (accountId && accountId !== "ALL") {
       openingBalanceWhere.accountId = accountId;
+    }
+
+    if (refType && refType !== "ALL") {
+      openingBalanceWhere.refType = refType;
     }
 
     const openingBalanceLines = await prisma.journalLine.findMany({
