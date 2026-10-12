@@ -2154,8 +2154,15 @@ export class CashController {
       // console.log("data line", data.lines);
 
       const payment = await prisma.$transaction(async (tx) => {
-        const count = await tx.vendorPayment.count();
-        const paymentNo = `VP${String(count + 1).padStart(6, "0")}`;
+        // Find the highest existing paymentNo and increment to avoid collisions from deleted records
+        const lastPayment = await tx.vendorPayment.findFirst({
+          orderBy: { paymentNo: "desc" },
+          select: { paymentNo: true },
+        });
+        const nextNumber = lastPayment
+          ? parseInt(lastPayment.paymentNo.replace("VP", ""), 10) + 1
+          : 1;
+        const paymentNo = `VP${String(nextNumber).padStart(6, "0")}`;
 
         const totalAmount = data.lines.reduce(
           (s, l) => s + Number(l.lineAmount),
