@@ -1039,6 +1039,7 @@ export const assetsApi = {
     categoryId?: string;
     status?: string;
     locationId?: string;
+    search?: string;
     asOfDate?: string;
   }) =>
     api.get(

@@ -45,6 +45,7 @@ const AssetRegister = () => {
       "assets",
       {
         page,
+        search,
         categoryId: categoryFilter,
         status: statusFilter,
         locationId: locationFilter,
@@ -70,6 +71,7 @@ const AssetRegister = () => {
     queryKey: [
       "asset-register-summary",
       page,
+      search,
       categoryFilter,
       statusFilter,
       locationFilter,
@@ -77,6 +79,7 @@ const AssetRegister = () => {
     queryFn: () =>
       assetsApi.getAssetRegister({
         page,
+        ...(search.trim() && { search: search.trim() }),
         ...(categoryFilter && { categoryId: categoryFilter }),
         ...(statusFilter && { status: statusFilter }),
         ...(locationFilter && { locationId: locationFilter }),
@@ -312,6 +315,25 @@ const AssetRegister = () => {
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div>
+            <label htmlFor="asset-search" className="block text-sm font-medium text-gray-700 mb-1">
+              Search assets
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                id="asset-search"
+                type="search"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Asset number or name"
+                className="block w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Category

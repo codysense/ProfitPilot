@@ -140,7 +140,7 @@ export class AssetsService {
       }),
       prisma.asset.count({ where }),
     ]);
-    console.log("Assets fetched:", assets);
+    // console.log("Assets fetched:", assets);
     return {
       assets,
       pagination: {
@@ -1208,6 +1208,7 @@ export class AssetsService {
         ],
         `Asset recapitalization: ${data.description}`,
         userId,
+        new Date(data.transactionDate)
       );
 
       const recap = await tx.assetRecapitalization.create({
@@ -1240,6 +1241,7 @@ export class AssetsService {
       categoryId,
       status,
       locationId,
+      search,
       asOfDate,
     } = filters;
 
@@ -1261,6 +1263,14 @@ export class AssetsService {
 
     if (locationId && locationId !== "ALL") {
       where.locationId = locationId;
+    }
+
+    if (typeof search === "string" && search.trim()) {
+      const searchTerm = search.trim();
+      where.OR = [
+        { assetNo: { contains: searchTerm, mode: "insensitive" } },
+        { name: { contains: searchTerm, mode: "insensitive" } },
+      ];
     }
 
     const [assets, total] = await Promise.all([
