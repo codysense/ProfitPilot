@@ -158,54 +158,47 @@ async getAuditLogs(req: AuthRequest, res: Response) {
       return res.status(403).json({ error: 'Only General Manager can access audit logs' });
     }
 
-    const { 
-      page = 1, 
-      limit = 20, 
+    const {
+      page: pageQuery = '1',
+      limit: limitQuery = '20',
       userId,
       action,
       entity,
       dateFrom,
-      dateTo
+      dateTo,
     } = req.query;
-    
-    const skip = (Number(page) - 1) * Number(limit);
-
-    //  Build filters with proper casting
+    const page = Math.max(1, Number(pageQuery) || 1);
+    const limit = Math.min(100, Math.max(1, Number(limitQuery) || 20));
+    const skip = (page - 1) * limit;
     const where: any = {};
-   if (userId) where.userId = String(userId);
 
-if (action) where.action = String(action).toUpperCase();
-if (entity) where.entity = String(entity).toUpperCase();
+    if (typeof userId === 'string' && userId) where.userId = userId;
+    if (typeof action === 'string' && action) where.action = action.toUpperCase();
+    if (typeof entity === 'string' && entity) where.entity = entity.toUpperCase();
 
-if (dateFrom || dateTo) {
-  where.createdAt = {};
-  if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
-  if (dateTo) {
-    const endDate = new Date(dateTo as string);
-    endDate.setHours(23, 59, 59, 999); // include the full day
-    where.createdAt.lte = endDate;
-  }
-}
- {
+    if (dateFrom || dateTo) {
       where.createdAt = {};
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
-      if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+      if (typeof dateFrom === 'string') {
+        const startDate = new Date(dateFrom);
+        if (Number.isNaN(startDate.getTime())) return res.status(400).json({ error: 'Invalid dateFrom' });
+        startDate.setHours(0, 0, 0, 0);
+        where.createdAt.gte = startDate;
+      }
+      if (typeof dateTo === 'string') {
+        const endDate = new Date(dateTo);
+        if (Number.isNaN(endDate.getTime())) return res.status(400).json({ error: 'Invalid dateTo' });
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDate;
+      }
     }
-   console.log("Final Prisma where:", JSON.stringify(where, null, 2));
-
 
     const [entries, total] = await Promise.all([
       prisma.auditLog.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limit,
         include: {
           user: { select: { name: true, email: true } },
-          //warehouse: { select: { name: true } },  
-         // vendor: { select: { name: true } },      //  resolve vendorId → vendor.name
-         // customer: { select: { name: true } },    //  resolve customerId → customer.name
-              //  resolve productId → product.name
-          // add more relations if your audit log can point to other entities
         },
         orderBy: { createdAt: 'desc' }
       }),
@@ -215,10 +208,10 @@ if (dateFrom || dateTo) {
     res.json({
       entries,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page,
+        limit,
         total,
-        pages: Math.ceil(total / Number(limit))
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (error) {

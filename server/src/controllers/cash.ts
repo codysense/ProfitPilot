@@ -1277,7 +1277,7 @@ export class CashController {
   async createCustomerPayment(req, res) {
     try {
       const data = req.body;
-      console.log("Create Customer Payment Data:", data);
+      // console.log("Create Customer Payment Data:", data);
 
       const payment = await prisma.$transaction(async (tx) => {
         // Generate number

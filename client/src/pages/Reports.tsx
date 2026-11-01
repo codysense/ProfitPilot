@@ -46,6 +46,7 @@ const Reports = () => {
   const [usersFilter, setUsersFilter] = useState("");
   const [vendorFilter, setVendorFilter] = useState("");
   const [reportData, setReportData] = useState<any>(null);
+  const [reportRenderVersion, setReportRenderVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [accountFilter, setAccountFilter] = useState("");
   const [refTypeFilter, setRefTypeFilter] = useState("");
@@ -382,6 +383,7 @@ const Reports = () => {
     if (!report) return;
 
     setLoading(true);
+    setReportData(null);
     try {
       let data;
 
@@ -617,8 +619,12 @@ const Reports = () => {
       }
 
       setReportData(data);
+      setReportRenderVersion((version) => version + 1);
     } catch (error) {
       console.error("Generate report error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate report",
+      );
     } finally {
       setLoading(false);
     }
@@ -1257,7 +1263,10 @@ const Reports = () => {
                               ? "border-blue-500 bg-blue-50"
                               : "border-gray-200 hover:border-gray-300"
                           }`}
-                          onClick={() => setSelectedReport(report.id)}
+                          onClick={() => {
+                            setSelectedReport(report.id);
+                            setReportData(null);
+                          }}
                         >
                           <div className="flex items-start">
                             <report.icon
@@ -1584,12 +1593,73 @@ const Reports = () => {
               {selectedReportConfig?.name}
             </h3>
           </div>
-          <div className="p-6">{renderReportContent()}</div>
+          <div className="p-6">
+            <ReportErrorBoundary
+              key={`${selectedReport}-${reportRenderVersion}`}
+              reportName={selectedReportConfig?.name || "This report"}
+              onRetry={handleGenerateReport}
+            >
+              {renderReportContent()}
+            </ReportErrorBoundary>
+          </div>
         </div>
       )}
     </div>
   );
 };
+
+interface ReportErrorBoundaryProps {
+  reportName: string;
+  onRetry: () => void;
+  children: React.ReactNode;
+}
+
+interface ReportErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ReportErrorBoundary extends React.Component<
+  ReportErrorBoundaryProps,
+  ReportErrorBoundaryState
+> {
+  state: ReportErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): ReportErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error(`Failed to render ${this.props.reportName}:`, error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          role="alert"
+          className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+        >
+          <p className="font-medium">
+            {this.props.reportName} could not be displayed.
+          </p>
+          <p className="mt-1">
+            The report returned data in an unexpected format. Try generating it
+            again. If the problem continues, contact support.
+          </p>
+          <button
+            type="button"
+            onClick={this.props.onRetry}
+            className="mt-3 rounded border border-red-300 px-3 py-1.5 font-medium hover:bg-red-100"
+          >
+            Generate again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Report Components
 const BalanceSheetReport = ({ data }: { data: any }) => (

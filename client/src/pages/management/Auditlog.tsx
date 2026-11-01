@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Shield, Filter, Download, Calendar, User, FileText, X, Eye } from 'lucide-react';
-import { api, managementApi } from '../../lib/api';
-import { DataTable } from '../../components/DataTable';
-import StatusBadge from '../../components/StatusBadge';
-import { useAuthStore } from '../../store/authStore';
-import { ReportExporter } from '../../utils/reportExport';
-import toast from 'react-hot-toast';
-import { useParams } from 'react-router-dom';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Shield,
+  Filter,
+  Download,
+  Calendar,
+  User,
+  FileText,
+  X,
+  Eye,
+} from "lucide-react";
+import { managementApi } from "../../lib/api";
+import { DataTable } from "../../components/DataTable";
+import StatusBadge from "../../components/StatusBadge";
+import { useAuthStore } from "../../store/authStore";
+import { ReportExporter } from "../../utils/reportExport";
+import toast from "react-hot-toast";
 
 interface AuditLogEntry {
   id: string;
@@ -17,6 +25,15 @@ interface AuditLogEntry {
   entityId: string;
   beforeJson?: any;
   afterJson?: any;
+  requestJson?: any;
+  metadataJson?: {
+    method?: string;
+    path?: string;
+    statusCode?: number;
+    durationMs?: number;
+    userAgent?: string | null;
+    relatedRecords?: Record<string, Record<string, { id: string; code?: string | null; sku?: string | null; orderNo?: string | null; name?: string | null; email?: string | null }>>;
+  };
   ipAddress?: string;
   createdAt: string;
   user: {
@@ -25,56 +42,117 @@ interface AuditLogEntry {
   };
 }
 
+const formatAuditValue = (value: unknown) => {
+  if (value == null || value === "") return "cleared";
+  if (typeof value === "object") return "updated";
+  return String(value);
+};
+
+function summarizeAuditEntry(entry: AuditLogEntry): string {
+  const payload = entry.requestJson ?? entry.beforeJson;
+  const record = entry.afterJson?.data ?? entry.afterJson;
+  const identifier = record?.orderNo ?? record?.sku ?? record?.name ?? entry.entityId;
+  const submittedVendorId = payload?.vendorId;
+  const vendorReference = submittedVendorId
+    ? entry.metadataJson?.relatedRecords?.vendorId?.[submittedVendorId]
+    : null;
+  const vendor = record?.vendor ?? vendorReference;
+  const vendorLabel = vendor
+    ? ` for ${vendor.code ? `${vendor.code} — ` : ""}${vendor.name ?? "Vendor"}`
+    : "";
+  const prefix = `${entry.action.toLowerCase().replaceAll("_", " ")} ${entry.entity.toLowerCase().replaceAll("_", " ")} ${identifier}${vendorLabel}`;
+  if (!payload || typeof payload !== "object") return prefix;
+
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(payload)) {
+    if (key === "priceList" && Array.isArray(value)) {
+      const prices = value.map((item: any) => `${item.customerGroup ?? "Group"}: ${formatAuditValue(item.price)}`);
+      parts.push(`prices ${prices.join(", ") || "cleared"}`);
+    } else if (key === "purchaseLines" && Array.isArray(value)) {
+      const lines = value.map((item: any) => `${item.itemName ?? item.itemId ?? "Item"} × ${item.qty ?? "?"} @ ${item.unitPrice ?? "?"}`);
+      parts.push(`${value.length} line${value.length === 1 ? "" : "s"}${lines.length ? ` (${lines.join("; ")})` : ""}`);
+    } else if (key !== "sku" && key !== "id" && !/(Id|By)$/.test(key)) {
+      parts.push(`${key.replaceAll(/([A-Z])/g, " $1").toLowerCase()}: ${formatAuditValue(value)}`);
+    }
+  }
+  const references = entry.metadataJson?.relatedRecords ?? {};
+  const readableReferences = Object.entries(references).flatMap(([field, records]) =>
+    Object.values(records).map((reference) => {
+      const label = reference.code ?? reference.sku ?? reference.orderNo ?? reference.name ?? reference.email ?? reference.id;
+      const name = reference.name && reference.name !== label ? ` — ${reference.name}` : "";
+      return `${field.replace(/Id$/, "").replaceAll(/([A-Z])/g, " $1").toLowerCase()}: ${label}${name}`;
+    }),
+  );
+  parts.push(...readableReferences.slice(0, 4));
+  return parts.length ? `${prefix} — ${parts.join("; ")}` : prefix;
+}
+
+function auditDisplayValue(value: any, parent: any = null): any {
+  if (Array.isArray(value)) return value.map((item) => auditDisplayValue(item, parent));
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => {
+    if (key === "vendorId" && typeof child === "string" && parent?.vendor) {
+      const vendor = parent.vendor;
+      return [key, `${vendor.code ? `${vendor.code} — ` : ""}${vendor.name} (ID: ${child})`];
+    }
+    if (key === "itemId" && typeof child === "string" && parent?.item) {
+      const item = parent.item;
+      return [key, `${item.sku ? `${item.sku} — ` : ""}${item.name ?? "Item"} (ID: ${child})`];
+    }
+    return [key, auditDisplayValue(child, value)];
+  }));
+}
+
 const AuditLog = () => {
   const [page, setPage] = useState(1);
-  const [userFilter, setUserFilter] = useState('');
-  const [actionFilter, setActionFilter] = useState('');
-  const [entityFilter, setEntityFilter] = useState('');
-  const [dateFromFilter, setDateFromFilter] = useState('');
-  const [dateToFilter, setDateToFilter] = useState('');
+  const [userFilter, setUserFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [entityFilter, setEntityFilter] = useState("");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(
+    null,
+  );
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { user } = useAuthStore();
 
   // Only GM can access audit logs
-  const canViewAuditLogs = user?.roles.includes('General Manager');
+  const canViewAuditLogs = user?.roles.includes("General Manager");
 
   const { data: auditData, isLoading } = useQuery({
-    queryKey: ['audit-logs', { 
-      page, 
-      userId: userFilter,
-      action: actionFilter,
-      entity: entityFilter,
-      dateFrom: dateFromFilter,
-      dateTo: dateToFilter
-    }],
+    queryKey: [
+      "audit-logs",
+      {
+        page,
+        userId: userFilter,
+        action: actionFilter,
+        entity: entityFilter,
+        dateFrom: dateFromFilter,
+        dateTo: dateToFilter,
+      },
+    ],
 
     queryFn: () => {
-  const params = { 
-    page, 
-    limit: 20,
-    ...(userFilter && { userId: userFilter }),
-    ...(actionFilter && { action: actionFilter }),
-    ...(entityFilter && { entity: entityFilter }),
-    ...(dateFromFilter && { dateFrom: dateFromFilter }),
-    ...(dateToFilter && { dateTo: dateToFilter })
-  };
+      const params = {
+        page,
+        limit: 20,
+        ...(userFilter && { userId: userFilter }),
+        ...(actionFilter && { action: actionFilter }),
+        ...(entityFilter && { entity: entityFilter }),
+        ...(dateFromFilter && { dateFrom: dateFromFilter }),
+        ...(dateToFilter && { dateTo: dateToFilter }),
+      };
 
-  console.log("Params sent to backend:", params);
+      return managementApi.getAuditLogs(params);
+    },
+    // api.get('/management/audit-logs?page=1&limit=20&action=UPDATE&entity=COMPANY_SETTINGS')
+    //   .then(res => console.log(res.data))
+    //   .catch(err => console.error(err));
 
-  
-
-   return managementApi.getAuditLogs(params);
-  
-
-},
-// api.get('/management/audit-logs?page=1&limit=20&action=UPDATE&entity=COMPANY_SETTINGS')
-//   .then(res => console.log(res.data))
-//   .catch(err => console.error(err));
-
-    // queryFn: () => managementApi.getAuditLogs({ 
-    //   page, 
+    // queryFn: () => managementApi.getAuditLogs({
+    //   page,
     //   limit: 20,
     //   ...(userFilter && { userId: userFilter }),
     //   ...(actionFilter && { action: actionFilter }),
@@ -82,15 +160,13 @@ const AuditLog = () => {
     //   ...(dateFromFilter && { dateFrom: dateFromFilter }),
     //   ...(dateToFilter && { dateTo: dateToFilter })
     // }),
-    // enabled: canViewAuditLogs
+    enabled: !!canViewAuditLogs,
   });
 
-  
-
   const { data: users } = useQuery({
-    queryKey: ['users-for-audit-filter'],
+    queryKey: ["users-for-audit-filter"],
     queryFn: () => managementApi.getUsersWithDetails({ limit: 100 }),
-    enabled: canViewAuditLogs
+    enabled: canViewAuditLogs,
   });
 
   if (!canViewAuditLogs) {
@@ -98,8 +174,12 @@ const AuditLog = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Shield className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">Only General Managers can access audit logs.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-gray-600">
+            Only General Managers can access audit logs.
+          </p>
         </div>
       </div>
     );
@@ -107,48 +187,67 @@ const AuditLog = () => {
 
   const columns = [
     {
-      key: 'createdAt',
-      header: 'Date & Time',
+      key: "createdAt",
+      header: "Date & Time",
       cell: (entry: AuditLogEntry) => (
         <div>
-          <div className="text-sm font-medium">{new Date(entry.createdAt).toLocaleDateString()}</div>
-          <div className="text-xs text-gray-500"> {new Date(entry.createdAt).toLocaleTimeString()}</div>
+          <div className="text-sm font-medium">
+            {new Date(entry.createdAt).toLocaleDateString()}
+          </div>
+          <div className="text-xs text-gray-500">
+            {" "}
+            {new Date(entry.createdAt).toLocaleTimeString()}
+          </div>
         </div>
       ),
-      width: 'w-32'
+      width: "w-32",
     },
     {
-      key: 'user.name',
-      header: 'User',
+      key: "user.name",
+      header: "User",
       cell: (entry: AuditLogEntry) => (
         <div>
           <div className="text-sm font-medium">{entry.user.name}</div>
           <div className="text-xs text-gray-500">{entry.user.email}</div>
         </div>
       ),
-      width: 'w-48'
+      width: "w-48",
     },
     {
-      key: 'action',
-      header: 'Action',
-      cell: (entry: AuditLogEntry) => <StatusBadge status={entry.action} variant="info" />,
-      width: 'w-24'
+      key: "summary",
+      header: "Operation Summary",
+      cell: (entry: AuditLogEntry) => (
+        <span className="block max-w-[32rem] whitespace-normal text-xs text-gray-700" title={summarizeAuditEntry(entry)}>
+          {summarizeAuditEntry(entry)}
+        </span>
+      ),
+      width: "w-96",
     },
     {
-      key: 'entity',
-      header: 'Entity',
-      cell: (entry: AuditLogEntry) => <StatusBadge status={entry.entity.replace('_', ' ')} />,
-      width: 'w-32'
+      key: "action",
+      header: "Action",
+      cell: (entry: AuditLogEntry) => (
+        <StatusBadge status={entry.action} variant="info" />
+      ),
+      width: "w-24",
     },
     {
-      key: 'entityId',
-      header: 'Entity ID',
+      key: "entity",
+      header: "Entity",
+      cell: (entry: AuditLogEntry) => (
+        <StatusBadge status={entry.entity.replace("_", " ")} />
+      ),
+      width: "w-32",
+    },
+    {
+      key: "entityId",
+      header: "Entity ID",
       cell: (entry: AuditLogEntry) => (
         <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
           {entry.entityId.substring(0, 8)}...
         </span>
       ),
-      width: 'w-24'
+      width: "w-24",
     },
     // {
     //   key: 'ipAddress',
@@ -159,8 +258,8 @@ const AuditLog = () => {
     //   width: 'w-32'
     // },
     {
-      key: 'changes',
-      header: 'Changes',
+      key: "changes",
+      header: "Changes",
       cell: (entry: AuditLogEntry) => (
         <div className="text-xs">
           {entry.beforeJson && entry.afterJson ? (
@@ -174,40 +273,49 @@ const AuditLog = () => {
           )}
         </div>
       ),
-      width: 'w-20'
-    }
+      width: "w-20",
+    },
   ];
 
   const clearAllFilters = () => {
-    setUserFilter('');
-    setActionFilter('');
-    setEntityFilter('');
-    setDateFromFilter('');
-    setDateToFilter('');
+    setUserFilter("");
+    setActionFilter("");
+    setEntityFilter("");
+    setDateFromFilter("");
+    setDateToFilter("");
   };
 
-  const hasActiveFilters = userFilter || actionFilter || entityFilter || dateFromFilter || dateToFilter;
+  const hasActiveFilters =
+    userFilter ||
+    actionFilter ||
+    entityFilter ||
+    dateFromFilter ||
+    dateToFilter;
 
   const handleExportPDF = async () => {
     try {
       // Create audit log report content
-      const reportContent = document.createElement('div');
-      reportContent.id = 'audit-log-report';
+      const reportContent = document.createElement("div");
+      reportContent.id = "audit-log-report";
       reportContent.innerHTML = `
         <div style="padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #1f2937; margin-bottom: 10px;">AUDIT LOG REPORT</h1>
             <p style="color: #6b7280;">Generated on ${new Date().toLocaleString()}</p>
-            ${hasActiveFilters ? `
+            ${
+              hasActiveFilters
+                ? `
               <div style="margin-top: 15px; padding: 10px; background-color: #f3f4f6; border-radius: 5px;">
                 <strong>Applied Filters:</strong>
-                ${userFilter ? `User: ${users?.users?.find((u: any) => u.id === userFilter)?.name}, ` : ''}
-                ${actionFilter ? `Action: ${actionFilter}, ` : ''}
-                ${entityFilter ? `Entity: ${entityFilter}, ` : ''}
-                ${dateFromFilter ? `From: ${new Date(dateFromFilter).toLocaleDateString()}, ` : ''}
-                ${dateToFilter ? `To: ${new Date(dateToFilter).toLocaleDateString()}` : ''}
+                ${userFilter ? `User: ${users?.users?.find((u: any) => u.id === userFilter)?.name}, ` : ""}
+                ${actionFilter ? `Action: ${actionFilter}, ` : ""}
+                ${entityFilter ? `Entity: ${entityFilter}, ` : ""}
+                ${dateFromFilter ? `From: ${new Date(dateFromFilter).toLocaleDateString()}, ` : ""}
+                ${dateToFilter ? `To: ${new Date(dateToFilter).toLocaleDateString()}` : ""}
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
           
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;">
@@ -223,48 +331,58 @@ const AuditLog = () => {
               </tr>
             </thead>
             <tbody>
-              ${auditData?.entries?.map((entry: AuditLogEntry) => `
+              ${auditData?.entries
+                ?.map(
+                  (entry: AuditLogEntry) => `
                 <tr>
                   <td style="border: 1px solid #e5e7eb; padding: 8px;">${new Date(entry.createdAt).toLocaleString()}</td>
                   <td style="border: 1px solid #e5e7eb; padding: 8px;">${entry.user.name}<br><small>${entry.user.email}</small></td>
                   <td style="border: 1px solid #e5e7eb; padding: 8px;">${entry.action}</td>
-                  <td style="border: 1px solid #e5e7eb; padding: 8px;">${entry.entity.replace('_', ' ')}</td>
+                  <td style="border: 1px solid #e5e7eb; padding: 8px;">${entry.entity.replace("_", " ")}</td>
                   <td style="border: 1px solid #e5e7eb; padding: 8px; font-family: monospace;">${entry.entityId}</td>
-                  <td style="border: 1px solid #e5e7eb; padding: 8px; font-family: monospace;">${entry.ipAddress || '-'}</td>
+                  <td style="border: 1px solid #e5e7eb; padding: 8px; font-family: monospace;">${entry.ipAddress || "-"}</td>
                   <td style="border: 1px solid #e5e7eb; padding: 8px;">
-                    ${entry.beforeJson && entry.afterJson ? 'Modified' : 
-                      entry.afterJson ? 'Created' : 
-                      entry.beforeJson ? 'Deleted' : 'Action'}
+                    ${
+                      entry.beforeJson && entry.afterJson
+                        ? "Modified"
+                        : entry.afterJson
+                          ? "Created"
+                          : entry.beforeJson
+                            ? "Deleted"
+                            : "Action"
+                    }
                   </td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </tbody>
           </table>
           
           <div style="margin-top: 40px; text-align: center; color: #6b7280; font-size: 10px;">
             <p>This is a confidential audit report. Unauthorized access or distribution is prohibited.</p>
-            <p>ProfitPilot ERP System - Audit Log Report</p>
+            <p>Bizlens Accounting Software - Audit Log Report</p>
           </div>
         </div>
       `;
-      
+
       document.body.appendChild(reportContent);
-      
-      const filters = hasActiveFilters ? 
-        `-filtered-${new Date().toISOString().split('T')[0]}` : 
-        `-${new Date().toISOString().split('T')[0]}`;
-      
+
+      const filters = hasActiveFilters
+        ? `-filtered-${new Date().toISOString().split("T")[0]}`
+        : `-${new Date().toISOString().split("T")[0]}`;
+
       await ReportExporter.exportToPDF(
-        'audit-log-report',
+        "audit-log-report",
         `audit-log-report${filters}.pdf`,
-        'Audit Log Report'
+        "Audit Log Report",
       );
-      
+
       document.body.removeChild(reportContent);
-      toast.success('Audit log report exported successfully');
+      toast.success("Audit log report exported successfully");
     } catch (error) {
-      console.error('Export audit log error:', error);
-      toast.error('Failed to export audit log report');
+      console.error("Export audit log error:", error);
+      toast.error("Failed to export audit log report");
     }
   };
 
@@ -284,24 +402,30 @@ const AuditLog = () => {
   );
 
   // Get unique values for filters
-  const uniqueActions = [...new Set(auditData?.entries?.map((e: AuditLogEntry) => e.action) || [])];
-  const uniqueEntities = [...new Set(auditData?.entries?.map((e: AuditLogEntry) => e.entity) || [])];
+  const uniqueActions = [
+    ...new Set(auditData?.entries?.map((e: AuditLogEntry) => e.action) || []),
+  ];
+  const uniqueEntities = [
+    ...new Set(auditData?.entries?.map((e: AuditLogEntry) => e.entity) || []),
+  ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
-          <p className="text-gray-600">System activity monitoring and compliance tracking</p>
+          <h1 className="text-3xl font-bold text-black/80">Audit Log</h1>
+          <p className="text-gray-600">
+            System activity monitoring and compliance tracking
+          </p>
         </div>
         <div className="flex space-x-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              showFilters 
-                ? 'border-blue-500 text-blue-700 bg-blue-50' 
-                : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+              showFilters
+                ? "border-blue-500 text-blue-700 bg-blue-50"
+                : "border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
             }`}
           >
             <Filter className="h-4 w-4 mr-2" />
@@ -326,7 +450,9 @@ const AuditLog = () => {
       {showFilters && (
         <div className="bg-white p-6 rounded-lg shadow border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Filter Options</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              Filter Options
+            </h3>
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
@@ -337,7 +463,7 @@ const AuditLog = () => {
               </button>
             )}
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* Date Range */}
             <div>
@@ -351,7 +477,7 @@ const AuditLog = () => {
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date To
@@ -415,7 +541,7 @@ const AuditLog = () => {
                 <option value="">All Entities</option>
                 {uniqueEntities.map((entity) => (
                   <option key={entity} value={entity}>
-                    {entity.replace('_', ' ')}
+                    {entity.replace("_", " ")}
                   </option>
                 ))}
               </select>
@@ -425,7 +551,9 @@ const AuditLog = () => {
           {/* Export Options */}
           <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between">
-              <h4 className="text-md font-medium text-gray-900">Export Options</h4>
+              <h4 className="text-md font-medium text-gray-900">
+                Export Options
+              </h4>
               <div className="flex space-x-2">
                 <button
                   onClick={handleExportPDF}
@@ -437,7 +565,8 @@ const AuditLog = () => {
               </div>
             </div>
             <p className="mt-2 text-sm text-gray-500">
-              Export will include all filtered results for compliance and audit purposes
+              Export will include all filtered results for compliance and audit
+              purposes
             </p>
           </div>
         </div>
@@ -456,7 +585,7 @@ const AuditLog = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Total Entries
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
+                  <dd className="text-3xl font-bold text-black/80">
                     {auditData?.pagination?.total || 0}
                   </dd>
                 </dl>
@@ -476,9 +605,11 @@ const AuditLog = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Active Users
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
-                    {auditData?.entries ? 
-                      new Set(auditData.entries.map((e: AuditLogEntry) => e.userId)).size 
+                  <dd className="text-3xl font-bold text-black/80">
+                    {auditData?.entries
+                      ? new Set(
+                          auditData.entries.map((e: AuditLogEntry) => e.userId),
+                        ).size
                       : 0}
                   </dd>
                 </dl>
@@ -498,9 +629,11 @@ const AuditLog = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Today's Activities
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
-                    {auditData?.entries?.filter((e: AuditLogEntry) => 
-                      new Date(e.createdAt).toDateString() === new Date().toDateString()
+                  <dd className="text-3xl font-bold text-black/80">
+                    {auditData?.entries?.filter(
+                      (e: AuditLogEntry) =>
+                        new Date(e.createdAt).toDateString() ===
+                        new Date().toDateString(),
                     ).length || 0}
                   </dd>
                 </dl>
@@ -520,7 +653,7 @@ const AuditLog = () => {
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Unique Entities
                   </dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
+                  <dd className="text-3xl font-bold text-black/80">
                     {uniqueEntities.length}
                   </dd>
                 </dl>
@@ -536,7 +669,9 @@ const AuditLog = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Filter className="h-5 w-5 text-blue-500 mr-2" />
-              <span className="text-sm font-medium text-blue-900">Active Filters:</span>
+              <span className="text-sm font-medium text-blue-900">
+                Active Filters:
+              </span>
             </div>
             <button
               onClick={clearAllFilters}
@@ -558,7 +693,8 @@ const AuditLog = () => {
             )}
             {userFilter && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                User: {users?.users?.find((u: any) => u.id === userFilter)?.name}
+                User:{" "}
+                {users?.users?.find((u: any) => u.id === userFilter)?.name}
               </span>
             )}
             {actionFilter && (
@@ -568,7 +704,7 @@ const AuditLog = () => {
             )}
             {entityFilter && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Entity: {entityFilter.replace('_', ' ')}
+                Entity: {entityFilter.replace("_", " ")}
               </span>
             )}
           </div>
@@ -589,8 +725,11 @@ const AuditLog = () => {
       {showDetailsModal && selectedEntry && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowDetailsModal(false)} />
-            
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setShowDetailsModal(false)}
+            />
+
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex items-center justify-between mb-4">
@@ -604,45 +743,64 @@ const AuditLog = () => {
                     <X className="h-6 w-6" />
                   </button>
                 </div>
-                
+
                 {/* Entry Information */}
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mb-6">
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">Entry Information</h4>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">
+                      Entry Information
+                    </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Timestamp:</span>
-                        <span className="font-medium">{new Date(selectedEntry.createdAt).toLocaleString()}</span>
+                        <span className="font-medium">
+                          {new Date(selectedEntry.createdAt).toLocaleString()}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">User:</span>
-                        <span className="font-medium">{selectedEntry.user.name}</span>
+                        <span className="font-medium">
+                          {selectedEntry.user.name}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Email:</span>
-                        <span className="font-medium">{selectedEntry.user.email}</span>
+                        <span className="font-medium">
+                          {selectedEntry.user.email}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">IP Address:</span>
-                        <span className="font-mono text-xs">{selectedEntry.ipAddress || 'Not recorded'}</span>
+                        <span className="font-mono text-xs">
+                          {selectedEntry.ipAddress || "Not recorded"}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">Action Details</h4>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">
+                      Action Details
+                    </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Action:</span>
-                        <StatusBadge status={selectedEntry.action} variant="info" />
+                        <StatusBadge
+                          status={selectedEntry.action}
+                          variant="info"
+                        />
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Entity:</span>
-                        <StatusBadge status={selectedEntry.entity.replace('_', ' ')} />
+                        <StatusBadge
+                          status={selectedEntry.entity.replace("_", " ")}
+                        />
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Entity ID:</span>
-                        <span className="font-mono text-xs bg-gray-200 px-2 py-1 rounded">{selectedEntry.entityId}</span>
+                        <span className="font-mono text-xs bg-gray-200 px-2 py-1 rounded">
+                          {selectedEntry.entityId}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -650,12 +808,22 @@ const AuditLog = () => {
 
                 {/* Before/After Data */}
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  {selectedEntry.requestJson && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">Submitted Request</h4>
+                      <div className="bg-blue-50 p-4 rounded-lg max-h-64 overflow-y-auto">
+                        <pre className="text-xs text-blue-800 whitespace-pre-wrap">{JSON.stringify(selectedEntry.requestJson, null, 2)}</pre>
+                      </div>
+                    </div>
+                  )}
                   {selectedEntry.beforeJson && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-3 ">Before (Previous State)</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3 ">
+                        Previous State
+                      </h4>
                       <div className="bg-red-50 p-4 rounded-lg max-h-64 overflow-y-auto">
                         <pre className="text-xs text-red-800 whitespace-pre-wrap">
-                          {JSON.stringify(selectedEntry.beforeJson, null, 2)}
+                          {JSON.stringify(auditDisplayValue(selectedEntry.beforeJson), null, 2)}
                         </pre>
                       </div>
                     </div>
@@ -663,24 +831,56 @@ const AuditLog = () => {
 
                   {selectedEntry.afterJson && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-3 ">After (New State)</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3 ">
+                        After (New State)
+                      </h4>
                       <div className="bg-green-50 p-4 rounded-lg max-h-64 overflow-y-auto">
                         <pre className="text-xs text-green-800 whitespace-pre-wrap">
-                          {JSON.stringify(selectedEntry.afterJson, null, 2)}
+                          {JSON.stringify(auditDisplayValue(selectedEntry.afterJson), null, 2)}
                         </pre>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {!selectedEntry.beforeJson && !selectedEntry.afterJson && (
+                {!selectedEntry.beforeJson && !selectedEntry.afterJson && !selectedEntry.requestJson && (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-600 text-center">
                       No detailed change data available for this audit entry.
                     </p>
                   </div>
                 )}
-                
+
+                {selectedEntry.metadataJson && (
+                  <div className="mt-5 rounded-lg bg-gray-50 p-4">
+                    <h4 className="mb-2 text-sm font-medium text-gray-900">Request Context</h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                      <span>Route: <span className="font-mono">{selectedEntry.metadataJson.method} {selectedEntry.metadataJson.path}</span></span>
+                      <span>Response: {selectedEntry.metadataJson.statusCode}</span>
+                      <span>Duration: {selectedEntry.metadataJson.durationMs} ms</span>
+                      <span className="col-span-2 break-all">Browser: {selectedEntry.metadataJson.userAgent || "Not recorded"}</span>
+                    </div>
+                  </div>
+                )}
+
+                {!!Object.keys(selectedEntry.metadataJson?.relatedRecords ?? {}).length && (
+                  <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                    <h4 className="mb-3 text-sm font-medium text-gray-900">Linked Records</h4>
+                    <div className="space-y-2">
+                      {Object.entries(selectedEntry.metadataJson!.relatedRecords!).map(([field, records]) => (
+                        <div key={field} className="text-sm">
+                          <span className="mr-2 text-gray-500">{field.replace(/Id$/, "").replaceAll(/([A-Z])/g, " $1")}:</span>
+                          {Object.values(records).map((record) => {
+                            const label = record.code ?? record.sku ?? record.orderNo ?? record.name ?? record.email ?? record.id;
+                            const description = record.name && record.name !== label ? ` — ${record.name}` : "";
+                            return <span key={record.id} className="mr-2 inline-block rounded bg-white px-2 py-1 font-medium text-blue-900">{label}{description} <span className="font-mono text-xs text-gray-500">ID: {record.id}</span></span>;
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end pt-6">
                   <button
                     onClick={() => setShowDetailsModal(false)}
