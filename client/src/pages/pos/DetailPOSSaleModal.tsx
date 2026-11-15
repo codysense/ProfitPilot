@@ -36,6 +36,7 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
     }, 0) || 0;
 
   const totalAmount = subtotal - discountAmount;
+  const returnedAmount = (sale.returns || []).reduce((sum: number, ret: any) => sum + Number(ret.refundAmount || 0), 0);
 
   const totalPaid =
     sale.payments?.reduce(
@@ -92,6 +93,8 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
                   const lineTotal = line.qty * line.unitPrice;
                   const discount =
                     (lineTotal * (line.discountPercent || 0)) / 100;
+                  const returnedQty = (line.returnLines || []).reduce((sum: number, ret: any) => sum + Number(ret.qtyReturned || 0), 0);
+                  const returnedAmount = (line.returnLines || []).reduce((sum: number, ret: any) => sum + Number(ret.lineTotal || 0), 0);
 
                   return (
                     <div key={index} className="bg-gray-50 p-4 rounded-lg">
@@ -104,7 +107,7 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
 
                         <div>
                           <div className="text-gray-500">Qty</div>
-                          <div>{line.qty}</div>
+                          <div>{line.qty} (returned {returnedQty})</div>
                         </div>
 
                         <div>
@@ -122,6 +125,7 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
                           <div className="font-medium">
                             ₦{(lineTotal - discount).toLocaleString()}
                           </div>
+                          {returnedAmount > 0 && <div className="text-red-600">Returned: -₦{returnedAmount.toLocaleString()}</div>}
                         </div>
                       </div>
                     </div>
@@ -129,6 +133,21 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
                 })}
               </div>
             </div>
+
+            {/* Payments (Multiple Supported) */}
+            {(sale.returns || []).length > 0 && (
+              <div className="bg-red-50 p-4 rounded-lg mb-6">
+                <h4 className="text-md font-medium text-red-900 mb-3">Returns on this receipt</h4>
+                <div className="space-y-2">
+                  {sale.returns.map((ret: any) => (
+                    <div key={ret.id} className="flex justify-between bg-white p-3 rounded text-sm">
+                      <span>{ret.returnNo} · {new Date(ret.createdAt).toLocaleDateString()} · {ret.reason}</span>
+                      <span className="font-medium text-red-700">-₦{Number(ret.refundAmount).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Payments (Multiple Supported) */}
             <div className="bg-green-50 p-4 rounded-lg mb-6">
@@ -187,9 +206,13 @@ const DetailPOSSaleModal: React.FC<DetailPOSSaleModalProps> = ({
                   )}
 
                   <div className="flex justify-between font-bold text-lg border-t pt-2">
-                    <span>Total:</span>
+                    <span>Original total:</span>
                     <span>₦{totalAmount.toLocaleString()}</span>
                   </div>
+                  {returnedAmount > 0 && <>
+                    <div className="flex justify-between text-red-600"><span>Returns:</span><span>-₦{returnedAmount.toLocaleString()}</span></div>
+                    <div className="flex justify-between font-bold border-t pt-2"><span>Net sale:</span><span>₦{Math.max(0, totalAmount - returnedAmount).toLocaleString()}</span></div>
+                  </>}
                 </div>
               </div>
 

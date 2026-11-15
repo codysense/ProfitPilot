@@ -76,7 +76,7 @@ const PosReturnsModal = ({
     queryKey: ["search-pos-sales-for-return", saleSearch],
     queryFn: () =>
       posApi.getSales({
-        status: "COMPLETED",
+        status: "COMPLETED,PARTIALLY_RETURNED",
         limit: 50,
         ...(saleSearch && { search: saleSearch }),
       }),
@@ -306,6 +306,10 @@ const PosReturnsModal = ({
                 (l) => l.id === field.originalLineId,
               );
               if (!originalLine) return null;
+              const alreadyReturned = (originalLine.returnLines || []).reduce(
+                (sum: number, returned: any) => sum + Number(returned.qtyReturned || 0), 0,
+              );
+              const remainingQty = Math.max(0, Number(originalLine.qty) - alreadyReturned);
 
               return (
                 <div key={field.id} className="border p-4 rounded-md">
@@ -313,18 +317,19 @@ const PosReturnsModal = ({
                     <div>
                       {originalLine.item.name} <br />
                       <span className="text-gray-500 text-xs">
-                        Original: {originalLine.qty}
+                        Original: {originalLine.qty} · Returned: {alreadyReturned} · Remaining: {remainingQty}
                       </span>
                     </div>
                     <input
                       type="number"
                       min="0"
-                      max={originalLine.qty}
+                      max={remainingQty}
+                      disabled={remainingQty <= 0}
                       {...register(`returnLines.${index}.qtyReturned`, {
                         valueAsNumber: true,
                         validate: (value) => {
-                          if (value > originalLine.qty) {
-                            return `Cannot return more than ${originalLine.qty}`;
+                          if (value > remainingQty) {
+                            return `Cannot return more than the remaining ${remainingQty}`;
                           }
                           return true;
                         },

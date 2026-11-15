@@ -525,7 +525,18 @@ export class ReportsService {
     }
 
     const query = `
-    WITH all_sales AS (
+    WITH pos_return_amounts AS (
+      SELECT "originalSaleId", SUM("refundAmount") AS returned_amount
+      FROM pos_returns
+      GROUP BY "originalSaleId"
+    ),
+    pos_return_quantities AS (
+      SELECT pr."originalSaleId", SUM(prl."qtyReturned") AS returned_qty
+      FROM pos_returns pr
+      INNER JOIN pos_return_lines prl ON prl."posReturnId" = pr.id
+      GROUP BY pr."originalSaleId"
+    ),
+    all_sales AS (
 
       /* ==========================
          POS SALES
@@ -534,24 +545,33 @@ export class ReportsService {
           ps."createdAt"::date                    AS "TransactionDate",
           'POS'                                   AS "SalesType",
           ps."saleNo"                             AS "DocumentNo",
-          'Walk-in Customer'                      AS "CustomerName",
+          COALESCE(c.name, 'Walk-in Customer')    AS "CustomerName",
           w.name                                  AS "WarehouseName",
-          SUM(psl.qty)                            AS "NoOfItems",
-          ps."totalAmount"                        AS "Amount"
+          GREATEST(SUM(psl.qty) - COALESCE(pq.returned_qty, 0), 0) AS "NoOfItems",
+          GREATEST(ps."totalAmount" - COALESCE(pa.returned_amount, 0), 0) AS "Amount"
       FROM pos_sales ps
       INNER JOIN warehouses w
           ON w.id = ps."warehouseId"
+      LEFT JOIN customers c
+          ON c.id = ps."customerId"
       INNER JOIN pos_sale_lines psl
           ON psl."posSaleId" = ps.id
-      WHERE ps.status = 'COMPLETED'
+      LEFT JOIN pos_return_amounts pa
+          ON pa."originalSaleId" = ps.id
+      LEFT JOIN pos_return_quantities pq
+          ON pq."originalSaleId" = ps.id
+      WHERE ps.status IN ('COMPLETED', 'PARTIALLY_RETURNED', 'RETURNED')
         AND ps."createdAt"::date BETWEEN $1::date AND $2::date
         ${warehouseFilterPOS}
       GROUP BY
           ps.id,
           ps."createdAt",
           ps."saleNo",
+          c.name,
           w.name,
-          ps."totalAmount"
+          ps."totalAmount",
+          pq.returned_qty,
+          pa.returned_amount
 
       UNION ALL
 
@@ -666,13 +686,15 @@ export class ReportsService {
         w.name AS "WarehouseName",
         u.name AS "SalesRep",
         ca.name AS "CashAccountName",
-        ps."totalAmount" AS "TotalAmount",
+          ps."totalAmount" AS "OriginalAmount",
+          COALESCE((SELECT SUM(pr."refundAmount") FROM pos_returns pr WHERE pr."originalSaleId" = ps.id), 0) AS "ReturnedAmount",
+          GREATEST(ps."totalAmount" - COALESCE((SELECT SUM(pr."refundAmount") FROM pos_returns pr WHERE pr."originalSaleId" = ps.id), 0), 0) AS "TotalAmount",
         ps."amountPaid" AS "AmountPaid"
       FROM pos_sales ps
       LEFT JOIN warehouses w   ON ps."warehouseId"   = w.id
       LEFT JOIN cash_accounts ca ON ps."cashAccountId" = ca.id
       LEFT JOIN users u       ON ps."userId"        = u.id
-      WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date and ps.status = 'COMPLETED'
+        WHERE ps."createdAt"::date BETWEEN $1::date AND $2::date and ps.status IN ('COMPLETED', 'PARTIALLY_RETURNED', 'RETURNED')
   `;
 
     const values: any[] = [newFromDate, newToDate];
@@ -702,6 +724,8 @@ export class ReportsService {
       '' AS "WarehouseName",
       '' AS "SalesRep",
       '' AS "CashAccountName",
+        SUM("OriginalAmount") AS "OriginalAmount",
+        SUM("ReturnedAmount") AS "ReturnedAmount",
       SUM("TotalAmount") AS "TotalAmount",
       SUM("AmountPaid")  AS "AmountPaid"
     FROM report
@@ -714,6 +738,8 @@ export class ReportsService {
       ...r,
       TransactionDate: r.TransactionDate?.toISOString().split("T")[0] ?? "-",
       TotalAmount: r.TotalAmount != null ? Number(r.TotalAmount) : 0,
+        OriginalAmount: r.OriginalAmount != null ? Number(r.OriginalAmount) : 0,
+        ReturnedAmount: r.ReturnedAmount != null ? Number(r.ReturnedAmount) : 0,
       AmountPaid: r.AmountPaid != null ? Number(r.AmountPaid) : 0,
     }));
   }
@@ -1751,8 +1777,7 @@ ORDER BY date, transaction_type, reference;
               lte: newToDate,
             },
             status: {
-              // Exclude returned sales (using typescript/prisma enum naming standard)
-              not: "RETURNED",
+              in: ["COMPLETED", "PARTIALLY_RETURNED", "RETURNED"],
             },
             ...(customerId && { customerId }),
           },
@@ -1761,9 +1786,11 @@ ORDER BY date, transaction_type, reference;
           posSale: {
             include: {
               customer: true,
+              saleLines: { select: { lineTotal: true } },
             },
           },
           item: true,
+            returnLines: { select: { qtyReturned: true, lineTotal: true } },
         },
       }),
     ]);
@@ -1787,9 +1814,13 @@ ORDER BY date, transaction_type, reference;
       orderNo: line.posSale.saleNo,
       customerName: line.posSale.customer?.name || "Walk-in Customer", // Fallback for POS walk-in
       itemName: line.item.name,
-      qty: Number(line.qty),
+        qty: Math.max(0, Number(line.qty) - line.returnLines.reduce((sum, returned) => sum + Number(returned.qtyReturned), 0)),
       unitPrice: Number(line.unitPrice),
-      total: Number(line.lineTotal),
+        total: Math.max(0,
+          (line.posSale.saleLines.reduce((sum, saleLine) => sum + Number(saleLine.lineTotal), 0) > 0
+            ? Number(line.posSale.totalAmount) * Number(line.lineTotal) / line.posSale.saleLines.reduce((sum, saleLine) => sum + Number(saleLine.lineTotal), 0)
+            : Number(line.lineTotal))
+          - line.returnLines.reduce((sum, returned) => sum + Number(returned.lineTotal), 0)),
       status: line.posSale.status,
       source: "POS", // Helpful metadata tag
     }));
@@ -3108,6 +3139,22 @@ ORDER BY v.name;
         itemSales.totalValue += line.lineTotal.toNumber();
         itemSales.orderCount += 1;
       });
+    });
+
+    const posLines = await prisma.posSaleLine.findMany({
+      where: {
+        posSale: { createdAt: { gte: newFromDate, lte: newToDate }, status: { in: ["COMPLETED", "PARTIALLY_RETURNED", "RETURNED"] } },
+        ...(itemId && itemId !== "undefined" ? { itemId } : {}),
+      },
+      include: { item: { select: { sku: true, name: true, type: true } }, returnLines: { select: { qtyReturned: true, lineTotal: true } } },
+    });
+    posLines.forEach((line) => {
+      const key = line.itemId;
+      if (!itemSalesMap.has(key)) itemSalesMap.set(key, { item: line.item, totalQty: 0, totalValue: 0, orderCount: 0 });
+      const row = itemSalesMap.get(key);
+      row.totalQty += Math.max(0, line.qty.toNumber() - line.returnLines.reduce((sum, ret) => sum + ret.qtyReturned.toNumber(), 0));
+      row.totalValue += Math.max(0, line.lineTotal.toNumber() - line.returnLines.reduce((sum, ret) => sum + ret.lineTotal.toNumber(), 0));
+      row.orderCount += 1;
     });
 
     return Array.from(itemSalesMap.values()).sort(

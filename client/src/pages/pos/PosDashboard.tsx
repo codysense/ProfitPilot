@@ -34,10 +34,20 @@ const PosDashboard = () => {
     queryKey: ["today-pos-sales"],
     queryFn: () =>
       posApi.getSales({
+        limit: 1000,
         dateFrom: `${today}T00:00:00.000Z`,
         dateTo: `${today}T23:59:59.999Z`,
-        status: "COMPLETED",
+        status: "COMPLETED,PARTIALLY_RETURNED,RETURNED",
       }),
+  });
+
+  const { data: todayReturns } = useQuery({
+    queryKey: ["today-pos-returns", today],
+    queryFn: () => posApi.getReturns({
+      dateFrom: `${today}T00:00:00.000Z`,
+      dateTo: `${today}T23:59:59.999Z`,
+      limit: 1000,
+    }),
   });
 
   //Filter today's sales to only those created by the user if they don't have permission to view all sales
@@ -47,6 +57,15 @@ const PosDashboard = () => {
       (sale: any) => sale.user?.name === user?.name,
     );
   }
+  const visibleTodayReturns = (todayReturns?.data || []).filter(
+    (ret: any) => canviewall || ret.createdBy?.id === user?.id,
+  );
+  const todayGrossSales = (todaySales?.sales || []).reduce(
+    (sum: number, sale: any) => sum + Number(sale.totalAmount || 0), 0,
+  );
+  const todayRefunds = visibleTodayReturns.reduce(
+    (sum: number, ret: any) => sum + Number(ret.refundAmount || 0), 0,
+  );
 
   // const { data: warehouseItems } = useQuery({
   //   queryKey: ["warehouse-items", user?.warehouseId],
@@ -97,10 +116,16 @@ const PosDashboard = () => {
       color: "text-blue-600",
     },
     {
-      name: "Today's Revenue",
-      value: `₦${todaySales?.sales?.reduce((sum: number, sale: any) => sum + Number(sale.totalAmount), 0).toLocaleString({ minimumFractionDigits: 4, maximumFractionDigits: 4 }) || "0"}`,
+      name: "Today's Net Sales",
+      value: `₦${Math.max(0, todayGrossSales - todayRefunds).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       icon: DollarSign,
       color: "text-green-600",
+    },
+    {
+      name: "Today's Sales Returns",
+      value: `₦${todayRefunds.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      icon: RotateCcw,
+      color: "text-amber-600",
     },
     // {
     //   name: "Available Items",
@@ -202,7 +227,7 @@ const PosDashboard = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.name}

@@ -1147,7 +1147,7 @@ export interface PosSale {
     amount: number;
   }[];
   // paymentMethod: 'CASH' | 'CARD' | 'TRANSFER';
-  status: "COMPLETED" | "RETURNED";
+  status: "COMPLETED" | "PARTIALLY_RETURNED" | "RETURNED";
   notes?: string;
   createdAt: string;
   customer?: {
@@ -1159,6 +1159,7 @@ export interface PosSale {
     name: string;
   };
   saleLines: PosSaleLine[];
+  returns?: { id: string; returnNo: string; refundAmount: number; createdAt: string; reason: string }[];
   user: {
     name: string;
   };
@@ -1171,6 +1172,7 @@ export interface PosSaleLine {
   unitPrice: number;
   discountPercent: number;
   lineTotal: number;
+  returnLines?: { qtyReturned: number; lineTotal: number }[];
   item: {
     sku: string;
     name: string;

@@ -882,7 +882,10 @@ export class PosController {
     ========================== */
       if (sessionId) where.sessionId = sessionId;
       if (customerId) where.customerId = customerId;
-      if (status) where.status = status;
+      if (status) {
+        const statuses = String(status).split(",").map((value) => value.trim()).filter(Boolean);
+        where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
+      }
       if (userId) where.userId = userId;
 
       /* =========================
@@ -951,8 +954,10 @@ export class PosController {
             saleLines: {
               include: {
                 item: { select: { sku: true, name: true, uom: true } },
+                returnLines: { select: { qtyReturned: true, lineTotal: true } },
               },
             },
+            returns: { select: { id: true, returnNo: true, refundAmount: true, createdAt: true, reason: true } },
             payments: {
               select: {
                 method: true,
@@ -1016,7 +1021,10 @@ export class PosController {
       // Basic filters
       if (sessionId) where.sessionId = sessionId;
       if (customerId) where.customerId = customerId;
-      if (status) where.status = status;
+      const dashboardStatuses = status
+        ? String(status).split(",").map((value) => value.trim()).filter(Boolean)
+        : ["COMPLETED", "PARTIALLY_RETURNED", "RETURNED"];
+      where.status = dashboardStatuses.length > 1 ? { in: dashboardStatuses } : dashboardStatuses[0];
       if (userId) where.userId = userId;
 
       // Date range
@@ -1423,6 +1431,23 @@ export class PosController {
 
         let returnTotal = 0;
         let totalReturnCogs = 0;
+        const refundableLineValues = new Map<string, number>();
+        const lineValueBase = originalSale.saleLines.reduce((sum, line) => sum + line.lineTotal.toNumber(), 0);
+        let allocatedLineValue = 0;
+        originalSale.saleLines.forEach((line, index) => {
+          const value = index === originalSale.saleLines.length - 1
+            ? originalSale.totalAmount.toNumber() - allocatedLineValue
+            : Number((line.lineTotal.toNumber() * originalSale.totalAmount.toNumber() / (lineValueBase || 1)).toFixed(2));
+          refundableLineValues.set(line.id, value);
+          allocatedLineValue += value;
+        });
+        const priorLineRefunds = await tx.posReturnLine.findMany({
+          where: { posReturn: { originalSaleId: originalSale.id } },
+          select: { originalLineId: true, lineTotal: true },
+        });
+        const refundedByLine = new Map<string, number>();
+        priorLineRefunds.forEach((ret) => refundedByLine.set(ret.originalLineId, (refundedByLine.get(ret.originalLineId) || 0) + ret.lineTotal.toNumber()));
+        const currentLineRefunds = new Map<string, number>();
 
         // Validate each return line
         for (const line of validatedData.returnLines) {
@@ -1447,7 +1472,14 @@ export class PosController {
             throw new Error("Return quantity exceeds sold quantity");
           }
 
-          returnTotal += line.qtyReturned * line.unitPrice;
+          const lineRefundRemaining = Math.max(0, (refundableLineValues.get(originalLine.id) || 0) - (refundedByLine.get(originalLine.id) || 0));
+          const remainingQty = originalLine.qty.toNumber() - returnedQty;
+          const lineRefund = line.qtyReturned >= remainingQty - 0.000001
+            ? lineRefundRemaining
+            : lineRefundRemaining * line.qtyReturned / remainingQty;
+          const roundedLineRefund = Number(lineRefund.toFixed(2));
+          currentLineRefunds.set(originalLine.id, roundedLineRefund);
+          returnTotal += roundedLineRefund;
 
           // Cost price from inventory / sale line
           const costPrice = await costingService.getInventoryValue(
@@ -1486,8 +1518,8 @@ export class PosController {
               originalLineId: line.originalLineId,
               itemId: line.itemId,
               qtyReturned: new Decimal(line.qtyReturned),
-              unitPrice: new Decimal(line.unitPrice),
-              lineTotal: new Decimal(line.qtyReturned * line.unitPrice),
+              unitPrice: originalSale.saleLines.find((original) => original.id === line.originalLineId)!.unitPrice,
+              lineTotal: new Decimal(currentLineRefunds.get(line.originalLineId) || 0),
             },
           });
 
@@ -1513,13 +1545,35 @@ export class PosController {
 
         const glEntries: any[] = [];
 
-        // Refund cash
-        for (const payment of originalSale.payments) {
+        // Refund the original tender first, exhausting its remaining share before
+        // moving to the next payment. Prior allocations keep repeated returns capped.
+        const previousAllocations = await tx.posReturnPayment.findMany({
+          where: { originalSalePayment: { posSaleId: originalSale.id } },
+        });
+        let refundRemaining = returnTotal;
+        const refundAllocations = originalSale.payments.map((payment) => {
+          const alreadyRefunded = previousAllocations
+            .filter((allocation) => allocation.originalSalePaymentId === payment.id)
+            .reduce((sum, allocation) => sum + allocation.amount.toNumber(), 0);
+          const amount = Math.min(refundRemaining, Math.max(0, payment.amount.toNumber() - alreadyRefunded));
+          refundRemaining = Number((refundRemaining - amount).toFixed(2));
+          return { payment, amount };
+        }).filter(({ amount }) => amount > 0);
+        if (refundRemaining > 0.009) throw new Error("Original payment allocations cannot cover this refund");
+        await tx.posReturnPayment.createMany({ data: refundAllocations.map(({ payment, amount }) => ({
+          posReturnId: newReturn.id,
+          originalSalePaymentId: payment.id,
+          cashAccountId: payment.cashAccountId ?? session.cashAccountId,
+          method: payment.method,
+          amount: new Decimal(amount),
+        })) });
+
+        for (const { payment, amount } of refundAllocations) {
+          const refundCashAccountId = payment.cashAccountId ?? session.cashAccountId;
+          if (!refundCashAccountId) throw new Error("Original payment has no linked cash account");
           const updatedCashAccount = await tx.cashAccount.update({
-            where: { id: payment.cashAccountId },
-            data: {
-              balance: { decrement: payment.amount.toNumber() },
-            },
+            where: { id: refundCashAccountId },
+            data: { balance: { decrement: new Decimal(amount) } },
           });
 
           const cashaccountGL = await tx.chartOfAccount.findUnique({
@@ -1529,7 +1583,7 @@ export class PosController {
           glEntries.push({
             accountCode: cashaccountGL?.code || "1100", // Cash/Bank account (should ideally fetch from cash account)
             debit: 0,
-            credit: payment.amount.toNumber(),
+            credit: amount,
             refType: "POS_RETURN",
             refId: newReturn.id,
           });
@@ -1547,7 +1601,11 @@ export class PosController {
           ? parseInt(lastTx.transactionNo.replace(/^CT/, ""), 10)
           : 0;
 
-        for (const payment of originalSale.payments) {
+        for (const { payment, amount } of refundAllocations) {
+          const refundCashAccountId = payment.cashAccountId ?? session.cashAccountId;
+          if (!refundCashAccountId) {
+            throw new Error("Original payment has no linked cash account");
+          }
           const nextNumber = baseNumber + paymentCount;
 
           const transactionNo = `CT${String(nextNumber).padStart(6, "0")}`;
@@ -1556,9 +1614,9 @@ export class PosController {
           await tx.cashTransaction.create({
             data: {
               transactionNo,
-              cashAccountId: payment.cashAccountId,
+              cashAccountId: refundCashAccountId,
               transactionType: "PAYMENT",
-              amount: new Decimal(payment.amount.toNumber()),
+              amount: new Decimal(amount),
               description: `POS Return: ${returnNo}`,
               transactionDate: new Date(),
               reference: returnNo,
@@ -1575,7 +1633,7 @@ export class PosController {
         }
 
         glEntries.push({
-          accountCode: "4000",
+          accountCode: "4900",
           debit: returnTotal,
           credit: 0,
           refType: "POS_RETURN",
@@ -1608,19 +1666,13 @@ export class PosController {
         );
 
         // Update sale status
-        const totalReturnedQty = await tx.posReturnLine.aggregate({
-          where: { posReturn: { originalSaleId: originalSale.id } },
-          _sum: { qtyReturned: true },
+        const updatedLines = await tx.posSaleLine.findMany({
+          where: { posSaleId: originalSale.id },
+          include: { returnLines: { select: { qtyReturned: true } } },
         });
-
-        const fullyReturned = await tx.posSaleLine.count({
-          where: {
-            posSaleId: originalSale.id,
-            qty: {
-              equals: totalReturnedQty._sum.qtyReturned || new Decimal(0),
-            },
-          },
-        });
+        const fullyReturned = updatedLines.length > 0 && updatedLines.every((saleLine) =>
+          saleLine.returnLines.reduce((sum, line) => sum + line.qtyReturned.toNumber(), 0) >= saleLine.qty.toNumber() - 0.000001,
+        );
 
         await tx.posSale.update({
           where: { id: originalSale.id },
@@ -1643,7 +1695,7 @@ export class PosController {
   async getCustomersWithBalances(req: AuthRequest, res: Response) {
     try {
       const customers = await prisma.$queryRaw`
-  SELECT 
+  SELECT
     c.id,
     c.code,
     c.name,
@@ -1654,7 +1706,7 @@ export class PosController {
     g.name AS "customerGroupName",
     COALESCE(
       (SELECT SUM(s."totalAmount") FROM sales s WHERE s."customerId" = c.id AND s.status IN ('INVOICED', 'PAID')) -
-      (SELECT SUM(sr."amountReceived") FROM sales_receipts sr WHERE sr."customerId" = c.id), 
+      (SELECT SUM(sr."amountReceived") FROM sales_receipts sr WHERE sr."customerId" = c.id),
       0
     ) as "outstandingBalance"
   FROM customers c
@@ -1708,6 +1760,7 @@ export class PosController {
             },
           },
           payments: true, // PosSalePayment[]
+          returns: { select: { id: true, returnNo: true, refundAmount: true, createdAt: true, reason: true } },
         },
       });
 
@@ -1788,7 +1841,15 @@ export class PosController {
           changeAmount: sale.changeAmount.toNumber(),
           outstandingBalance:
             sale.totalAmount.toNumber() - sale.amountPaid.toNumber(),
+          returnedAmount: sale.returns.reduce((sum, ret) => sum + ret.refundAmount.toNumber(), 0),
+          netTotalAmount: Math.max(0, sale.totalAmount.toNumber() - sale.returns.reduce((sum, ret) => sum + ret.refundAmount.toNumber(), 0)),
         },
+        returns: sale.returns.map((ret) => ({
+          returnNo: ret.returnNo,
+          refundAmount: ret.refundAmount.toNumber(),
+          date: ret.createdAt,
+          reason: ret.reason,
+        })),
 
         items: saleLines,
 

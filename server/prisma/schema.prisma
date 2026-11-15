@@ -835,6 +835,7 @@ model CashAccount {
   SalesRefund      SalesRefund[]
   vendorPayments   VendorPayment[]
   posSalePayments  PosSalePayment[]
+  posReturnPayments PosReturnPayment[]
 
   @@map("cash_accounts")
 }
@@ -1445,6 +1446,7 @@ model PosSalePayment {
 
   posSale     PosSale      @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
   cashAccount CashAccount? @relation(fields: [cashAccountId], references: [id])
+  refundPayments PosReturnPayment[]
 
   @@map("pos_sale_payments")
 }
@@ -1524,6 +1526,7 @@ model PosReturn {
   userId         String
   createdAt      DateTime        @default(now())
   returnLines    PosReturnLine[]
+    refundPayments PosReturnPayment[]
   customer       Customer?       @relation(fields: [customerId], references: [id])
   originalSale   PosSale         @relation(fields: [originalSaleId], references: [id])
   session        PosSession      @relation(fields: [sessionId], references: [id])
@@ -1531,6 +1534,22 @@ model PosReturn {
   warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
 
   @@map("pos_returns")
+}
+
+model PosReturnPayment {
+  id                   String           @id @default(cuid())
+  posReturnId          String
+  originalSalePaymentId String
+  cashAccountId        String?
+  method               PosPaymentMethod
+  amount               Decimal          @db.Decimal(15, 2)
+  createdAt            DateTime         @default(now())
+  posReturn            PosReturn        @relation(fields: [posReturnId], references: [id], onDelete: Cascade)
+  originalSalePayment  PosSalePayment   @relation(fields: [originalSalePaymentId], references: [id], onDelete: Restrict)
+  cashAccount          CashAccount?     @relation(fields: [cashAccountId], references: [id], onDelete: SetNull)
+  @@unique([posReturnId, originalSalePaymentId])
+  @@index([originalSalePaymentId])
+  @@map("pos_return_payments")
 }
 
 model PosReturnLine {

@@ -124,10 +124,10 @@ const Dashboard = () => {
   });
 
   const { data: posSales } = useQuery({
-    queryKey: ["pos-sales-dashboard", period, dateFrom, dateTo],
+    queryKey: ["pos-sales-dashboard-v2", period, dateFrom, dateTo, "COMPLETED,PARTIALLY_RETURNED,RETURNED"],
     queryFn: () =>
       posApi.getSalesForDashboard({
-        status: "COMPLETED",
+        status: "COMPLETED,PARTIALLY_RETURNED,RETURNED",
         dateFrom,
         dateTo,
       }),
@@ -184,10 +184,10 @@ const Dashboard = () => {
   }
 
   // Filter POS Returns based on permissions
-  let filteredPosReturns = posReturns?.returns || [];
+  let filteredPosReturns = posReturns?.data || [];
   if (!canviewall) {
     filteredPosReturns = filteredPosReturns.filter(
-      (ret: any) => ret.user?.name === user?.name,
+      (ret: any) => ret.createdBy?.name === user?.name,
     );
   }
 
@@ -212,7 +212,7 @@ const Dashboard = () => {
 
   const totalPosReturnsAmount = filteredPosReturns.reduce(
     (sum: number, ret: any) =>
-      sum + Number(ret.totalAmount || ret.refundAmount || 0),
+      sum + Number(ret.refundAmount || ret.totalAmount || 0),
     0,
   );
 

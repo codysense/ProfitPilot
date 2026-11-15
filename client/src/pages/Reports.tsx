@@ -2120,6 +2120,8 @@ const POSSalesReport = ({ data }: { data: any }) => {
     { key: "WarehouseName", header: "Warehouse Name", width: "w-32" },
     { key: "CashAccountName", header: "CashAccount Name", width: "w-32" },
     { key: "SalesRep", header: "Sales Rep", width: "w-32" },
+    { key: "OriginalAmount", header: "Original Amount", cell: (item: any) => `₦${Number(item.OriginalAmount || 0).toLocaleString()}`, width: "w-32" },
+    { key: "ReturnedAmount", header: "Returned Amount", cell: (item: any) => `₦${Number(item.ReturnedAmount || 0).toLocaleString()}`, width: "w-32" },
     {
       key: "TotalAmount",
       header: "Total Amount",

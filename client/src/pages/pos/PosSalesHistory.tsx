@@ -38,14 +38,14 @@ const PosSalesHistory = () => {
         customerId: customerFilter,
         paymentMethod,
         userId: selectedCashier,
-        status: "COMPLETED",
+        status: "COMPLETED,PARTIALLY_RETURNED,RETURNED",
       },
     ],
     queryFn: () =>
       posApi.getSales({
         page,
         limit: 20,
-        status: "COMPLETED",
+        status: "COMPLETED,PARTIALLY_RETURNED,RETURNED",
         ...(dateFromFilter && { dateFrom: dateFromFilter }),
         ...(dateToFilter && { dateTo: dateToFilter }),
         ...(selectedCashier && { userId: selectedCashier }),
@@ -106,8 +106,10 @@ const PosSalesHistory = () => {
     {
       key: "totalAmount",
       header: "Total Amount",
-      cell: (sale: PosSale) =>
-        `₦${Number(sale.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`,
+      cell: (sale: PosSale) => {
+        const returned = (sale as any).returns?.reduce((sum: number, ret: any) => sum + Number(ret.refundAmount || 0), 0) || 0;
+        return `₦${Math.max(0, Number(sale.totalAmount) - returned).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      },
       width: "w-32",
     },
     {
@@ -276,6 +278,15 @@ const PosSalesHistory = () => {
             <div style="display: flex; justify-content: space-between; font-weight: bold;">
               <span>Total:</span> <span>₦${printData.totals.totalAmount.toLocaleString()}</span>
             </div>
+            ${printData.totals.returnedAmount > 0 ? `
+              <div style="display: flex; justify-content: space-between; color: #b91c1c;">
+                <span>Returns:</span> <span>-₦${printData.totals.returnedAmount.toLocaleString()}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                <span>Net Total:</span> <span>₦${printData.totals.netTotalAmount.toLocaleString()}</span>
+              </div>
+              ${printData.returns.map((ret: any) => `<div style="font-size: 10px;">${ret.returnNo} · ${new Date(ret.date).toLocaleDateString()} · -₦${ret.refundAmount.toLocaleString()} (${ret.reason})</div>`).join("")}
+            ` : ""}
              ${
                printData.payments
                  ?.map(
@@ -325,7 +336,7 @@ const PosSalesHistory = () => {
 
   const actions = (sale: PosSale) => (
     <div className="flex space-x-2">
-      {sale.status === "COMPLETED" && (
+      {["COMPLETED", "PARTIALLY_RETURNED", "RETURNED"].includes(sale.status) && (
         <button
           onClick={() => handlePrintReceipt(sale)}
           className="text-blue-600 hover:text-blue-900"
@@ -335,7 +346,7 @@ const PosSalesHistory = () => {
         </button>
       )}
       {/* Include view button */}
-      {sale.status === "COMPLETED" && (
+      {["COMPLETED", "PARTIALLY_RETURNED", "RETURNED"].includes(sale.status) && (
         <button
           onClick={() => handleViewDetails(sale)}
           className="text-blue-600 hover:text-blue-900"
