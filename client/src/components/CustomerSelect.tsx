@@ -12,6 +12,8 @@ interface Customer {
   phone?: string;
 }
 
+const EMPTY_CUSTOMERS: Customer[] = [];
+
 interface CustomerSelectProps {
   customers?: Customer[]; // make optional since you fetch inside anyway
   value?: string; // make optional
@@ -54,16 +56,18 @@ export function CustomerSelect({
     placeholderData: keepPreviousData,
   });
 
-  const customers: Customer[] = data?.customers ?? [];
+  const customers: Customer[] = data?.customers ?? EMPTY_CUSTOMERS;
   const total = data?.pagination?.total ?? 0;
 
   useEffect(() => {
-    if (!customers) return;
+    // Wait for the first query result. The stable empty fallback prevents an
+    // effect-driven render loop while the query is still loading.
+    if (!data) return;
 
     setLoadedCustomers((prev) =>
       page === 1 ? customers : [...prev, ...customers],
     );
-  }, [customers, page]);
+  }, [data, customers, page]);
 
   const allCustomers = loadedCustomers;
 

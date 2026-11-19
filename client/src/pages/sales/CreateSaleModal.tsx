@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { useForm, useFieldArray, Controller, set } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { record, z } from "zod";
+import { z } from "zod";
 import { X, Plus, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { salesApi, inventoryApi, posApi } from "../../lib/api";
@@ -42,7 +42,6 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
     watch,
     setValue,
     getValues,
-    reset,
     formState: { errors, isSubmitting },
   } = useForm<CreateSaleFormData>({
     resolver: zodResolver(createSaleSchema),
@@ -65,83 +64,85 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
     user?.roles.includes("General Manager");
 
   const watchedLines = watch("saleLines");
-  const watchedItemIds = watchedLines.map((line) => line.itemId);
   const customerId = watch("customerId");
-
-  const { data: customers } = useQuery({
-    queryKey: ["customers-for-sale"],
-    queryFn: () => salesApi.getCustomers(),
-    select: (data) => ({
-      ...data,
-      customers: data.customers
-        ?.filter((customer: any) => customer.CustomerGroup !== "WIC")
-        .map((customer: any) => ({
-          ...customer,
-          outstandingBalance: 0,
-        })),
-    }),
-  });
 
   const { data: customersWithBalances } = useQuery({
     queryKey: ["customers-with-balances"],
     queryFn: () => posApi.getCustomersWithBalances(),
   });
 
-  console.log("Customers Data", customersWithBalances);
+  // console.log("Customers Data", customersWithBalances);
 
-  const { data: items } = useQuery({
-    queryKey: ["items-ready-for-sale", "FINISHED_GOODS"],
-    queryFn: () =>
-      inventoryApi.getItems({ type: "FINISHED_GOODS", limit: 100 }),
-  });
+  const selectionSignature = fields
+    .map((field, index) => `${field.id}:${watchedLines[index]?.itemId ?? ""}`)
+    .join("|");
 
   useEffect(() => {
-    watchedLines.forEach(async (line, index) => {
-      if (line.itemId && items?.items) {
-        // const selectedItem = items.items.find(
-        //   (item: any) => item.id === line.itemId,
-        // );
+    let active = true;
+    const selectedItemIds = Array.from(
+      new Set(
+        watchedLines
+          .map((line) => line.itemId)
+          .filter((itemId): itemId is string => Boolean(itemId)),
+      ),
+    );
+    const selectedCustomer = customersWithBalances?.customers?.find(
+      (customer: any) => customer.id === customerId,
+    );
 
-        const selectedItem = await inventoryApi.getItemById(line.itemId);
+    void Promise.all(
+      selectedItemIds.map(async (itemId) => {
+        try {
+          const selectedItem = await inventoryApi.getItemById(itemId);
+          if (!active) return;
 
-        console.log("Selected Item ", selectedItem);
-
-        // Save stockQty
-        setItemStocks((prev) => ({
-          ...prev,
-          [line.itemId]: selectedItem.stockQty || 0,
-        }));
-
-        const selectedCustomer = customersWithBalances?.customers?.find(
-          (customer: any) => customer.id === customerId,
-        );
-        console.log("Selected Customer ", selectedCustomer);
-        if (selectedItem && selectedCustomer) {
-          // find the matching price for this customer's group
-          const customerGroup = selectedCustomer.customerGroupName; // adjust key if different
-          const groupPrice = selectedItem.priceList?.find(
-            (priceObj: any) => priceObj.customerGroup === customerGroup,
+          const stockQty = Number(selectedItem.stockQty) || 0;
+          setItemStocks((prev) =>
+            prev[itemId] === stockQty ? prev : { ...prev, [itemId]: stockQty },
           );
 
-          //console.log("selected customer", selectedCustomer);
-          //console.log("selected item", selectedItem);
-          // fallback if no group-specific price found
-          const unitPrice = groupPrice ? groupPrice.price : 0;
+          const groupPrice = selectedCustomer
+            ? selectedItem.priceList?.find(
+                (priceObj: any) => {
+                  const priceGroup = String(priceObj.customerGroup ?? "")
+                    .trim()
+                    .toLocaleLowerCase();
+                  const customerGroupNames = [
+                    selectedCustomer.customerGroupName,
+                    selectedCustomer.customerGroupId,
+                  ]
+                    .filter(Boolean)
+                    .map((group: string) =>
+                      String(group).trim().toLocaleLowerCase(),
+                    );
+                  return customerGroupNames.includes(priceGroup);
+                },
+              )
+            : undefined;
+          const unitPrice = Number(groupPrice?.price ?? 0);
+          const currentLines = getValues("saleLines");
 
-          setValue(`saleLines.${index}.unitPrice`, unitPrice);
-        } else {
-          setValue(`saleLines.${index}.unitPrice`, 0);
+          currentLines.forEach((line, index) => {
+            if (line.itemId === itemId && Number(line.unitPrice) !== unitPrice) {
+              setValue(`saleLines.${index}.unitPrice`, unitPrice, {
+                shouldValidate: true,
+              });
+            }
+          });
+        } catch (error) {
+          console.error(`Failed to load item ${itemId}:`, error);
         }
-      }
-    });
-    // };
-    // setPrices();
+      }),
+    );
+
+    return () => {
+      active = false;
+    };
   }, [
-    watchedItemIds,
-    items,
+    selectionSignature,
     customerId,
     setValue,
-    watchedLines,
+    getValues,
     customersWithBalances,
   ]);
 
@@ -161,40 +162,32 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
     }
   };
 
-  const [customerQuery, setCustomerQuery] = useState("");
-
-  const filteredCustomers =
-    customerQuery === ""
-      ? customers?.customers || []
-      : customers?.customers?.filter((customer: any) =>
-          `${customer.name} ${customer.phone || ""} ${customer.code}`
-            .toLowerCase()
-            .includes(customerQuery.toLowerCase()),
-        );
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-        />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+      <div
+        className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+        onClick={onClose}
+      />
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Create Sales Order
-              </h3>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      <div className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white text-left shadow-xl sm:max-h-[calc(100vh-3rem)]">
+        <div className="flex min-h-0 flex-1 flex-col px-4 pt-5 sm:p-6">
+          <div className="mb-4 flex shrink-0 items-center justify-between">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">
+              Create Sales Order
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
               {/* Header Information */}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -206,7 +199,10 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                     customers={customersWithBalances?.customers || []}
                     value={watch("customerId")}
                     onChange={(val) =>
-                      reset({ ...getValues(), customerId: val })
+                      setValue("customerId", val, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
                     }
                     error={errors.customerId?.message}
                   />
@@ -259,14 +255,6 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                 {/* Sale Lines */}
                 <div className="flex items-center justify-between mb-4 mt-6">
                   <h4 className="text-md font-medium text-gray-900">Items</h4>
-                  <button
-                    type="button"
-                    onClick={() => append({ itemId: "", qty: 1, unitPrice: 0 })}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </button>
                 </div>
 
                 {errors.saleLines && (
@@ -300,6 +288,44 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                               onChange={(val) =>
                                 setValue(`saleLines.${index}.itemId`, val)
                               }
+                              onSelectItem={(item) => {
+                                setItemStocks((prev) =>
+                                  prev[item.id] === Number(item.stockQty)
+                                    ? prev
+                                    : {
+                                        ...prev,
+                                        [item.id]: Number(item.stockQty) || 0,
+                                      },
+                                );
+
+                                const selectedCustomer =
+                                  customersWithBalances?.customers?.find(
+                                    (customer: any) =>
+                                      customer.id === customerId,
+                                  );
+                                const groupNames = [
+                                  selectedCustomer?.customerGroupName,
+                                  selectedCustomer?.customerGroupId,
+                                ]
+                                  .filter(Boolean)
+                                  .map((group: string) =>
+                                    String(group).trim().toLocaleLowerCase(),
+                                  );
+                                const groupPrice = item.priceList?.find(
+                                  (price) =>
+                                    groupNames.includes(
+                                      String(price.customerGroup)
+                                        .trim()
+                                        .toLocaleLowerCase(),
+                                    ),
+                                );
+
+                                setValue(
+                                  `saleLines.${index}.unitPrice`,
+                                  Number(groupPrice?.price ?? 0),
+                                  { shouldValidate: true },
+                                );
+                              }}
                               error={errors.saleLines?.[index]?.itemId?.message}
                             />
 
@@ -416,7 +442,18 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4 border-t">
+              </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t bg-white pt-4">
+              <button
+                type="button"
+                onClick={() => append({ itemId: "", qty: 1, unitPrice: 0 })}
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Item
+              </button>
+              <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={onClose}
@@ -432,8 +469,8 @@ const CreateSaleModal = ({ onClose, onSuccess }: CreateSaleModalProps) => {
                   {isSubmitting ? "Creating..." : "Create Sales Order"}
                 </button>
               </div>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
       </div>
     </div>

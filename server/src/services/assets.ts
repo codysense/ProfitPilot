@@ -587,6 +587,7 @@ export class AssetsService {
               credit: assetData.acquisitionCost,
               refType: "ASSET_CAPITALIZATION",
               refId: asset.id,
+              
             },
             {
               accountCode: category.glAssetAccount.code,
@@ -601,10 +602,12 @@ export class AssetsService {
               credit: assetData.acquisitionCost,
               refType: "ASSET_CAPITALIZATION",
               refId: asset.id,
+              
             },
           ],
           `Asset capitalization from PO ${purchase.orderNo}: ${asset.name}`,
           userId,
+          purchase.orderDate
         );
       }
 

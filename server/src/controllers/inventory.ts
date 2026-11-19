@@ -1922,7 +1922,77 @@ export class InventoryController {
       let items: any[] = [];
       let total = 0;
 
-      if (search) {
+      if (noZeroItem === "true") {
+        const itemFilters = Prisma.sql`
+          WHERE 1=1
+          ${typeFilter ? Prisma.sql`AND i."type" = ${typeFilter}::"ItemType"` : Prisma.empty}
+          ${search ? Prisma.sql`AND (i."sku" ILIKE ${"%" + search + "%"} COLLATE "C" OR i."name" ILIKE ${"%" + search + "%"} COLLATE "C")` : Prisma.empty}
+        `;
+        const stockSourceFilters = Prisma.sql`
+          WHERE 1=1
+          ${typeFilter ? Prisma.sql`AND candidate_item."type" = ${typeFilter}::"ItemType"` : Prisma.empty}
+          ${search ? Prisma.sql`AND (candidate_item."sku" ILIKE ${"%" + search + "%"} COLLATE "C" OR candidate_item."name" ILIKE ${"%" + search + "%"} COLLATE "C")` : Prisma.empty}
+          ${warehouseFilter ? Prisma.sql`AND il."warehouseId" = ${warehouseFilter}` : Prisma.empty}
+        `;
+        const stockCte = Prisma.sql`
+          WITH latest_stock AS (
+            SELECT DISTINCT ON (il."itemId", il."warehouseId")
+              il."itemId", il."warehouseId", il."runningQty"
+            FROM "inventory_ledger" il
+            JOIN "items" candidate_item ON candidate_item.id = il."itemId"
+            ${stockSourceFilters}
+            ORDER BY il."itemId", il."warehouseId", il."postedAt" DESC
+          ), stock AS (
+            SELECT "itemId", SUM("runningQty") AS "stockQty"
+            FROM latest_stock
+            GROUP BY "itemId"
+          )
+        `;
+
+        const countResult = await prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
+          ${stockCte}
+          SELECT COUNT(*)::int AS count
+          FROM "items" i
+          JOIN stock ON stock."itemId" = i.id
+          ${itemFilters}
+          AND stock."stockQty" > 0
+        `);
+        total = countResult[0]?.count ?? 0;
+
+        items = await prisma.$queryRaw<any[]>(Prisma.sql`
+          ${stockCte}
+          SELECT i.*, stock."stockQty" AS "stockQty"
+          FROM "items" i
+          JOIN stock ON stock."itemId" = i.id
+          ${itemFilters}
+          AND stock."stockQty" > 0
+          ORDER BY i."createdAt" DESC
+          LIMIT ${limit} OFFSET ${skip}
+        `);
+
+        const itemIds = items.map((item) => item.id);
+        const priceLists = itemIds.length
+          ? await prisma.itemPriceList.findMany({
+              where: { itemId: { in: itemIds } },
+              select: {
+                id: true,
+                itemId: true,
+                customerGroup: true,
+                price: true,
+              },
+            })
+          : [];
+        items = items.map((item) => ({
+          ...item,
+          priceList: priceLists
+            .filter((priceList) => priceList.itemId === item.id)
+            .map(({ id, customerGroup, price }) => ({
+              id,
+              customerGroup,
+              price,
+            })),
+        }));
+      } else if (search) {
         const enumParam = typeFilter;
 
         const query = Prisma.sql`
@@ -2033,7 +2103,7 @@ export class InventoryController {
       //     }),
       //   );
       // }
-      if (includeStock === "true" || noZeroItem === "true") {
+      if (includeStock === "true" && noZeroItem !== "true") {
         items = await Promise.all(
           items.map(async (item) => {
             let stockQty = 0;
@@ -2066,11 +2136,6 @@ export class InventoryController {
           }),
         );
 
-        // APPLY FILTER
-        if (noZeroItem === "true") {
-          items = items.filter((item) => Number(item.stockQty) > 0);
-          total = items.length;
-        }
       }
 
       res.json({

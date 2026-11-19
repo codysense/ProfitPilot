@@ -532,7 +532,7 @@ const Dashboard = () => {
               .slice(0, 5)
               .map((item: any) => (
                 <div
-                  key={item.itemId}
+                  key={item.itemId + ':' + item.warehouseId}
                   className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0"
                 >
                   <div className="flex items-center">

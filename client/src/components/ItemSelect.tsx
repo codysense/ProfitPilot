@@ -5,16 +5,18 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useDebounce } from "../utils/debounce";
 import { inventoryApi } from "../lib/api";
 
-interface Item {
+export interface SelectableItem {
   id: string;
   sku: string;
   name: string;
   stockQty: number;
+  priceList?: Array<{ customerGroup: string; price: number | string }>;
 }
 
 interface ItemSelectProps {
   value: string;
   onChange: (value: string) => void;
+  onSelectItem?: (item: SelectableItem) => void;
   error?: string;
   typeFilter?: string;
   noZeroItem?: boolean;
@@ -23,15 +25,17 @@ interface ItemSelectProps {
 export function ItemSelect({
   value,
   onChange,
+  onSelectItem,
   error,
   typeFilter,
   noZeroItem,
 }: ItemSelectProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<SelectableItem[]>([]);
 
-  const debouncedSearch = useDebounce(search, 500);
+  const debouncedSearch = useDebounce(search, 250);
+  const isSearchPending = search !== debouncedSearch;
 
   /**
    * Reset pagination + items when search or filter changes
@@ -39,13 +43,16 @@ export function ItemSelect({
   useEffect(() => {
     setPage(1);
     setItems([]);
-  }, [debouncedSearch, typeFilter]);
+  }, [debouncedSearch, typeFilter, noZeroItem]);
 
   /**
    * Fetch paginated items
    */
-  const { data, isLoading } = useQuery({
-    queryKey: ["items", { page, search: debouncedSearch, type: typeFilter }],
+  const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
+    queryKey: [
+      "items",
+      { page, search: debouncedSearch, type: typeFilter, noZeroItem },
+    ],
     queryFn: () =>
       inventoryApi.getItems({
         page,
@@ -61,18 +68,20 @@ export function ItemSelect({
    * Merge paginated results safely
    */
   useEffect(() => {
-    if (!data?.items) return;
+    if (!data?.items || isPlaceholderData) return;
 
     setItems((prev) => {
-      const map = new Map(prev.map((i) => [i.id, i]));
+      const map = new Map(
+        (page === 1 ? [] : prev).map((i) => [i.id, i]),
+      );
 
-      data.items.forEach((item: Item) => {
+      data.items.forEach((item: SelectableItem) => {
         map.set(item.id, item);
       });
 
       return Array.from(map.values());
     });
-  }, [data]);
+  }, [data, isPlaceholderData, page]);
 
   /**
    * Ensure selected item always exists in state
@@ -84,10 +93,13 @@ export function ItemSelect({
     const exists = items.find((i) => i.id === value);
     if (exists) return;
 
+    let active = true;
     inventoryApi
       .getItemById(value)
-      .then((item: Item) => {
+      .then((item: SelectableItem) => {
+        if (!active) return;
         setItems((prev) => {
+          if (prev.some((existing) => existing.id === item.id)) return prev;
           const map = new Map(prev.map((i) => [i.id, i]));
           map.set(item.id, item);
           return Array.from(map.values());
@@ -96,6 +108,9 @@ export function ItemSelect({
       .catch(() => {
         // silently ignore if item no longer exists
       });
+    return () => {
+      active = false;
+    };
   }, [value]);
 
   const total = data?.pagination?.total ?? 0;
@@ -108,7 +123,7 @@ export function ItemSelect({
       e.currentTarget.scrollHeight - e.currentTarget.scrollTop <=
       e.currentTarget.clientHeight + 5;
 
-    if (bottom && items.length < total && !isLoading) {
+    if (bottom && items.length < total && !isFetching && !isSearchPending) {
       setPage((prev) => prev + 1);
     }
   };
@@ -123,7 +138,14 @@ export function ItemSelect({
 
   return (
     <div>
-      <Combobox value={value} onChange={onChange}>
+      <Combobox
+        value={value}
+        onChange={(itemId) => {
+          onChange(itemId);
+          const selected = items.find((item) => item.id === itemId);
+          if (selected) onSelectItem?.(selected);
+        }}
+      >
         <div className="relative mt-1">
           <div className="relative w-full cursor-default overflow-hidden rounded-md border border-gray-300 bg-white text-left shadow-sm focus-within:ring-2 focus-within:ring-blue-500 sm:text-sm">
             <Combobox.Input
@@ -148,7 +170,11 @@ export function ItemSelect({
               className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm"
               onScroll={handleScroll}
             >
-              {items.length === 0 && !isLoading ? (
+              {isSearchPending ? (
+                <div className="cursor-default select-none py-2 px-4 text-gray-500">
+                  Searching...
+                </div>
+              ) : items.length === 0 && !isFetching ? (
                 <div className="cursor-default select-none py-2 px-4 text-gray-700">
                   Nothing found.
                 </div>
@@ -188,8 +214,10 @@ export function ItemSelect({
                 ))
               )}
 
-              {isLoading && (
-                <div className="py-2 px-4 text-gray-500">Loading...</div>
+              {isFetching && !isSearchPending && (
+                <div className="py-2 px-4 text-gray-500">
+                  {isLoading ? "Loading..." : "Searching..."}
+                </div>
               )}
             </Combobox.Options>
           </Transition>

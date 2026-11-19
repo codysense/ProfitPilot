@@ -182,6 +182,7 @@ export const inventoryApi = {
     limit?: number;
     type?: string;
     search?: string;
+    noZeroItem?: boolean;
   }) =>
     api.get(
       `/inventory/items?includeStock=true${
