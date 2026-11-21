@@ -1,21 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Filter,
-  Download,
   Calendar,
   User,
   Package,
-  FileText,
   X,
 } from "lucide-react";
 import { inventoryApi, userApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import { InventoryLedgerEntry } from "../../types/api";
-import toast from "react-hot-toast";
 import { ItemSelect } from "../../components/ItemSelect";
+import ExportMenu from "../../components/ExportMenu";
 
 const InventoryLedger = () => {
   const [page, setPage] = useState(1);
@@ -28,6 +26,8 @@ const InventoryLedger = () => {
   const [dateFromFilter, setDateFromFilter] = useState("");
   const [dateToFilter, setDateToFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => { setPage(1); }, [itemFilter, warehouseFilter, userFilter, itemTypeFilter, refTypeFilter, directionFilter, dateFromFilter, dateToFilter]);
 
   const { data: ledgerData, isLoading } = useQuery({
     queryKey: [
@@ -206,27 +206,6 @@ const InventoryLedger = () => {
     dateFromFilter ||
     dateToFilter;
 
-  const handleExport = async (format: "csv" | "excel" | "pdf") => {
-    try {
-      const filters = {
-        ...(itemFilter && { itemId: itemFilter }),
-        ...(warehouseFilter && { warehouseId: warehouseFilter }),
-        ...(userFilter && { userId: userFilter }),
-        ...(itemTypeFilter && { itemType: itemTypeFilter }),
-        ...(refTypeFilter && { refType: refTypeFilter }),
-        ...(directionFilter && { direction: directionFilter }),
-        ...(dateFromFilter && { dateFrom: dateFromFilter }),
-        ...(dateToFilter && { dateTo: dateToFilter }),
-      };
-
-      await inventoryApi.exportInventoryLedger(format, filters);
-      toast.success(`Inventory ledger exported as ${format.toUpperCase()}`);
-    } catch (error) {
-      console.error("Export error:", error);
-      toast.error(`Failed to export as ${format.toUpperCase()}`);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -254,6 +233,7 @@ const InventoryLedger = () => {
               </span>
             )}
           </button>
+          <ExportMenu module="inventory-ledger" filters={{ itemId: itemFilter, warehouseId: warehouseFilter, userId: userFilter, itemType: itemTypeFilter, refType: refTypeFilter, direction: directionFilter, dateFrom: dateFromFilter, dateTo: dateToFilter }} matchingRows={ledgerData?.pagination?.total} />
         </div>
       </div>
 
@@ -418,40 +398,6 @@ const InventoryLedger = () => {
             </div>
           </div>
 
-          {/* Export Options */}
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <h4 className="text-md font-medium text-gray-900">
-                Export Options
-              </h4>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleExport("csv")}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </button>
-                <button
-                  onClick={() => handleExport("excel")}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export Excel
-                </button>
-                <button
-                  onClick={() => handleExport("pdf")}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export PDF
-                </button>
-              </div>
-            </div>
-            <p className="mt-2 text-sm text-gray-500">
-              Export will include all filtered results (up to 10,000 records)
-            </p>
-          </div>
         </div>
       )}
 

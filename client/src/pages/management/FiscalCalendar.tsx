@@ -7,6 +7,7 @@ import { Calendar, Plus, Play, Square, X, CheckCircle } from 'lucide-react';
 import { managementApi } from '../../lib/api';
 import { FiscalYear, FiscalPeriod } from '../../types/api';
 import { DataTable } from '../../components/DataTable';
+import ExportMenu from '../../components/ExportMenu';
 import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
 
@@ -216,6 +217,7 @@ const FiscalCalendar = () => {
             data={fiscalYearsData?.fiscalYears || []}
             columns={fiscalYearColumns}
             loading={loadingYears}
+            exportMenu={<ExportMenu module="fiscal-years" filters={{}} matchingRows={fiscalYearsData?.fiscalYears?.length} />}
           />
         </div>
       </div>
@@ -256,6 +258,7 @@ const FiscalCalendar = () => {
             columns={periodColumns}
             loading={loadingPeriods}
             actions={periodActions}
+            exportMenu={<ExportMenu module="fiscal-periods" filters={{ fiscalYearId: selectedFiscalYear }} matchingRows={periodsData?.periods?.length} />}
           />
         </div>
       </div>

@@ -1526,7 +1526,11 @@ export class CashController {
       if (startDate || endDate) {
         filters.paymentDate = {};
         if (startDate) filters.paymentDate.gte = new Date(startDate);
-        if (endDate) filters.paymentDate.lte = new Date(endDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setUTCHours(23, 59, 59, 999);
+          filters.paymentDate.lte = end;
+        }
       }
 
       // Search filter
@@ -2451,7 +2455,19 @@ export class CashController {
       if (dateFrom || dateTo) {
         where.paymentDate = {};
         if (dateFrom) where.paymentDate.gte = new Date(dateFrom);
-        if (dateTo) where.paymentDate.lte = new Date(dateTo);
+        if (dateTo) {
+          const end = new Date(dateTo);
+          end.setUTCHours(23, 59, 59, 999);
+          where.paymentDate.lte = end;
+        }
+      }
+      if (req.query.search) {
+        const search = String(req.query.search).slice(0, 100);
+        where.OR = [
+          { paymentNo: { contains: search, mode: "insensitive" } },
+          { reference: { contains: search, mode: "insensitive" } },
+          { notes: { contains: search, mode: "insensitive" } },
+        ];
       }
 
       const payments = await prisma.vendorPayment.findMany({
@@ -2807,7 +2823,14 @@ export class CashController {
 
   async getVendorRefunds(req: AuthRequest, res: Response) {
     try {
-      const refunds = await prisma.purchaseRefund.findMany({
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+      const where: any = {};
+      if (req.query.vendorId) where.vendorId = String(req.query.vendorId);
+      const [refunds, total] = await Promise.all([prisma.purchaseRefund.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
         include: {
           vendor: {
             select: { name: true },
@@ -2825,7 +2848,7 @@ export class CashController {
         orderBy: {
           refundDate: "desc",
         },
-      });
+      }), prisma.purchaseRefund.count({ where })]);
 
       // Optional formatting (for frontend tables)
       const formatted = refunds.map((r) => ({
@@ -2842,7 +2865,7 @@ export class CashController {
         createdAt: r.createdAt,
       }));
 
-      res.json({ data: formatted });
+      res.json({ data: formatted, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
     } catch (error) {
       console.error("Get vendor refunds error:", error);
       res.status(500).json({ error: "Failed to fetch vendor refunds" });

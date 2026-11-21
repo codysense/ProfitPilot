@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Factory, DollarSign, Package, TrendingUp } from "lucide-react";
 import { productionApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
+import ExportMenu from "../../components/ExportMenu";
 import { GenericSearchSelect } from "../../components/GenericSearchCombo";
 
 interface WipSummaryItem {
@@ -258,7 +259,7 @@ const WipSummary = () => {
       </div>
 
       {/* Data Table */}
-      <DataTable data={wipData || []} columns={columns} loading={isLoading} />
+      <DataTable data={wipData || []} columns={columns} loading={isLoading} exportMenu={<ExportMenu module="wip-ledger" filters={{ productionOrderId: productionOrderFilter }} matchingRows={wipData?.length} />} />
     </div>
   );
 };

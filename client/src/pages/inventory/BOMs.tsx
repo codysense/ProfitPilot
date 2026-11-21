@@ -8,6 +8,7 @@ import { Bom } from "../../types/api";
 import CreateBomModal from "./CreateBomModal";
 import EditBomModal from "./EditBomModal";
 import { ItemSelect } from "../../components/ItemSelect";
+import ExportMenu from "../../components/ExportMenu";
 
 const BOMs = () => {
   const [page, setPage] = useState(1);
@@ -265,6 +266,7 @@ const BOMs = () => {
         data={filteredBoms || []}
         columns={columns}
         loading={isLoading}
+        exportMenu={<ExportMenu module="boms" filters={{ search }} matchingRows={filteredBoms?.length} />}
         actions={actions}
       />
 

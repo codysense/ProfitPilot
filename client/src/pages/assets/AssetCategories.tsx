@@ -9,6 +9,7 @@ import CreateAssetCategoryModal from "./CreateAssetCategoryModal";
 import { useAuthStore } from "../../store/authStore";
 import EditAssetCategoryModal from "./EditAssetCategoryModal";
 import toast from "react-hot-toast";
+import ExportMenu from "../../components/ExportMenu";
 
 const AssetCategories = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -240,6 +241,7 @@ const AssetCategories = () => {
         actions={actions}
         columns={columns}
         loading={isLoading}
+        exportMenu={<ExportMenu module="asset-categories" filters={{}} matchingRows={data?.categories?.length} />}
       />
 
       {/* Create Modal */}

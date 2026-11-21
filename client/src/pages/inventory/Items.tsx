@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { useDebounce } from "../../utils/debounce";
 import PriceListCell from "../../components/PriceListCell";
 import { ItemSelect } from "../../components/ItemSelect";
+import ExportMenu from "../../components/ExportMenu";
 
 const Items = () => {
   const [page, setPage] = useState(1);
@@ -181,13 +182,7 @@ const Items = () => {
           <h1 className="text-2xl font-bold text-gray-900">Items</h1>
           <p className="text-gray-600">Manage your inventory items</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Item
-        </button>
+        <div className="flex items-center gap-2"><ExportMenu module="items" filters={{ search: debouncedSearch, type: typeFilter }} matchingRows={data?.pagination?.total} /><button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"><Plus className="h-4 w-4 mr-2" />Create Item</button></div>
       </div>
 
       {/* Filters */}

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { memoApi, salesApi, managementApi } from '../../lib/api';
+import ExportMenu from '../../components/ExportMenu';
 
 const SalesMemosPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -57,7 +58,7 @@ const createMemo = useMutation({
 
   return (
     <div className="p-6">
-      <h1 className="text-xl font-bold mb-4">Sales Memos</h1>
+      <div className="mb-4 flex items-center justify-between"><h1 className="text-xl font-bold">Sales Memos</h1><ExportMenu module="memos" filters={{ moduleType: "SALES", partyType: "CUSTOMER" }} matchingRows={memos?.data?.length} /></div>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4 mb-6">

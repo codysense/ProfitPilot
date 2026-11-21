@@ -6,6 +6,7 @@ import { DataTable } from "../components/DataTable";
 import StatusBadge from "../components/StatusBadge";
 import { useAuthStore } from "../store/authStore";
 import CreateUserModal from "./CreateUserModal";
+import ExportMenu from "../components/ExportMenu";
 
 interface User {
   id: string;
@@ -256,6 +257,7 @@ const UserManagement = () => {
         pagination={data?.pagination}
         onPageChange={setPage}
         actions={actions}
+        exportMenu={<ExportMenu module="users" filters={{}} matchingRows={data?.pagination?.total} />}
       />
 
       {/* Create Modal */}

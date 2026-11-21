@@ -505,6 +505,9 @@ export const salesApi = {
     limit?: number;
     status?: string;
     customerId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
   }) =>
     api.get(
       `/sales/orders${
@@ -755,7 +758,7 @@ export const reportsApi = {
   getGeneralLedger: (params: {
     dateFrom: string;
     dateTo: string;
-    accountId?: string;
+    accountId: string;
     refType?: string;
   }) =>
     api.get(

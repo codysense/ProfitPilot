@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Building, MapPin, Edit } from 'lucide-react';
 import { inventoryApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
+import ExportMenu from '../../components/ExportMenu';
 import StatusBadge from '../../components/StatusBadge';
 import CreateWarehouseModal from './CreateWarehouseModal';
 import EditWarehouseModal from './EditWarehouseModal';
@@ -216,6 +217,7 @@ const Warehouses = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="warehouses" filters={{ search }} matchingRows={data?.pagination?.total} />}
         actions={actions}
       />
 

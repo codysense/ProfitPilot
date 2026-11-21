@@ -6,6 +6,7 @@ import { DataTable } from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import { InventoryValuation as InventoryValuationType } from "../../types/api";
 import { toast } from "react-hot-toast";
+import ExportMenu from "../../components/ExportMenu";
 
 const InventoryValuation = () => {
   const [warehouseFilter, setWarehouseFilter] = useState("");
@@ -267,7 +268,7 @@ const InventoryValuation = () => {
         columns={columns}
         loading={isLoading}
         pagination={valuationData?.pagination}
-        onExport={handleExport}
+        exportMenu={<ExportMenu module="inventory-valuation" filters={{ warehouseId: warehouseFilter, type: typeFilter }} matchingRows={valuationData?.valuation?.length} />}
       />
     </div>
   );

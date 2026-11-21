@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plus,
@@ -20,6 +20,8 @@ import { useAuthStore } from "../../store/authStore";
 import EditVendorPaymentModal from "./EditVendorPaymentModal";
 import ViewVendorPaymentModal from "./ViewVendorPaymentModal";
 import QRCode from "qrcode";
+import { VendorSelect } from "../../components/VendorSelect";
+import ExportMenu from "../../components/ExportMenu";
 
 interface VendorPayment {
   id: string;
@@ -59,6 +61,9 @@ const VendorPayments = () => {
   const [page, setPage] = useState(1);
   const [vendorId, setVendorId] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -71,14 +76,19 @@ const VendorPayments = () => {
     user?.roles.includes("General Manager") ||
     user?.roles.includes("Accountant");
 
+  useEffect(() => { setPage(1); }, [vendorId, statusFilter, dateFrom, dateTo, search]);
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["vendor-payments", { page, vendorId, statusFilter }],
+    queryKey: ["vendor-payments", { page, vendorId, statusFilter, dateFrom, dateTo, search }],
     queryFn: () =>
       cashApi.getVendorPayments({
         page,
         limit: 10,
         ...(vendorId && { vendorId }),
         ...(statusFilter && { status: statusFilter }),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo }),
+        ...(search && { search }),
       }),
   });
 
@@ -91,7 +101,7 @@ const VendorPayments = () => {
     queryKey: ["vendors-for-payments"],
     queryFn: () => purchaseApi.getVendors({ limit: 100 }),
   });
-  console.log("Vendor payments ", data);
+  // console.log("Vendor payments ", data);
 
   const handlePrintPayment = async (vendorPayment: VendorPayment) => {
     try {
@@ -505,6 +515,7 @@ const VendorPayments = () => {
     </div>
   );
 
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -513,20 +524,20 @@ const VendorPayments = () => {
           <p className="text-gray-600">Manage and track supplier payments</p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md"
-        >
-          <Plus className="h-4 w-4 inline-block mr-1" />
-          Record Payment
-        </button>
+        <div className="flex items-center gap-2"><ExportMenu module="vendor-payments" filters={{ partyId: vendorId, status: statusFilter, dateFrom, dateTo, search }} matchingRows={data?.pagination?.total} /><button onClick={() => setShowCreateModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-md"><Plus className="h-4 w-4 inline-block mr-1" />Record Payment</button></div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-5 gap-4">
+        <div><label className="text-sm font-medium">Search</label><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Payment no., reference, notes" className="w-full px-3 py-2 border rounded" /></div>
         <div>
           <label className="text-sm font-medium">Vendor</label>
-          <select
+          <VendorSelect
+          value={vendorId}
+          onChange={(v) => setVendorId(v)}
+          vendors={vendors?.vendors || []}
+          />
+          {/* <select
             value={vendorId}
             onChange={(e) => setVendorId(e.target.value)}
             className="w-full px-3 py-2 border rounded"
@@ -537,8 +548,10 @@ const VendorPayments = () => {
                 {v.code} - {v.name}
               </option>
             ))}
-          </select>
+          </select> */}
         </div>
+        <div><label className="text-sm font-medium">From</label><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full px-3 py-2 border rounded" /></div>
+        <div><label className="text-sm font-medium">To</label><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full px-3 py-2 border rounded" /></div>
 
         <div>
           <label className="text-sm font-medium">Status</label>
@@ -548,7 +561,7 @@ const VendorPayments = () => {
             className="w-full px-3 py-2 border rounded"
           >
             <option value="">All</option>
-            <option value="Preapred">Prepared</option>
+            <option value="PREPARED">Prepared</option>
             <option value="APPROVED">Approved</option>
             <option value="AUTHORIZED">Authorized</option>
             <option value="PAID">Paid</option>

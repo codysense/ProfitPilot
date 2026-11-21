@@ -5,6 +5,7 @@ import { DataTable } from "../../components/DataTable";
 import { Eye, Plus } from "lucide-react";
 import CreateJournalModal from "./createJournalModal";
 import DetailJournalModal from "./DetailJournalModal";
+import ExportMenu from "../../components/ExportMenu";
 
 export const Journals = () => {
   const [page, setPage] = useState(1);
@@ -133,6 +134,7 @@ export const Journals = () => {
         pagination={pagination}
         onPageChange={setPage}
         // actions={actions}
+        exportMenu={<ExportMenu module="journals" filters={{ dateFrom: dateFilter, dateTo: dateFilter }} matchingRows={pagination?.total} />}
       />
 
       {/* Create Modal */}

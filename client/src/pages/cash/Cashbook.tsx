@@ -32,6 +32,7 @@ import { useAuthStore } from "../../store/authStore";
 import EditCashTransactionModal from "./EditCashTransactionModal";
 import ViewCashTransactionModal from "./ViewCashTransactionModal";
 import QRCode from "qrcode";
+import ExportMenu from "../../components/ExportMenu";
 
 // interface CashTransaction {
 //   id: string;
@@ -74,6 +75,8 @@ const Cashbook = () => {
   const [selectedCashTransaction, setselectedCashTransaction] =
     useState<CashTransaction | null>(null);
   const { user } = useAuthStore();
+
+  useEffect(() => { setPage(1); }, [cashAccountFilter, dateFromFilter, dateToFilter]);
 
   const canPerformActions =
     user?.roles.includes("Senior Accountant") ||
@@ -355,22 +358,6 @@ const Cashbook = () => {
   };
 
   const hasActiveFilters = cashAccountFilter || dateFromFilter || dateToFilter;
-
-  const handleExport = async () => {
-    try {
-      const filters = {
-        ...(cashAccountFilter && { cashAccountId: cashAccountFilter }),
-        ...(dateFromFilter && { dateFrom: dateFromFilter }),
-        ...(dateToFilter && { dateTo: dateToFilter }),
-      };
-
-      await cashApi.exportCashbook(filters);
-      toast.success("Cashbook exported successfully");
-    } catch (error) {
-      console.error("Export error:", error);
-      toast.error("Failed to export cashbook");
-    }
-  };
 
   const handleCreateTransaction = () => {
     refetch();
@@ -748,6 +735,7 @@ const Cashbook = () => {
               </span>
             )}
           </button>
+          <ExportMenu module="cashbook" filters={{ cashAccountId: cashAccountFilter, dateFrom: dateFromFilter, dateTo: dateToFilter }} matchingRows={cashTransactions?.pagination?.total} />
           {/* <button
             onClick={handleExport}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -840,23 +828,6 @@ const Cashbook = () => {
             </div>
           </div>
 
-          {/* Export Options */}
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <h4 className="text-md font-medium text-gray-900">
-                Export Options
-              </h4>
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleExport}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 

@@ -32,8 +32,11 @@ import { VendorSelect } from "../components/VendorSelect";
 import { ChartAccountSelect } from "../components/ChartAccountSelect";
 import { GenericSearchSelect } from "../components/GenericSearchCombo";
 import { RefTypeSelect } from "../components/RefTypeSelect";
+import { useAuthStore } from "../store/authStore";
 
 const Reports = () => {
+  const roles = useAuthStore((state) => state.user?.roles ?? []);
+  const canExportReports = ["General Manager", "Senior Accountant", "Auditor"].some((role) => roles.includes(role));
   const [selectedReport, setSelectedReport] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -452,6 +455,10 @@ const Reports = () => {
             alert("Please select date range");
             return;
           }
+          if (!accountFilter) {
+            alert("Please select one account");
+            return;
+          }
           data = await reportsApi.getGeneralLedger({
             dateFrom,
             dateTo,
@@ -714,7 +721,6 @@ const Reports = () => {
             { key: "credit", header: "Credit" },
             { key: "runningBalance", header: "Running Balance" },
           ];
-          console.log("Export Data", reportData);
           ReportExporter.exportGenericReport(
             reportData.lines || [],
             glColumns,
@@ -1055,8 +1061,8 @@ const Reports = () => {
           break;
         }
         case "all-sales-by-warehouse": {
+          const detailRows = (reportData || []).filter((row: any) => row.RowType === "DETAIL");
           const allSalesWarehouseColumns = [
-            { key: "RowType", header: "Row Type" },
             { key: "TransactionDate", header: "Transaction Date" },
             { key: "SalesType", header: "Sales Type" },
             { key: "DocumentNo", header: "Document No" },
@@ -1065,12 +1071,12 @@ const Reports = () => {
             { key: "NoOfItems", header: "No of Item" },
             {
               key: "Amount",
-              header: " Amount",
+              header: "GL Net Revenue",
               cell: (item: any) => `₦${Number(item.Amount).toLocaleString()}`,
             },
           ];
           ReportExporter.exportGenericReport(
-            reportData,
+            detailRows,
             allSalesWarehouseColumns,
             "All Sales by Warehouse",
             format,
@@ -1441,7 +1447,7 @@ const Reports = () => {
               {selectedReportConfig?.supportAccount && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Chart Of Accounts
+                    Chart Of Accounts {selectedReport === "general-ledger" && <span className="text-red-600">*</span>}
                   </label>
                   <ChartAccountSelect
                     accounts={accounts?.accounts || []}
@@ -1547,7 +1553,7 @@ const Reports = () => {
           </div>
 
           {/* Export Options */}
-          <div className="bg-white shadow rounded-lg">
+          {canExportReports && <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
                 Export Options
@@ -1581,7 +1587,7 @@ const Reports = () => {
                 Export as CSV
               </button>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -2158,8 +2164,9 @@ const POSSalesReport = ({ data }: { data: any }) => {
 };
 
 const AllSalesByWarehouseReport = ({ data }: { data: any }) => {
+  const grandTotal = (data || []).find((row: any) => row.RowType === "GRANDTOTAL");
+  const detailRows = (data || []).filter((row: any) => row.RowType === "DETAIL");
   const columns = [
-    { key: "RowType", header: "Row Type" },
     { key: "TransactionDate", header: "Transaction Date" },
     { key: "SalesType", header: "Sales Type" },
     { key: "DocumentNo", header: "Document No" },
@@ -2168,7 +2175,7 @@ const AllSalesByWarehouseReport = ({ data }: { data: any }) => {
     { key: "NoOfItems", header: "No of Item" },
     {
       key: "Amount",
-      header: " Amount",
+      header: "GL Net Revenue",
       cell: (item: any) => `₦${Number(item.Amount).toLocaleString()}`,
     },
   ];
@@ -2177,10 +2184,36 @@ const AllSalesByWarehouseReport = ({ data }: { data: any }) => {
     <div className="space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold">All Sales by Warehouse</h2>
-        <p className="text-gray-600">Detail of all sales by warehouse</p>
+        <p className="text-gray-600">Posted sales and returns by journal date, reconciled to GL accounts 4000 and 4900</p>
       </div>
 
-      <DataTable data={data || []} columns={columns} />
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <div className="text-sm font-medium text-blue-800">Sales Revenue</div>
+            <div className="mt-1 text-xl font-semibold text-blue-950">
+              ₦{Number(grandTotal?.SalesRevenue ?? 0).toLocaleString()}
+            </div>
+            <div className="mt-1 text-xs text-blue-700">Credits to GL account 4000</div>
+          </div>
+          <div>
+            <div className="text-sm font-medium text-blue-800">Sales Returns</div>
+            <div className="mt-1 text-xl font-semibold text-blue-950">
+              ₦{Number(grandTotal?.SalesReturns ?? 0).toLocaleString()}
+            </div>
+            <div className="mt-1 text-xs text-blue-700">Debits to GL account 4900</div>
+          </div>
+          <div>
+            <div className="text-sm font-medium text-blue-800">GL Net Revenue</div>
+            <div className="mt-1 text-xl font-semibold text-blue-950">
+              ₦{Number(grandTotal?.Amount ?? 0).toLocaleString()}
+            </div>
+            <div className="mt-1 text-xs text-blue-700">Sales revenue less sales returns</div>
+          </div>
+        </div>
+      </div>
+
+      <DataTable data={detailRows} columns={columns} />
     </div>
   );
 };
@@ -2213,18 +2246,7 @@ const CustomerBalances = ({ data }: { data: any }) => {
   );
 };
 
-const GeneralLedgerReport = ({ data }: { data: any[] }) => {
-  // 1. Compute running balance
-  const dataWithBalance = data.lines.reduce((acc: any[], curr, idx) => {
-    const prevBalance =
-      idx > 0 ? acc[idx - 1].runningBalance : data.openingBalance;
-    const runningBalance = prevBalance + (curr.debit || 0) - (curr.credit || 0);
-
-    acc.push({ ...curr, runningBalance });
-    return acc;
-  }, []);
-
-  // 2. Define columns including the new one
+const GeneralLedgerReport = ({ data }: { data: any }) => {
   const columns = [
     {
       key: "date",
@@ -2263,26 +2285,28 @@ const GeneralLedgerReport = ({ data }: { data: any[] }) => {
     <div className="space-y-4">
       <div className="text-center">
         <h2 className="text-xl font-bold">General Ledger</h2>
-        <p className="text-gray-600">Detailed journal entries</p>
+        <p className="text-gray-600">
+          {data.accountInfo?.code} - {data.accountInfo?.name} ({data.accountInfo?.accountType})
+        </p>
       </div>
       <div className="flex justify-end">
         <span className="mx-2 font-bold">Opening Balance: </span>
         <span>₦{Number(data.openingBalance).toLocaleString()}</span>
       </div>
       <div className="flex justify-end">
-        <span className="mx-2 font-bold">Total Receipt: </span>
-        <span>₦{Number(data.totalReceipt).toLocaleString()}</span>
+        <span className="mx-2 font-bold">Total Debits: </span>
+        <span>₦{Number(data.totalDebit).toLocaleString()}</span>
       </div>
       <div className="flex justify-end">
-        <span className="mx-2 font-bold">Total Payment: </span>
-        <span>₦{Number(data.totalPayment).toLocaleString()}</span>
+        <span className="mx-2 font-bold">Total Credits: </span>
+        <span>₦{Number(data.totalCredit).toLocaleString()}</span>
       </div>
       <div className="flex justify-end">
         <span className="mx-2 font-bold">Closing Balance: </span>
         <span>₦{Number(data.closingBalance).toLocaleString()}</span>
       </div>
 
-      <DataTable data={dataWithBalance} columns={columns} />
+      <DataTable data={data.lines || []} columns={columns} />
     </div>
   );
 };

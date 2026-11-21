@@ -5,6 +5,7 @@ import { cashApi, salesApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import CreateSalesReceiptModal from './CreateSalesReceiptModal';
+import ExportMenu from '../../components/ExportMenu';
 
 interface SalesReceipt {
   id: string;
@@ -148,13 +149,7 @@ const SalesReceipts = () => {
           <h1 className="text-2xl font-bold text-gray-900">Sales Receipts</h1>
           <p className="text-gray-600">Manage customer payments and receipts</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Record Receipt
-        </button>
+        <div className="flex items-center gap-2"><ExportMenu module="sales-receipts" filters={{ partyId: customerFilter, cashAccountId: cashAccountFilter }} matchingRows={data?.pagination?.total} /><button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"><Plus className="h-4 w-4 mr-2" />Record Receipt</button></div>
       </div>
 
       {/* Filters */}

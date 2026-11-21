@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plus,
@@ -25,6 +25,7 @@ import { Vector } from "html2canvas/dist/types/render/vector";
 import { VendorSelect } from "../../components/VendorSelect";
 import { RotateCcw } from "lucide-react";
 import CreatePurchaseReturnModal from "./CreatePurchaseReturnModal";
+import ExportMenu from "../../components/ExportMenu";
 
 const PurchaseOrders = () => {
   const [page, setPage] = useState(1);
@@ -34,6 +35,9 @@ const PurchaseOrders = () => {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [vendorFilter, setVendorFilter] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(
     null,
@@ -46,10 +50,12 @@ const PurchaseOrders = () => {
     user?.roles.includes("General Manager") ||
     user?.roles.includes("Inventory Manager");
 
+  useEffect(() => { setPage(1); }, [statusFilter, vendorFilter, dateFrom, dateTo, search]);
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: [
       "purchases",
-      { page, status: statusFilter, vendorId: vendorFilter },
+      { page, status: statusFilter, vendorId: vendorFilter, dateFrom, dateTo, search },
     ],
     queryFn: () =>
       purchaseApi.getPurchases({
@@ -57,6 +63,9 @@ const PurchaseOrders = () => {
         limit: 10,
         ...(statusFilter && { status: statusFilter }),
         ...(vendorFilter && { vendorId: vendorFilter }),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo }),
+        ...(search && { search }),
       }),
   });
   // console.log("Purchases data:", data);
@@ -594,18 +603,13 @@ const PurchaseOrders = () => {
           <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
           <p className="text-gray-600">Manage purchase orders and receipts</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Purchase Order
-        </button>
+        <div className="flex items-center gap-2"><ExportMenu module="purchases" filters={{ status: statusFilter, partyId: vendorFilter, dateFrom, dateTo, search }} matchingRows={data?.pagination?.total} /><button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"><Plus className="h-4 w-4 mr-2" />Create Purchase Order</button></div>
       </div>
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Search order/vendor</label><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Order number or vendor" className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Status
@@ -624,6 +628,8 @@ const PurchaseOrders = () => {
               <option value="PAID">Paid</option>
             </select>
           </div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Vendor

@@ -14,6 +14,7 @@ import { managementApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import { useAuthStore } from "../../store/authStore";
+import ExportMenu from "../../components/ExportMenu";
 import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 
@@ -120,6 +121,7 @@ const AuditLog = () => {
 
   // Only GM can access audit logs
   const canViewAuditLogs = user?.roles.includes("General Manager");
+  const canExportAuditLogs = ["General Manager", "Senior Accountant", "Auditor"].some((role) => user?.roles.includes(role));
 
   const { data: auditData, isLoading } = useQuery({
     queryKey: [
@@ -436,13 +438,13 @@ const AuditLog = () => {
               </span>
             )}
           </button>
-          <button
+          {canExportAuditLogs && <button
             onClick={handleExportPDF}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <Download className="h-4 w-4 mr-2" />
             Export PDF
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -549,7 +551,7 @@ const AuditLog = () => {
           </div>
 
           {/* Export Options */}
-          <div className="mt-6 pt-4 border-t border-gray-200">
+          {canExportAuditLogs && <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <h4 className="text-md font-medium text-gray-900">
                 Export Options
@@ -568,7 +570,7 @@ const AuditLog = () => {
               Export will include all filtered results for compliance and audit
               purposes
             </p>
-          </div>
+          </div>}
         </div>
       )}
 
@@ -719,6 +721,7 @@ const AuditLog = () => {
         pagination={auditData?.pagination}
         onPageChange={setPage}
         actions={actions}
+        exportMenu={<ExportMenu module="audit-logs" filters={{ userId: userFilter, action: actionFilter, entity: entityFilter, dateFrom: dateFromFilter, dateTo: dateToFilter }} matchingRows={auditData?.pagination?.total} />}
       />
 
       {/* Audit Entry Details Modal */}

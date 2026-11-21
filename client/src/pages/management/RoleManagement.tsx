@@ -7,6 +7,7 @@ import { Shield, Plus, Edit, Trash2, X, Save, Users } from 'lucide-react';
 import { managementApi } from '../../lib/api';
 import { RoleWithPermissions, Permission } from '../../types/api';
 import { DataTable } from '../../components/DataTable';
+import ExportMenu from '../../components/ExportMenu';
 import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
 import EditUserRolesModal from './EditUserRolesModal';
@@ -236,6 +237,7 @@ const RoleManagement = () => {
             columns={columns}
             loading={loadingRoles}
             actions={actions}
+            exportMenu={<ExportMenu module="roles" filters={{}} matchingRows={rolesData?.roles?.length} />}
           />
         </div>
       </div>

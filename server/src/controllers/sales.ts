@@ -84,12 +84,30 @@ async function getSaleIssueUnitCost(
 export class SalesController {
   async getSales(req: AuthRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, status, customerId } = req.query;
+      const { page = 1, limit = 10, status, customerId, dateFrom, dateTo, search } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
       if (status) where.status = status;
       if (customerId) where.customerId = customerId;
+      if (!["Senior Accountant", "General Manager", "Manager", "Auditor", "Accountant"].some((role) => req.user?.roles.includes(role))) {
+        where.preparedBy = req.user!.id;
+      }
+      if (dateFrom || dateTo) {
+        where.orderDate = {};
+        if (dateFrom) where.orderDate.gte = new Date(String(dateFrom));
+        if (dateTo) {
+          const end = new Date(String(dateTo));
+          end.setUTCHours(23, 59, 59, 999);
+          where.orderDate.lte = end;
+        }
+      }
+      if (search) {
+        where.OR = [
+          { orderNo: { contains: String(search), mode: "insensitive" } },
+          { customer: { name: { contains: String(search), mode: "insensitive" } } },
+        ];
+      }
 
       const [sales, total] = await Promise.all([
         prisma.sale.findMany({

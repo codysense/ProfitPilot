@@ -9,6 +9,7 @@ import { ChartOfAccount } from '../../types/api';
 import { DataTable } from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
+import ExportMenu from '../../components/ExportMenu';
 
 const createAccountSchema = z.object({
   code: z.string().optional(),
@@ -308,6 +309,7 @@ const ChartOfAccounts = () => {
             columns={columns}
             loading={isLoading}
             actions={actions}
+            exportMenu={<ExportMenu module="chart-of-accounts" filters={{ accountType: selectedType }} matchingRows={filteredAccounts.length} />}
           />
         </div>
       </div>

@@ -16,6 +16,16 @@ const METABASE_SECRET = process.env.METABASE_SECRET;
 const prisma = new PrismaClient();
 const reportsService = new ReportsService();
 
+function parseReportDate(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
+  const match = /^(\d{4}-\d{2}-\d{2})(?:$|T)/.exec(value);
+  if (!match) return null;
+  const date = new Date(`${match[1]}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === match[1]
+    ? date
+    : null;
+}
+
 export class ReportsController {
   //Metabase Dashboard Embed
   getDashboardEmbed(req: Request, res: Response) {
@@ -97,10 +107,23 @@ export class ReportsController {
         return res.status(400).json({ error: "Date range is required" });
       }
 
+      if (typeof accountId !== "string" || !accountId.trim() || accountId === "ALL") {
+        return res.status(400).json({ error: "Select one account to generate the general ledger" });
+      }
+      if (refType !== undefined && typeof refType !== "string") {
+        return res.status(400).json({ error: "Invalid reference type" });
+      }
+
+      const parsedDateFrom = new Date(dateFrom as string);
+      const parsedDateTo = new Date(dateTo as string);
+      if (Number.isNaN(parsedDateFrom.getTime()) || Number.isNaN(parsedDateTo.getTime()) || parsedDateFrom > parsedDateTo) {
+        return res.status(400).json({ error: "A valid date range is required" });
+      }
+
       const report = await reportsService.getGeneralLedger(
-        new Date(dateFrom as string),
-        new Date(dateTo as string),
-        accountId as string,
+        parsedDateFrom,
+        parsedDateTo,
+        accountId.trim(),
         refType as string,
       );
       res.json(report);
@@ -336,13 +359,15 @@ export class ReportsController {
     try {
       const { dateFrom, dateTo, warehouseId } = req.query;
 
-      if (!dateFrom || !dateTo) {
-        return res.status(400).json({ error: "Date range is required" });
+      const parsedDateFrom = parseReportDate(dateFrom);
+      const parsedDateTo = parseReportDate(dateTo);
+      if (!parsedDateFrom || !parsedDateTo || parsedDateFrom > parsedDateTo) {
+        return res.status(400).json({ error: "A valid date range is required" });
       }
 
       const report = await reportsService.getAllSalesByWarehouse({
-        dateFrom: new Date(dateFrom as string),
-        dateTo: new Date(dateTo as string),
+        dateFrom: parsedDateFrom,
+        dateTo: parsedDateTo,
         warehouseId: warehouseId ? String(warehouseId) : null,
       });
       res.json(report);

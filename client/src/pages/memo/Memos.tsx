@@ -7,6 +7,7 @@ import StatusBadge from "../../components/StatusBadge";
 import MemoDetailsModal from "./MemoDetailsModal";
 import { useQuery } from "@tanstack/react-query";
 import { memoApi } from "../../lib/api";
+import ExportMenu from "../../components/ExportMenu";
 
 export const Memos = () => {
   const [page, setPage] = useState(1);
@@ -222,6 +223,7 @@ export const Memos = () => {
         pagination={pagination}
         onPageChange={setPage}
         actions={actions}
+        exportMenu={<ExportMenu module="memos" filters={{ type: typeFilter, partyType: partyTypeFilter, dateFrom: dateFilter, dateTo: dateFilter }} matchingRows={pagination?.total} />}
       />
 
       {/* Modal */}

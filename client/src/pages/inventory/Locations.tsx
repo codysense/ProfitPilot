@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, MapPin, Building, Edit } from 'lucide-react';
 import { inventoryApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
+import ExportMenu from '../../components/ExportMenu';
 import StatusBadge from '../../components/StatusBadge';
 import { Location } from '../../types/api';
 import CreateLocationModal from './CreateLocationModal';
@@ -237,6 +238,7 @@ const Locations = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="locations" filters={{ search }} matchingRows={data?.pagination?.total} />}
         actions={actions}
       />
 

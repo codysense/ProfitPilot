@@ -7,6 +7,7 @@ import { CheckCircle, Plus, X, Trash2, Eye, ThumbsUp, ThumbsDown } from 'lucide-
 import { managementApi } from '../../lib/api';
 import { ApprovalWorkflow, ApprovalRequest } from '../../types/api';
 import { DataTable } from '../../components/DataTable';
+import ExportMenu from '../../components/ExportMenu';
 import StatusBadge from '../../components/StatusBadge';
 import toast from 'react-hot-toast';
 
@@ -256,6 +257,7 @@ const ApprovalFlows = () => {
             data={workflowsData?.workflows || []}
             columns={workflowColumns}
             loading={loadingWorkflows}
+            exportMenu={<ExportMenu module="approval-workflows" filters={{}} matchingRows={workflowsData?.workflows?.length} />}
           />
         </div>
       </div>
@@ -273,6 +275,7 @@ const ApprovalFlows = () => {
             columns={requestColumns}
             loading={loadingRequests}
             actions={requestActions}
+            exportMenu={<ExportMenu module="approval-requests" filters={{}} matchingRows={requestsData?.requests?.length} />}
           />
         </div>
       </div>

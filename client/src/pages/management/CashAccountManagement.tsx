@@ -20,6 +20,7 @@ import { CashAccount } from "../../types/api";
 import { DataTable } from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import toast from "react-hot-toast";
+import ExportMenu from "../../components/ExportMenu";
 
 const createCashAccountSchema = z.object({
   code: z.string().min(1, "Code is required"),
@@ -476,6 +477,7 @@ const CashAccountManagement = () => {
             columns={columns}
             loading={isLoading}
             actions={actions}
+            exportMenu={<ExportMenu module="cash-accounts" filters={{ accountType: accountTypeFilter }} matchingRows={filteredAccounts.length} />}
           />
         </div>
       </div>

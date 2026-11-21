@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Users,Edit } from 'lucide-react';
 import { salesApi } from '../../lib/api';
 import { DataTable } from '../../components/DataTable';
+import ExportMenu from '../../components/ExportMenu';
 import StatusBadge from '../../components/StatusBadge';
 import { Customer } from '../../types/api';
 import CreateCustomerModal from './CreateCustomerModal';
@@ -228,6 +229,7 @@ const Customers = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="customers" filters={{ search }} matchingRows={data?.pagination?.total} />}
         actions={actions}
       />
 

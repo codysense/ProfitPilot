@@ -18,6 +18,7 @@ import { ReportExporter } from "../../utils/reportExport";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
 import { ItemSelect } from "../../components/ItemSelect";
+import ExportMenu from "../../components/ExportMenu";
 
 const ProductionOrders = () => {
   const [page, setPage] = useState(1);
@@ -713,6 +714,7 @@ const ProductionOrders = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="production-orders" filters={{ status: statusFilter, itemId: selectedItem }} matchingRows={data?.pagination?.total} />}
         actions={actions}
       />
 

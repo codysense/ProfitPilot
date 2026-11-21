@@ -5,6 +5,7 @@ import { assetsApi } from "../../lib/api";
 import { Asset, AssetDepreciation } from "../../types/api";
 import { DataTable } from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
+import ExportMenu from "../../components/ExportMenu";
 
 interface DepreciationScheduleModalProps {
   asset: Asset;
@@ -168,6 +169,7 @@ const DepreciationScheduleModal = ({
                 data={scheduleData?.schedule || []}
                 columns={columns}
                 loading={isLoading}
+                exportMenu={<ExportMenu module="asset-depreciation" filters={{ assetId: asset.id }} matchingRows={scheduleData?.schedule?.length} />}
               />
             </div>
 

@@ -20,6 +20,7 @@ import DisposeAssetModal from "./DisposeAssetModal";
 import DepreciationScheduleModal from "./DepreciationScheduleModal";
 import { useAuthStore } from "../../store/authStore";
 import toast from "react-hot-toast";
+import ExportMenu from "../../components/ExportMenu";
 
 const AssetRegister = () => {
   const [page, setPage] = useState(1);
@@ -496,6 +497,7 @@ const AssetRegister = () => {
         loading={isLoading}
         pagination={registerData?.register?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="assets" filters={{ search, categoryId: categoryFilter, status: statusFilter, locationId: locationFilter }} matchingRows={registerData?.register?.pagination?.total} />}
         actions={actions}
       />
 

@@ -55,6 +55,7 @@ export class PurchaseController {
         paymentStatus,
         dateFrom,
         dateTo,
+        search,
       } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
@@ -69,7 +70,17 @@ export class PurchaseController {
       if (dateFrom || dateTo) {
         where.orderDate = {};
         if (dateFrom) where.orderDate.gte = new Date(String(dateFrom));
-        if (dateTo) where.orderDate.lte = new Date(String(dateTo));
+        if (dateTo) {
+          const end = new Date(String(dateTo));
+          end.setUTCHours(23, 59, 59, 999);
+          where.orderDate.lte = end;
+        }
+      }
+      if (search) {
+        where.OR = [
+          { orderNo: { contains: String(search), mode: "insensitive" } },
+          { vendor: { name: { contains: String(search), mode: "insensitive" } } },
+        ];
       }
 
       const [purchases, total] = await Promise.all([

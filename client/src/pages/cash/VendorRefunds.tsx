@@ -8,6 +8,7 @@ import { DataTable } from '../../components/DataTable';
 import { toast } from 'react-hot-toast';
 import { VendorSelect } from '../../components/VendorSelect';
 import CreateVendorRefundModal from './CreateVendorRefundModal';
+import ExportMenu from '../../components/ExportMenu';
 
 interface VendorRefund {
   id: string;
@@ -184,13 +185,7 @@ const VendorRefunds = () => {
           <h1 className="text-2xl font-bold text-gray-900">Vendor Refund</h1>
           <p className="text-gray-600">Record vendor refund</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Record Refund
-        </button>
+        <div className="flex items-center gap-2"><ExportMenu module="vendor-refunds" filters={{ partyId: vendorFilter }} matchingRows={data?.pagination?.total} /><button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"><Plus className="h-4 w-4 mr-2" />Record Refund</button></div>
       </div>
 
       {/* Filters */}

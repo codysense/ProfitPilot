@@ -9,6 +9,7 @@ import ConfirmSalesReturnModal from "./ConfirmSalesReturnModal";
 import SalesReturnDetailsModal from "./SalesReturnDetailsModal";
 import { useAuthStore } from "../../store/authStore";
 import toast from "react-hot-toast";
+import ExportMenu from "../../components/ExportMenu";
 
 const SalesReturns = () => {
   const [page, setPage] = useState(1);
@@ -148,6 +149,7 @@ const SalesReturns = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="sales-returns" filters={{ status: statusFilter }} matchingRows={data?.pagination?.total} />}
         actions={actions}
       />
 

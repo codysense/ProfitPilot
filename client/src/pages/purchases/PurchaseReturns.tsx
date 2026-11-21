@@ -10,6 +10,7 @@ import PurchaseReturnDetailsModal from "./PurchaseReturnDetailsModal";
 import { VendorSelect } from "../../components/VendorSelect";
 import { useAuthStore } from "../../store/authStore";
 import toast from "react-hot-toast";
+import ExportMenu from "../../components/ExportMenu";
 
 const PurchaseReturns = () => {
   const [page, setPage] = useState(1);
@@ -185,6 +186,7 @@ const PurchaseReturns = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="purchase-returns" filters={{ status: statusFilter, partyId: vendorFilter }} matchingRows={data?.pagination?.total} />}
         actions={actions}
       />
 

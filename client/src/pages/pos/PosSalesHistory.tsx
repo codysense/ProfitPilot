@@ -16,6 +16,7 @@ import { PosSale } from "../../types/api";
 import toast from "react-hot-toast";
 import DetailPOSSaleModal from "./DetailPOSSaleModal";
 import { useAuthStore } from "../../store/authStore";
+import ExportMenu from "../../components/ExportMenu";
 
 const PosSalesHistory = () => {
   const [page, setPage] = useState(1);
@@ -48,6 +49,7 @@ const PosSalesHistory = () => {
         status: "COMPLETED,PARTIALLY_RETURNED,RETURNED",
         ...(dateFromFilter && { dateFrom: dateFromFilter }),
         ...(dateToFilter && { dateTo: dateToFilter }),
+        ...(customerFilter && { customerId: customerFilter }),
         ...(selectedCashier && { userId: selectedCashier }),
         ...(paymentMethod && { paymentMethod: paymentMethod }),
       }),
@@ -539,6 +541,7 @@ const PosSalesHistory = () => {
         pagination={data?.pagination}
         onPageChange={setPage}
         actions={actions}
+        exportMenu={<ExportMenu module="pos-sales" filters={{ dateFrom: dateFromFilter, dateTo: dateToFilter, partyId: customerFilter, userId: selectedCashier, status: "COMPLETED,PARTIALLY_RETURNED,RETURNED", paymentMethod }} matchingRows={data?.pagination?.total} />}
       />
 
       {/* Details Modal */}

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Edit, Shield, Users, Eye, EyeOff } from "lucide-react";
 import { managementApi, userApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
+import ExportMenu from "../../components/ExportMenu";
 import StatusBadge from "../../components/StatusBadge";
 import { useAuthStore } from "../../store/authStore";
 import CreateUserModal from "../CreateUserModal";
@@ -314,6 +315,7 @@ const EnhancedUserManagement = () => {
         loading={isLoading}
         pagination={data?.pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="users" filters={{ search }} matchingRows={data?.pagination?.total} />}
         actions={actions}
       />
 

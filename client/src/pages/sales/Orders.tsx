@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plus,
@@ -24,11 +24,15 @@ import toast from "react-hot-toast";
 import QRCode from "qrcode";
 import { CustomerSelect } from "../../components/CustomerSelect";
 import CreateSalesReturnModal from "./CreateSalesReturnModal";
+import ExportMenu from "../../components/ExportMenu";
 
 const SalesOrders = () => {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [customerFilter, setCustomerFilter] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeliverModal, setShowDeliverModal] = useState(false);
@@ -45,10 +49,12 @@ const SalesOrders = () => {
     user?.roles.includes("Auditor") ||
     user?.roles.includes("Accountant");
 
+  useEffect(() => { setPage(1); }, [statusFilter, customerFilter, dateFrom, dateTo, search]);
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: [
       "sales",
-      { page, status: statusFilter, customerId: customerFilter },
+      { page, status: statusFilter, customerId: customerFilter, dateFrom, dateTo, search },
     ],
     queryFn: () =>
       salesApi.getSales({
@@ -56,17 +62,13 @@ const SalesOrders = () => {
         limit: 10,
         ...(statusFilter && { status: statusFilter }),
         ...(customerFilter && { customerId: customerFilter }),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo }),
+        ...(search && { search }),
       }),
   });
 
   // console.log("Fetched sales data:", data);
-
-  //if user is not accountant or gm, filter sales to only those created by the user
-  if (data && !canPerformActions) {
-    data.sales = data.sales.filter(
-      (sale: Sale) => sale.preparer?.name === user?.name,
-    );
-  }
 
   const handleReturnSuccess = () => {
     refetch();
@@ -554,18 +556,16 @@ const SalesOrders = () => {
           <h1 className="text-2xl font-bold text-gray-900">Sales Orders</h1>
           <p className="text-gray-600">Manage sales orders and deliveries</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Sales Order
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportMenu module="sales" filters={{ status: statusFilter, partyId: customerFilter, dateFrom, dateTo, search }} matchingRows={data?.pagination?.total} />
+          <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"><Plus className="h-4 w-4 mr-2" />Create Sales Order</button>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Search order/customer</label><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Order number or customer" className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Status
@@ -583,6 +583,8 @@ const SalesOrders = () => {
               <option value="PAID">Paid</option>
             </select>
           </div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Customer

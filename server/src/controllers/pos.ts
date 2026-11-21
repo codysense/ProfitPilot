@@ -894,7 +894,11 @@ export class PosController {
       if (dateFrom || dateTo) {
         where.createdAt = {};
         if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
-        if (dateTo) where.createdAt.lte = new Date(dateTo as string);
+        if (dateTo) {
+          const end = new Date(dateTo as string);
+          end.setUTCHours(23, 59, 59, 999);
+          where.createdAt.lte = end;
+        }
       }
 
       /* =========================

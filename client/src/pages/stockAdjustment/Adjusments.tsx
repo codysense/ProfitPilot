@@ -4,6 +4,7 @@ import { adjustmentApi } from "../../lib/api";
 import { DataTable } from "../../components/DataTable";
 import { Eye, Plus } from "lucide-react";
 import CreateAdjustmentModal from "./createAdjustmentModal";
+import ExportMenu from "../../components/ExportMenu";
 
 export const Adjustments = () => {
   const [page, setPage] = useState(1);
@@ -152,6 +153,7 @@ export const Adjustments = () => {
         loading={isLoading}
         pagination={pagination}
         onPageChange={setPage}
+        exportMenu={<ExportMenu module="stock-adjustments" filters={{ dateFrom: dateFilter, dateTo: dateFilter, type: typeFilter }} matchingRows={pagination?.total} />}
         // actions={actions}
       />
 

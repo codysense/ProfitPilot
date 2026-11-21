@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Plus,
@@ -22,6 +22,7 @@ import { useAuthStore } from "../../store/authStore";
 import EditCustomerPaymentModal from "./EditCustomerPaymentModal";
 import ViewCustomerPaymentModal from "./ViewCustomerPaymenModal";
 import QRCode from "qrcode";
+import ExportMenu from "../../components/ExportMenu";
 
 interface CustomerPayment {
   id: string;
@@ -54,6 +55,10 @@ interface CustomerPayment {
 const CustomerPayments = () => {
   const [page, setPage] = useState(1);
   const [customerId, setCustomerID] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -66,14 +71,20 @@ const CustomerPayments = () => {
     user?.roles.includes("General Manager")||
     user?.roles.includes("Accountant");
 
+  useEffect(() => { setPage(1); }, [customerId, statusFilter, dateFrom, dateTo, search]);
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["customer-payments", { page, customerId: customerId }],
+    queryKey: ["customer-payments", { page, customerId, statusFilter, dateFrom, dateTo, search }],
     queryFn: () =>
       cashApi.getCustomerPayments({
         page,
         limit: 10,
         //transactionType: 'RECEIPT',
         ...(customerId && { customerId: customerId }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(dateFrom && { startDate: dateFrom }),
+        ...(dateTo && { endDate: dateTo }),
+        ...(search && { search }),
       }),
   });
   // console.log("customer payment", data);
@@ -570,18 +581,13 @@ const CustomerPayments = () => {
           </h1>
           <p className="text-gray-600">Record customer payments and receipts</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Record Payment
-        </button>
+        <div className="flex items-center gap-2"><ExportMenu module="customer-payments" filters={{ partyId: customerId, status: statusFilter, dateFrom, dateTo, search }} matchingRows={data?.pagination?.total} /><button onClick={() => setShowCreateModal(true)} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"><Plus className="h-4 w-4 mr-2" />Record Payment</button></div>
       </div>
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Search</label><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Payment no., reference, notes" className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Customer
@@ -593,6 +599,9 @@ const CustomerPayments = () => {
               error=""
             />
           </div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md"><option value="">All statuses</option><option value="PREPARED">Prepared</option><option value="APPROVED">Approved</option><option value="AUTHORIZED">Authorized</option><option value="PAID">Paid</option></select></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
         </div>
       </div>
 
